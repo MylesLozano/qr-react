@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./Login";
+import Register from "./Register";
 import Home from "./Home";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -10,10 +11,8 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login onLogin={() => setIsAuthenticated(true)} />} />
-      <Route 
-        path="/home" 
-        element={<ProtectedRoute isAuthenticated={isAuthenticated}><Home /></ProtectedRoute>} 
-      />
+      <Route path="/register" element={<Register />} />
+      <Route path="/home" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Home /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
