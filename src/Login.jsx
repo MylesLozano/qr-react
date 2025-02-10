@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "./firebase"; // Import Firebase auth
+import { auth } from "./firebase"; // This should now work
 import { signInWithEmailAndPassword } from "firebase/auth";
 
 function Login({ onLogin }) {
