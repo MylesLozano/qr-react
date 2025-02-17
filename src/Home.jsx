@@ -1,8 +1,12 @@
 import React from "react";
 import { auth, logAudit } from "./firebase";
 import { useNavigate } from "react-router-dom";
+import usePageTitle from "./usePageTitle";
 
 function Home() {
+
+  usePageTitle("QCheckCITE - Dashboard");
+
   const navigate = useNavigate();
 
   const handleLogout = async () => {

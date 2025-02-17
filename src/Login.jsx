@@ -2,8 +2,12 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, logAudit } from "./firebase";
+import usePageTitle from "./usePageTitle";
 
 function Login() {
+
+  usePageTitle("QCheckCITE - Login");
+
   const navigate = useNavigate();
 
   useEffect(() => {
