@@ -1,20 +1,32 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "./firebase";
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
+import { auth, logAudit } from "./firebase";
 
 function Login() {
   const navigate = useNavigate();
-  
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email.endsWith("@jmc.edu.ph")) {
+        navigate("/home");
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
+
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
     try {
       const result = await signInWithPopup(auth, provider);
       if (result.user.email.endsWith("@jmc.edu.ph")) {
+        await logAudit(result.user.email, "Signed in");
         navigate("/home");
       } else {
         alert("Only @jmc.edu.ph accounts are allowed.");
-        auth.signOut();
+        await signOut(auth);
       }
     } catch (error) {
       console.error("Error signing in with Google:", error);

@@ -5,10 +5,12 @@ import { useNavigate } from "react-router-dom";
 function Home() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logAudit(auth.currentUser.email, "Logout");
-    auth.signOut();
-    navigate("/login");
+  const handleLogout = async () => {
+    if (auth.currentUser) {
+      await logAudit(auth.currentUser.email, "Signed out");
+      await auth.signOut();
+      navigate("/login");
+    }
   };
 
   return (
