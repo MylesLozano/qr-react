@@ -1,33 +1,31 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "./firebase"; // This should now work
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "./firebase";
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+function Login() {
   const navigate = useNavigate();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      onLogin();
-      navigate("/home");
+      const result = await signInWithPopup(auth, provider);
+      if (result.user.email.endsWith("@jmc.edu.ph")) {
+        navigate("/home");
+      } else {
+        alert("Only @jmc.edu.ph accounts are allowed.");
+        auth.signOut();
+      }
     } catch (error) {
-      alert("Invalid credentials: " + error.message);
+      console.error("Error signing in with Google:", error);
     }
   };
 
   return (
     <div className="container">
-      <h1>Welcome to QCheck Cite!</h1>
-      <h3>Login</h3>
-      <form onSubmit={handleLogin}>
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <button type="submit">Sign in</button>
-      </form>
+      <h2>Welcome to QCheckCITE!</h2>
+      <h3>Please Sign in to get started</h3>
+      <button onClick={handleGoogleSignIn}>Sign in with your JMC Account</button>
     </div>
   );
 }

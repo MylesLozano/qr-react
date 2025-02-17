@@ -1,7 +1,12 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -17,13 +22,20 @@ const firebaseConfig = {
   measurementId: "G-WPTD0L0FZ8",
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// Initialize Firebase Authentication
-export const auth = getAuth(app);
+const logAudit = async (email, action) => {
+  try {
+    await addDoc(collection(db, "audit_logs"), {
+      email,
+      action,
+      timestamp: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error logging audit event:", error);
+  }
+};
 
-// Initialize Firestore Database
-export const db = getFirestore(app);
-
-export default app;
+export { auth, db, logAudit };
