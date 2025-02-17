@@ -4,6 +4,8 @@ import Login from "./Login";
 import Home from "./Home";
 import ProtectedRoute from "./ProtectedRoute";
 import { auth } from "./firebase";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -19,14 +21,21 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route 
-        path="/home" 
-        element={<ProtectedRoute isAuthenticated={isAuthenticated}><Home /></ProtectedRoute>} 
-      />
-      <Route path="*" element={<Navigate to="/login" />} />
-    </Routes>
+    <>
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/login" />} />
+      </Routes>
+    </>
   );
 }
 

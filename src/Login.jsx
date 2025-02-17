@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, logAudit } from "./firebase";
 import usePageTitle from "./usePageTitle";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function Login() {
 
@@ -27,6 +29,7 @@ function Login() {
       const result = await signInWithPopup(auth, provider);
       if (result.user.email.endsWith("@jmc.edu.ph")) {
         await logAudit(result.user.email, "Signed in");
+        toast.success("Login successful! Welcome to QCheckCITE 🎉");
         navigate("/home");
       } else {
         alert("Only @jmc.edu.ph accounts are allowed.");
@@ -34,6 +37,7 @@ function Login() {
       }
     } catch (error) {
       console.error("Error signing in with Google:", error);
+      toast.error("Login failed. Please try again.");
     }
   };
 
