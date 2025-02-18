@@ -7,11 +7,17 @@ function AdminDashboard() {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logAudit(auth.currentUser.email, "Signed out");
+    if (auth.currentUser) {
+      console.log("Logging out user:", auth.currentUser.email); // Debugging
+      await logAudit(auth.currentUser.email, "Signed out");
+    } else {
+      console.error("No authenticated user found for logging out.");
+    }
     await auth.signOut();
     toast.info("You have been logged out.");
     navigate("/login");
   };
+  
 
   return (
     <div className="container">
