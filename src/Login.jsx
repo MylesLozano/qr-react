@@ -1,21 +1,21 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth, logAudit } from "./firebase";
+import { auth, db, getUserRole, logAudit } from "./firebase";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import usePageTitle from "./usePageTitle";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 function Login() {
-
   usePageTitle("QCheckCITE - Login");
-
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && user.email.endsWith("@jmc.edu.ph")) {
-        navigate("/home");
+        const role = await getUserRole(user.uid);
+        navigate(role === "admin" ? "/admin-dashboard" : "/user-dashboard");
       }
     });
     return () => unsubscribe();
@@ -27,14 +27,27 @@ function Login() {
 
     try {
       const result = await signInWithPopup(auth, provider);
-      if (result.user.email.endsWith("@jmc.edu.ph")) {
-        await logAudit(result.user.email, "Signed in");
-        toast.success("Login successful! Welcome to QCheckCITE 🎉");
-        navigate("/home");
-      } else {
-        alert("Only @jmc.edu.ph accounts are allowed.");
+      const user = result.user;
+
+      if (!user.email.endsWith("@jmc.edu.ph")) {
+        toast.error("Only @jmc.edu.ph accounts are allowed.");
         await signOut(auth);
+        return;
       }
+
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      let role = "user";
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, { email: user.email, role: "user" });
+      } else {
+        role = userSnap.data().role;
+      }
+
+      await logAudit(user.email, "Signed in");
+      toast.success(`Login successful! Welcome, ${role}! 🎉`);
+      navigate(role === "admin" ? "/admin-dashboard" : "/user-dashboard");
     } catch (error) {
       console.error("Error signing in with Google:", error);
       toast.error("Login failed. Please try again.");
