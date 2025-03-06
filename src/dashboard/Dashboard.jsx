@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { auth, logAudit } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -14,36 +15,25 @@ function Dashboard({ role }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-4xl">
-        <h1 className="text-2xl font-bold mb-4">
-          {role === "admin" ? "Admin Dashboard" : "User Dashboard"}
-        </h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {role === "admin" ? (
-            <>
-              <div className="p-4 bg-blue-500 text-white rounded-md shadow-md text-center">
-                Manage Users
-              </div>
-              <div className="p-4 bg-green-500 text-white rounded-md shadow-md text-center">
-                Generate Reports
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="p-4 bg-blue-500 text-white rounded-md shadow-md text-center">
-                View Inventory
-              </div>
-              <div className="p-4 bg-green-500 text-white rounded-md shadow-md text-center">
-                Request Items
-              </div>
-            </>
-          )}
-        </div>
-        <button
-          onClick={handleLogout}
-          className="mt-6 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md"
-        >
+    <div className="min-h-screen flex bg-gray-100">
+      {/* Sidebar */}
+      <div className="w-64 bg-blue-900 text-white p-5 fixed h-full">
+        <h2 className="text-2xl font-bold mb-6">{role === "admin" ? "Admin Dashboard" : "User Dashboard"}</h2>
+        <nav>
+          <ul className="space-y-4">
+            <li><Link to="/inventory" className="block hover:bg-blue-700 p-2 rounded">Inventory</Link></li>
+            {role === "admin" ? (
+              <>
+                <li><Link to="/requests" className="block hover:bg-blue-700 p-2 rounded">Requests</Link></li>
+                <li><Link to="/reports" className="block hover:bg-blue-700 p-2 rounded">Reports</Link></li>
+                <li><Link to="/users" className="block hover:bg-blue-700 p-2 rounded">User Management</Link></li>
+              </>
+            ) : (
+              <li><Link to="/my-requests" className="block hover:bg-blue-700 p-2 rounded">My Requests</Link></li>
+            )}
+          </ul>
+        </nav>
+        <button onClick={handleLogout} className="mt-10 w-full bg-red-500 hover:bg-red-600 py-2 px-4 rounded">
           Logout
         </button>
       </div>
