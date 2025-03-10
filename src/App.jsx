@@ -6,7 +6,7 @@ import { auth, getUserRole } from "./firebase";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// Lazy load heavy components
+// Lazy load dashboards
 const AdminDashboard = lazy(() => import("./dashboard/AdminDashboard"));
 const UserDashboard = lazy(() => import("./dashboard/UserDashboard"));
 
@@ -19,14 +19,13 @@ function App() {
       if (currentUser && currentUser.email.endsWith("@jmc.edu.ph")) {
         setUser(currentUser);
         const userRole = await getUserRole(currentUser.uid);
-        console.log("Retrieved role:", userRole); // 🛠 Debugging line
         setRole(userRole);
       } else {
         setUser(null);
         setRole(null);
       }
     });
-  
+
     return () => unsubscribe();
   }, []);
 
@@ -36,22 +35,8 @@ function App() {
       <Suspense fallback={<div>Loading...</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/admin-dashboard"
-            element={
-              <ProtectedRoute isAuthenticated={user && role === "admin"}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/user-dashboard"
-            element={
-              <ProtectedRoute isAuthenticated={user && role === "user"}>
-                <UserDashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={user && role === "admin"}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/user-dashboard" element={<ProtectedRoute isAuthenticated={user && role === "user"}><UserDashboard /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </Suspense>

@@ -44,10 +44,7 @@ function AdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 p-6">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        </div>
+        <h1 className="text-3xl font-bold mb-4">Admin Dashboard</h1>
 
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -63,16 +60,6 @@ function AdminDashboard() {
             <h2 className="text-xl font-semibold">Registered Users</h2>
             <p className="text-3xl font-bold text-green-600 mt-2">45</p>
           </div>
-        </div>
-
-        {/* Activity Log */}
-        <div className="mt-8 bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
-          <ul className="space-y-2">
-            <li className="border-b py-2">User A requested an item.</li>
-            <li className="border-b py-2">Admin approved a request.</li>
-            <li className="border-b py-2">New inventory added.</li>
-          </ul>
         </div>
       </main>
     </div>
