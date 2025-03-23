@@ -7,6 +7,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Lazy load dashboards
+const SuperAdminDashboard = lazy(() => import("./dashboard/SuperAdminDashboard"));
 const AdminDashboard = lazy(() => import("./dashboard/AdminDashboard"));
 const UserDashboard = lazy(() => import("./dashboard/UserDashboard"));
 
@@ -54,6 +55,14 @@ function App() {
           <Route path="/login" element={<Login />} />
 
           {/* Protected Routes */}
+          <Route
+            path="/superadmin-dashboard"
+            element={
+              <ProtectedRoute isAuthenticated={user && role === "superadmin"}>
+                <SuperAdminDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin-dashboard"
             element={

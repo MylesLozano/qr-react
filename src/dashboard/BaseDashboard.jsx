@@ -18,7 +18,7 @@ function BaseDashboard({ role, children }) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-100">
-      {/* Sidebar */}
+      {/* Sidebar - Make it responsive */}
       <div className="w-full md:w-64 bg-blue-900 text-white p-5 md:h-screen">
         <h2 className="text-2xl font-bold mb-6">
           {role === "admin" ? "Admin Dashboard" : "User Dashboard"}
