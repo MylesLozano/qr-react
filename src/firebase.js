@@ -35,11 +35,11 @@ const checkAndAssignUserRole = async (user) => {
   const userSnap = await getDoc(userRef);
 
   if (!userSnap.exists()) {
-    // If user doesn't exist in Firestore, set default role to "user"
+    // Assign default role and store creation timestamp
     await setDoc(userRef, {
       email: user.email,
       role: "user",
-      createdAt: serverTimestamp(),
+      createdAt: new Date(), // Firestore timestamp
     });
 
     console.log(`Assigned default role 'user' to ${user.email}`);
