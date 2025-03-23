@@ -1,6 +1,6 @@
 import React from "react";
 import BaseDashboard from "./BaseDashboard";
-import usePageTitle from "./usePageTitle";
+import usePageTitle from "../hooks/usePageTitle";
 
 function AdminDashboard() {
   usePageTitle("QCheckCITE - Admin");

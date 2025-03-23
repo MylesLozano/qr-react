@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db, getUserRole, logAudit } from "./firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import usePageTitle from "./usePageTitle";
+import usePageTitle from "./hooks/usePageTitle";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
