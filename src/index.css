@@ -1,5 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
+/* Global Styles */
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -8,11 +11,12 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
 }
 
 .container {
-  width: 400px;
+  width: 100%;
+  max-width: 400px;
   padding: 20px;
   background: white;
   border-radius: 10px;
@@ -40,4 +44,39 @@ button {
 
 button:hover {
   background: #0056b3;
+}
+
+/* Toastify Overrides */
+.Toastify__toast-container {
+  width: auto;
+  max-width: 400px;
+}
+
+.Toastify__toast {
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.Toastify__toast-body {
+  margin: 0;
+  padding: 0;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.Toastify__toast--success {
+  background-color: #28a745;
+}
+
+.Toastify__toast--error {
+  background-color: #dc3545;
+}
+
+.Toastify__toast--info {
+  background-color: #17a2b8;
+}
+
+.Toastify__toast--warning {
+  background-color: #ffc107;
 }

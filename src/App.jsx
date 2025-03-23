@@ -14,6 +14,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
 
+  // Handle authentication state changes
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser && currentUser.email.endsWith("@jmc.edu.ph")) {
@@ -31,12 +32,46 @@ function App() {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} />
-      <Suspense fallback={<div>Loading...</div>}>
+      {/* Toastify Container with Custom Styles */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+        style={{ fontSize: "14px" }}
+      />
+
+      {/* Lazy Loading Fallback */}
+      <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
         <Routes>
+          {/* Public Route */}
           <Route path="/login" element={<Login />} />
-          <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={user && role === "admin"}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/user-dashboard" element={<ProtectedRoute isAuthenticated={user && role === "user"}><UserDashboard /></ProtectedRoute>} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute isAuthenticated={user && role === "admin"}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-dashboard"
+            element={
+              <ProtectedRoute isAuthenticated={user && role === "user"}>
+                <UserDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all Route */}
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </Suspense>
