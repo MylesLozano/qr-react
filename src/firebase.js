@@ -22,12 +22,12 @@ const firebaseConfig = {
   measurementId: "G-WPTD0L0FZ8",
 };
 
-// Initialize Firebase
+//Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Function to check and assign user role
+//Function to check and assign user role
 const checkAndAssignUserRole = async (user) => {
   if (!user || !user.email.endsWith("@jmc.edu.ph")) return;
 
@@ -37,27 +37,32 @@ const checkAndAssignUserRole = async (user) => {
   if (!userSnap.exists()) {
     // Assign default role and store creation timestamp
     await setDoc(userRef, {
+      createdAt: serverTimestamp(),
       email: user.email,
       role: "user",
-      createdAt: new Date(), // Firestore timestamp
     });
 
     console.log(`Assigned default role 'user' to ${user.email}`);
+
+    // 🔍 Log the role assignment in audit_logs
+    await logAudit(user.email, "Assigned role: user (new user)");
   } else {
-    console.log(
-      `User ${user.email} already exists with role: ${userSnap.data().role}`
-    );
+    const existingRole = userSnap.data().role;
+    console.log(`User ${user.email} already exists with role: ${existingRole}`);
+
+    // 🔍 Log the role verification in audit_logs
+    await logAudit(user.email, `Role verified: ${existingRole}`);
   }
 };
 
-// Function to get user role
+//Function to get user role
 const getUserRole = async (uid) => {
   const userRef = doc(db, "users", uid);
   const userSnap = await getDoc(userRef);
   return userSnap.exists() ? userSnap.data().role : "user";
 };
 
-// Function to log audit events
+//Function to log audit events
 const logAudit = async (email, action) => {
   try {
     await addDoc(collection(db, "audit_logs"), {
@@ -65,14 +70,17 @@ const logAudit = async (email, action) => {
       action,
       timestamp: serverTimestamp(),
     });
+    console.log(`Audit log added: ${email} - ${action}`);
   } catch (error) {
     console.error("Error logging audit event:", error);
   }
 };
 
-// Listen for auth state changes and assign role if needed
+//Listen for auth state changes and assign role if needed
 onAuthStateChanged(auth, async (user) => {
-  await checkAndAssignUserRole(user);
+  if (user) {
+    await checkAndAssignUserRole(user);
+  }
 });
 
 export { auth, db, logAudit, getUserRole };

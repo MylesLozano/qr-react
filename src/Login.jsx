@@ -40,7 +40,10 @@ function Login() {
       let role = "user";
 
       if (!userSnap.exists()) {
-        await setDoc(userRef, { email: user.email, role: "user" });
+        await setDoc(userRef, { 
+          email: user.email, 
+          role: "user", 
+          createdAt: serverTimestamp()});
       } else {
         role = userSnap.data().role;
       }
