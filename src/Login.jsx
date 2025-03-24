@@ -14,10 +14,23 @@ function Login() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && user.email.endsWith("@jmc.edu.ph")) {
-        const role = await getUserRole(user.uid);
-        navigate(role === "admin" ? "/admin-dashboard" : "/user-dashboard");
+        try {
+          const role = await getUserRole(user.uid);
+          console.log(`✅ User role fetched: ${role}`);
+
+          if (role === "superadmin") {
+            navigate("/superadmin-dashboard");
+          } else if (role === "admin") {
+            navigate("/admin-dashboard");
+          } else {
+            navigate("/user-dashboard");
+          }
+        } catch (error) {
+          console.error("🚨 Error fetching user role:", error);
+        }
       }
     });
+
     return () => unsubscribe();
   }, [navigate]);
 
@@ -40,20 +53,34 @@ function Login() {
       let role = "user";
 
       if (!userSnap.exists()) {
-        await setDoc(userRef, { 
-          email: user.email, 
-          role: "user", 
-          createdAt: serverTimestamp()});
+        await setDoc(userRef, {
+          email: user.email,
+          role: "user",
+          createdAt: serverTimestamp(),
+        });
+
+        console.log(`✅ Assigned default role 'user' to ${user.email}`);
+        await logAudit(user.email, "Assigned role: user (new user)");
       } else {
         role = userSnap.data().role;
+        console.log(`ℹ️ Existing user logged in with role: ${role}`);
       }
 
       await logAudit(user.email, "Signed in");
       toast.success(`Login successful! Welcome, ${role}! 🎉`);
-      navigate(role === "admin" ? "/admin-dashboard" : "/user-dashboard");
+
+      // Redirect after Firestore operations complete
+      if (role === "superadmin") {
+        navigate("/superadmin-dashboard");
+      } else if (role === "admin") {
+        navigate("/admin-dashboard");
+      } else {
+        navigate("/user-dashboard");
+      }
     } catch (error) {
-      console.error("Error signing in with Google:", error);
+      console.error("🚨 Error signing in with Google:", error);
       toast.error("Login failed. Please try again.");
+      await signOut(auth);
     }
   };
 
