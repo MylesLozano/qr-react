@@ -22,64 +22,78 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-//Initialize Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-//Function to check and assign user role
+// Function to check and assign user role
 const checkAndAssignUserRole = async (user) => {
   if (!user || !user.email.endsWith("@jmc.edu.ph")) return;
 
   const userRef = doc(db, "users", user.uid);
   const userSnap = await getDoc(userRef);
 
-  if (!userSnap.exists()) {
-    // Assign default role and store creation timestamp
-    await setDoc(userRef, {
-      createdAt: serverTimestamp(),
-      email: user.email,
-      role: "user",
-    });
+  try {
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        createdAt: serverTimestamp(),
+        email: user.email,
+        role: "user",
+      });
 
-    console.log(`Assigned default role 'user' to ${user.email}`);
-
-    // 🔍 Log the role assignment in audit_logs
-    await logAudit(user.email, "Assigned role: user (new user)");
-  } else {
-    const existingRole = userSnap.data().role;
-    console.log(`User ${user.email} already exists with role: ${existingRole}`);
-
-    // 🔍 Log the role verification in audit_logs
-    await logAudit(user.email, `Role verified: ${existingRole}`);
+      console.log(`Assigned default role 'user' to ${user.email}`);
+      await logAudit(user.email, "Assigned role: user (new user)");
+    } else {
+      const existingRole = userSnap.data().role;
+      console.log(
+        `ℹ️ User ${user.email} already exists with role: ${existingRole}`
+      );
+      await logAudit(user.email, `Role verified: ${existingRole}`);
+    }
+  } catch (error) {
+    console.error("Error assigning user role:", error);
   }
 };
 
-//Function to get user role
+// Function to get user role
 const getUserRole = async (uid) => {
   const userRef = doc(db, "users", uid);
   const userSnap = await getDoc(userRef);
-  return userSnap.exists() ? userSnap.data().role : "user";
+
+  if (userSnap.exists()) {
+    console.log(`Role fetched for UID ${uid}: ${userSnap.data().role}`);
+    return userSnap.data().role;
+  } else {
+    console.warn(`No role found for UID ${uid}, defaulting to "user"`);
+    return "user";
+  }
 };
 
-//Function to log audit events
+// Function to log audit events
 const logAudit = async (email, action) => {
   try {
-    await addDoc(collection(db, "audit_logs"), {
+    const auditRef = await addDoc(collection(db, "audit_logs"), {
       email,
       action,
       timestamp: serverTimestamp(),
     });
-    console.log(`Audit log added: ${email} - ${action}`);
+    console.log(
+      `Audit log added: ${email} - ${action} (ID: ${auditRef.id})`
+    );
   } catch (error) {
-    console.error("Error logging audit event:", error);
+    console.error("🚨 Error logging audit event:", error);
   }
 };
 
-//Listen for auth state changes and assign role if needed
+// Listen for auth state changes and assign role if needed
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    await checkAndAssignUserRole(user);
+    try {
+      await checkAndAssignUserRole(user);
+    } catch (error) {
+      console.error("🚨 Error assigning user role:", error);
+    }
   }
 });
 

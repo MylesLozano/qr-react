@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { getDocs, collection, updateDoc, doc } from "firebase/firestore";
-import { db } from "../firebase";
+import { collection, doc, updateDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+import { db, logAudit } from "../firebase";
 import BaseDashboard from "./BaseDashboard";
 import usePageTitle from "../hooks/usePageTitle";
 
@@ -8,26 +8,43 @@ function SuperAdminDashboard() {
   usePageTitle("QCheckCITE - SuperAdmin");
 
   const [users, setUsers] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
 
-  // Fetch all users from Firestore
+  // Fetch users in real-time
   useEffect(() => {
-    const fetchUsers = async () => {
-      const querySnapshot = await getDocs(collection(db, "users"));
-      const userData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const userData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       setUsers(userData);
-    };
-    fetchUsers();
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch audit logs in real-time
+  useEffect(() => {
+    const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const logs = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setAuditLogs(logs);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Function to update user role
-  const updateUserRole = async (userId, newRole) => {
+  const updateUserRole = async (userId, newRole, email) => {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, { role: newRole });
 
-    // Update local state
-    setUsers((prevUsers) =>
-      prevUsers.map((user) => (user.id === userId ? { ...user, role: newRole } : user))
-    );
+    // Log the action
+    await logAudit(email, `Role changed to ${newRole} by SuperAdmin`);
   };
 
   return (
@@ -35,7 +52,7 @@ function SuperAdminDashboard() {
       <h1 className="text-3xl font-bold mb-4">SuperAdmin Dashboard</h1>
 
       {/* User Management Table */}
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Manage Users</h2>
         <table className="w-full border-collapse border border-gray-300">
           <thead>
@@ -55,18 +72,43 @@ function SuperAdminDashboard() {
                     <>
                       <button
                         className="mr-2 bg-blue-500 text-white px-3 py-1 rounded"
-                        onClick={() => updateUserRole(user.id, "admin")}
+                        onClick={() => updateUserRole(user.id, "admin", user.email)}
                       >
                         Promote to Admin
                       </button>
                       <button
                         className="bg-red-500 text-white px-3 py-1 rounded"
-                        onClick={() => updateUserRole(user.id, "user")}
+                        onClick={() => updateUserRole(user.id, "user", user.email)}
                       >
                         Demote to User
                       </button>
                     </>
                   )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Audit Logs Table */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <h2 className="text-xl font-semibold mb-4">Audit Logs</h2>
+        <table className="w-full border-collapse border border-gray-300">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="p-2 border border-gray-300">Email</th>
+              <th className="p-2 border border-gray-300">Action</th>
+              <th className="p-2 border border-gray-300">Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {auditLogs.map((log) => (
+              <tr key={log.id}>
+                <td className="p-2 border border-gray-300">{log.email}</td>
+                <td className="p-2 border border-gray-300">{log.action}</td>
+                <td className="p-2 border border-gray-300">
+                  {new Date(log.timestamp.toDate()).toLocaleString()}
                 </td>
               </tr>
             ))}
