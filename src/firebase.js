@@ -13,13 +13,13 @@ import {
 
 // Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAclFw_OeuKnImiaCBOv6tJdkwcmsKkyNs",
-  authDomain: "qcheckcite.firebaseapp.com",
-  projectId: "qcheckcite",
-  storageBucket: "qcheckcite.firebasestorage.app",
-  messagingSenderId: "387878800027",
-  appId: "1:387878800027:web:0306cee2d4aea0f3b7d43e",
-  measurementId: "G-WPTD0L0FZ8",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 //Initialize Firebase
