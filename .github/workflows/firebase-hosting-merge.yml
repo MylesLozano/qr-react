@@ -12,12 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci && npm run build
-      # ✅ Install Firebase CLI
-      - run: npm install -g firebase-tools
-
-      # ✅ Authenticate Firebase CLI using the service account
-      - run: firebase deploy --token "${{ secrets.FIREBASE_TOKEN }}"
-
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
