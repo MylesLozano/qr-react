@@ -2,8 +2,8 @@ import React, { useState, useRef } from "react";
 import QRCode from "react-qr-code";
 import { saveAs } from "file-saver";
 import html2canvas from "html2canvas";
-import BaseDashboard from "./BaseDashboard";
-import usePageTitle from "../hooks/usePageTitle";
+import BaseDashboard from "../BaseDashboard";
+import usePageTitle from "../../hooks/usePageTitle";
 
 function AdminDashboard() {
   usePageTitle("QCheckCITE - Admin");

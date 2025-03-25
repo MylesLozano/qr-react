@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, lazy, Suspense, useMemo } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./Login";
 import ProtectedRoute from "./ProtectedRoute";
@@ -7,15 +7,22 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Lazy load dashboards
-const SuperAdminDashboard = lazy(() => import("./dashboard/SuperAdminDashboard"));
-const AdminDashboard = lazy(() => import("./dashboard/AdminDashboard"));
-const UserDashboard = lazy(() => import("./dashboard/UserDashboard"));
+const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
+const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
+const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
+const Inventory = lazy(() => import("./dashboard/Inventory"));
+const AuditLogs = lazy(() => import("./dashboard/superadmin/AuditLogs"));
+const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
+const MyRequests = lazy(() => import("./dashboard/user/MyRequests"));
+const Requests = lazy(() => import("./dashboard/admin/Requests"));
+const Reports = lazy(() => import("./dashboard/admin/Reports"));
+const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
 
 function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Handle authentication state changes
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser && currentUser.email.endsWith("@jmc.edu.ph")) {
@@ -26,62 +33,49 @@ function App() {
         setUser(null);
         setRole(null);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
+  const isAuthenticated = useMemo(() => user !== null, [user]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen text-lg font-semibold">Verifying session...</div>;
+  }
+
   return (
     <>
-      {/* Toastify Container with Custom Styles */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        style={{ fontSize: "14px" }}
-      />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
 
-      {/* Lazy Loading Fallback */}
       <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
         <Routes>
-          {/* Public Route */}
-          <Route path="/login" element={<Login />} />
+          {/* Login Route */}
+          <Route path="/login" element={isAuthenticated ? <Navigate to={`/${role}-dashboard`} /> : <Login />} />
 
-          {/* Protected Routes */}
-          <Route
-            path="/superadmin-dashboard"
-            element={
-              <ProtectedRoute isAuthenticated={user && role === "superadmin"}>
-                <SuperAdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin-dashboard"
-            element={
-              <ProtectedRoute isAuthenticated={user && role === "admin"}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/user-dashboard"
-            element={
-              <ProtectedRoute isAuthenticated={user && role === "user"}>
-                <UserDashboard />
-              </ProtectedRoute>
-            }
-          />
+          {/* SuperAdmin Routes (Fixed Route Structure) */}
+          <Route path="/superadmin-dashboard/*" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>}>
+            <Route index element={<ManageUsers />} />  {/* Default Page */}
+            <Route path="manage-users" element={<ManageUsers />} />
+            <Route path="audit-logs" element={<AuditLogs />} />  {/* ✅ FIXED */}
+          </Route>
 
-          {/* Catch-all Route */}
-          <Route path="*" element={<Navigate to="/login" />} />
+          {/* Admin Routes */}
+          <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={role === "admin"}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/requests" element={<ProtectedRoute isAuthenticated={role === "admin"}><Requests /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute isAuthenticated={role === "admin"}><Reports /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
+
+          {/* Shared Routes (SuperAdmin & Admin) */}
+          <Route path="/inventory" element={<ProtectedRoute isAuthenticated={["superadmin", "admin"].includes(role)}><Inventory /></ProtectedRoute>} />
+
+          {/* User Routes */}
+          <Route path="/user-dashboard" element={<ProtectedRoute isAuthenticated={role === "user"}><UserDashboard /></ProtectedRoute>} />
+          <Route path="/my-requests" element={<ProtectedRoute isAuthenticated={role === "user"}><MyRequests /></ProtectedRoute>} />
+
+          {/* Catch-All Redirect */}
+          <Route path="*" element={<Navigate to={isAuthenticated ? `/${role}-dashboard` : "/login"} />} />
         </Routes>
       </Suspense>
     </>

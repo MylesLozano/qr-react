@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
-import BaseDashboard from "./BaseDashboard";
-import usePageTitle from "../hooks/usePageTitle";
+import BaseDashboard from "../BaseDashboard";
+import usePageTitle from "../../hooks/usePageTitle";
 
 function UserDashboard() {
   usePageTitle("QCheckCITE - User");
