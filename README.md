@@ -18,7 +18,7 @@ QCheckCITE is a **QR-Based Inventory Management System** designed specifically f
 - **Frontend:** React (Vite), React Router
 - **Backend:** Firebase Authentication, Firestore Database
 - **Authentication:** Google Sign-In (Firebase Auth)
-- **Hosting:** Firebase Hosting (Optional)
+- **Hosting:** Firebase Hosting
 
 ## 📥 Installation & Setup
 
