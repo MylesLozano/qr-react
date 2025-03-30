@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import logo from './assets/QCheckCITE_Logo.png';
 import { useNavigate } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db, getUserRole, logAudit } from "./firebase";
@@ -86,6 +87,11 @@ function Login() {
 
   return (
     <div className="container">
+      {/* Logo Container */}
+      <div className="logo-container">
+        <img src={logo} alt="QCheckCITE Logo" className="logo" />
+      </div>
+
       <h2>Welcome to QCheckCITE!</h2>
       <h3>Please Sign in to get started</h3>
       <button onClick={handleGoogleSignIn}>Sign in with your JMC Account</button>

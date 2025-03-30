@@ -12,6 +12,19 @@ body {
   min-height: 100vh;
 }
 
+.logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.logo {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+}
+
 .container {
   width: 100%;
   max-width: 400px;
