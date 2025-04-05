@@ -6,6 +6,15 @@ import { auth, getUserRole } from "./firebase";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+const getDashboardPath = (role) => {
+  switch (role) {
+    case "superadmin": return "/superadmin-dashboard";
+    case "admin": return "/admin-dashboard";
+    case "user": return "/user-dashboard";
+    default: return "/login";
+  }
+};
+
 // Lazy load dashboards
 const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
 const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
@@ -52,7 +61,7 @@ function App() {
       <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
         <Routes>
           {/* Login Route */}
-          <Route path="/login" element={isAuthenticated ? <Navigate to={`/${role}-dashboard`} /> : <Login />} />
+          <Route path="/login" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />} />
 
           {/* SuperAdmin Routes (Fixed Route Structure) */}
           <Route path="/superadmin-dashboard/*" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>}>

@@ -13,26 +13,24 @@ body {
 }
 
 .logo-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
 .logo {
-  width: 100%;
-  max-width: 200px;
+  width: 200px;
+  max-width: 80%;
   height: auto;
 }
 
 .container {
-  width: 100%;
-  max-width: 400px;
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
   text-align: center;
+  background-color: #f7f7f7;
 }
 
 input {
@@ -44,17 +42,19 @@ input {
 }
 
 button {
-  width: 100%;
-  padding: 10px;
-  background: #007bff;
+  margin-top: 1.2rem;
+  padding: 0.8rem 1.6rem;
+  background-color: #0056b3;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
+  font-size: 1rem;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
 button:hover {
-  background: #0056b3;
+  background-color: #003f88;
 }
 
 /* Toastify Overrides */
