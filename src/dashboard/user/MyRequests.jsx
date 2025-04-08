@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, where, onSnapshot, deleteDoc, doc, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  deleteDoc,
+  doc,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import usePageTitle from "../../hooks/usePageTitle";
 import BaseDashboard from "../BaseDashboard";
@@ -13,13 +22,15 @@ function MyRequests() {
   const [reason, setReason] = useState("");
   const [usageLocation, setUsageLocation] = useState("");
 
-  // Fetch user requests
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         const q = query(collection(db, "requests"), where("userId", "==", user.uid));
         const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-          const userRequests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          const userRequests = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
           setRequests(userRequests);
         });
 
@@ -30,7 +41,6 @@ function MyRequests() {
     return () => unsubscribe(); // Clean up auth listener
   }, []);
 
-  // Handle request submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -43,10 +53,10 @@ function MyRequests() {
         userEmail: user.email,
         itemName,
         quantity,
-        createdAt: serverTimestamp(),
         reason,
         usageLocation,
-        status: "pending"
+        status: "pending",
+        createdAt: serverTimestamp(), // ✅ Timestamp added here
       });
 
       alert("Request submitted!");
@@ -60,7 +70,6 @@ function MyRequests() {
     }
   };
 
-  // Handle request deletion
   const handleDelete = async (id) => {
     const confirm = window.confirm("Are you sure you want to cancel this request?");
     if (!confirm) return;
@@ -78,41 +87,55 @@ function MyRequests() {
     <BaseDashboard role="user">
       <h1 className="text-3xl font-bold mb-6">My Requests</h1>
 
-      {/* Request Submission Form */}
-      <form onSubmit={handleSubmit} className="space-y-4 mb-6">
-        <input
-          type="text"
-          placeholder="Item Name"
-          value={itemName}
-          onChange={(e) => setItemName(e.target.value)}
-          className="p-2 border border-gray-300 rounded w-full"
-        />
-        <input
-          type="number"
-          placeholder="Quantity"
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-          className="p-2 border border-gray-300 rounded w-full"
-        />
-        <input
-          type="text"
-          placeholder="Reason"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="p-2 border border-gray-300 rounded w-full"
-        />
-        <input
-          type="text"
-          placeholder="Usage Location"
-          value={usageLocation}
-          onChange={(e) => setUsageLocation(e.target.value)}
-          className="p-2 border border-gray-300 rounded w-full"
-        />
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+      {/* 🔽 Submission Form */}
+      <form onSubmit={handleSubmit} className="mb-6 space-y-4 max-w-xl">
+        <div>
+          <label className="block text-sm font-medium mb-1">Item Name</label>
+          <input
+            type="text"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            required
+            className="w-full border px-3 py-2 rounded"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Quantity</label>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(parseInt(e.target.value))}
+            min="1"
+            required
+            className="w-full border px-3 py-2 rounded"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Reason</label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="w-full border px-3 py-2 rounded"
+          ></textarea>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Usage Location</label>
+          <input
+            type="text"
+            value={usageLocation}
+            onChange={(e) => setUsageLocation(e.target.value)}
+            className="w-full border px-3 py-2 rounded"
+          />
+        </div>
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
           Submit Request
         </button>
       </form>
 
+      {/* 🔽 Existing Requests Table */}
       {requests.length === 0 ? (
         <p className="text-gray-500">You have no requests yet.</p>
       ) : (
@@ -122,7 +145,6 @@ function MyRequests() {
               <tr className="bg-gray-100">
                 <th className="p-2 border">Item</th>
                 <th className="p-2 border">Quantity</th>
-                <th className="p-2 border">Date Requested</th>
                 <th className="p-2 border">Reason</th>
                 <th className="p-2 border">Usage Location</th>
                 <th className="p-2 border">Status</th>
@@ -134,7 +156,6 @@ function MyRequests() {
                 <tr key={req.id} className="text-center">
                   <td className="p-2 border">{req.itemName}</td>
                   <td className="p-2 border">{req.quantity}</td>
-                  <td className="p-2 border">{req.createdAt?.toDate().toLocaleString() || "N/A"}</td>
                   <td className="p-2 border">{req.reason || "N/A"}</td>
                   <td className="p-2 border">{req.usageLocation || "N/A"}</td>
                   <td className="p-2 border">
@@ -151,15 +172,16 @@ function MyRequests() {
                     </span>
                   </td>
                   <td className="p-2 border">
-                    {req.status === "pending" && (
+                    {req.status === "pending" ? (
                       <button
                         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                         onClick={() => handleDelete(req.id)}
                       >
                         Cancel
                       </button>
+                    ) : (
+                      <span className="text-gray-400">No actions</span>
                     )}
-                    {req.status !== "pending" && <span className="text-gray-400">No actions</span>}
                   </td>
                 </tr>
               ))}

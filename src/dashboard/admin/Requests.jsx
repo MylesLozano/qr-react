@@ -79,11 +79,11 @@ function Requests() {
               <tr className="bg-gray-100 text-center">
                 <th className="p-2 border">User</th>
                 <th className="p-2 border">Item</th>
-                <th className="p-2 border">Quantity</th>
-                <th className="p-2 border">Date Requested</th>
+                <th className="p-2 border">Quantity</th>              
                 <th className="p-2 border">Reason</th>
                 <th className="p-2 border">Usage Location</th>
                 <th className="p-2 border">Status</th>
+                <th className="p-2 border">Date Requested</th>
                 <th className="p-2 border">Actions</th>
               </tr>
             </thead>
@@ -92,8 +92,7 @@ function Requests() {
                 <tr key={req.id} className="text-center">
                   <td className="p-2 border">{req.userEmail || "N/A"}</td>
                   <td className="p-2 border">{req.itemName}</td>
-                  <td className="p-2 border">{req.quantity}</td>
-                  <td className="p-2 border">{req.createdAt?.toDate().toLocaleString() || "N/A"}</td>
+                  <td className="p-2 border">{req.quantity}</td>                  
                   <td className="p-2 border">{req.reason || "N/A"}</td>
                   <td className="p-2 border">{req.usageLocation || "N/A"}</td>
                   <td className="p-2 border">
@@ -128,6 +127,7 @@ function Requests() {
                     )}
                     {req.status !== "pending" && <span className="text-gray-400">No actions</span>}
                   </td>
+                  <td className="p-2 border">{req.createdAt?.toDate().toLocaleString() || "N/A"}</td>
                 </tr>
               ))}
             </tbody>
