@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import BaseDashboard from "../BaseDashboard";
 import ManageUsers from "./ManageUsers";
 import AuditLogs from "./AuditLogs";
@@ -8,22 +8,27 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 function SuperAdminDashboard() {
   usePageTitle("QCheckCITE - SuperAdmin");
+  
   const location = useLocation();
   const navigate = useNavigate();
-
+  
   // Determine active page based on URL path
   const getActivePage = () => {
-    if (location.pathname.includes("manage-users")) return "manageUsers";
-    if (location.pathname.includes("inventory")) return "inventory";
-    if (location.pathname.includes("audit-logs")) return "auditLogs";
-    return "manageUsers"; // default
+    if (location.pathname.includes("/superadmin-dashboard/manage-users")) return "manageUsers";
+    if (location.pathname === "/inventory") return "inventory";
+    if (location.pathname.includes("/superadmin-dashboard/audit-logs")) return "auditLogs";
+    return "manageUsers"; // default for dashboard home
   };
 
-  const [activePage, setActivePage] = useState(getActivePage());
+  // Set active page on component mount and when location changes
+  const [activePage, setActivePage] = useState(() => getActivePage());
+  
+  useEffect(() => {
+    setActivePage(getActivePage());
+  }, [location.pathname]);
 
   // Handle navigation when buttons are clicked
   const handleButtonClick = (page) => {
-    setActivePage(page);
     switch (page) {
       case "manageUsers":
         navigate("/superadmin-dashboard/manage-users");
@@ -32,18 +37,32 @@ function SuperAdminDashboard() {
         navigate("/inventory");
         break;
       case "auditLogs":
-        navigate("/audit-logs");
+        navigate("/superadmin-dashboard/audit-logs");
         break;
       default:
         navigate("/superadmin-dashboard");
     }
   };
 
+  // Render the appropriate component based on active page
+  const renderActivePage = () => {
+    switch (activePage) {
+      case "manageUsers":
+        return <ManageUsers />;
+      case "inventory":
+        return <Inventory />;
+      case "auditLogs":
+        return <AuditLogs />;
+      default:
+        return <ManageUsers />;
+    }
+  };
+
   return (
     <BaseDashboard role="superadmin">
       <h1 className="text-3xl font-bold mb-4">SuperAdmin Dashboard</h1>
-
-      {/* Secondary Navigation Buttons (optional) */}
+      
+      {/* Secondary Navigation Buttons */}
       <div className="flex gap-4 mb-6">
         <button
           className={`px-4 py-2 rounded ${
@@ -70,11 +89,9 @@ function SuperAdminDashboard() {
           Audit Logs
         </button>
       </div>
-
-      {/* Render the Selected Component */}
-      {activePage === "manageUsers" && <ManageUsers />}
-      {activePage === "inventory" && <Inventory />}
-      {activePage === "auditLogs" && <AuditLogs />}
+      
+      {/* Render the component for the active page */}
+      {renderActivePage()}
     </BaseDashboard>
   );
 }

@@ -44,7 +44,6 @@ function App() {
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -57,34 +56,35 @@ function App() {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
-
       <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
         <Routes>
           {/* Login Route */}
           <Route path="/login" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />} />
-
-          {/* SuperAdmin Routes (Fixed Route Structure) */}
-          <Route path="/superadmin-dashboard/*" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>}>
-            <Route index element={<ManageUsers />} />  {/* Default Page */}
-            <Route path="manage-users" element={<ManageUsers />} />
-            <Route path="audit-logs" element={<AuditLogs />} />  {/* ✅ FIXED */}
-          </Route>
-
+          
+          {/* SuperAdmin Routes */}
+          <Route path="/superadmin-dashboard" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/superadmin-dashboard/manage-users" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/superadmin-dashboard/audit-logs" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
+          
           {/* Admin Routes */}
           <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={role === "admin"}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/requests" element={<ProtectedRoute isAuthenticated={role === "admin"}><Requests /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute isAuthenticated={role === "admin"}><Reports /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
-
-          {/* Shared Routes (SuperAdmin & Admin) */}
-          <Route path="/inventory" element={<ProtectedRoute isAuthenticated={["superadmin", "admin"].includes(role)}><Inventory /></ProtectedRoute>} />
-
+          <Route path="/admin-dashboard/requests" element={<ProtectedRoute isAuthenticated={role === "admin"}><Requests /></ProtectedRoute>} />
+          <Route path="/admin-dashboard/reports" element={<ProtectedRoute isAuthenticated={role === "admin"}><Reports /></ProtectedRoute>} />
+          <Route path="/admin-dashboard/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
+          
+          {/* Shared Routes */}
+          <Route path="/inventory" element={
+            <ProtectedRoute isAuthenticated={["superadmin", "admin", "user"].includes(role)}>
+              <Inventory />
+            </ProtectedRoute>
+          } />
+          
           {/* User Routes */}
           <Route path="/user-dashboard" element={<ProtectedRoute isAuthenticated={role === "user"}><UserDashboard /></ProtectedRoute>} />
-          <Route path="/my-requests" element={<ProtectedRoute isAuthenticated={role === "user"}><MyRequests /></ProtectedRoute>} />
-
+          <Route path="/user-dashboard/my-requests" element={<ProtectedRoute isAuthenticated={role === "user"}><MyRequests /></ProtectedRoute>} />
+          
           {/* Catch-All Redirect */}
-          <Route path="*" element={<Navigate to={isAuthenticated ? `/${role}-dashboard` : "/login"} />} />
+          <Route path="*" element={<Navigate to={isAuthenticated ? getDashboardPath(role) : "/login"} />} />
         </Routes>
       </Suspense>
     </>

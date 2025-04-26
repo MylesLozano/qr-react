@@ -18,7 +18,6 @@ function BaseDashboard({ role, children }) {
         }
       }
     };
-
     fetchUserRole();
   }, [location.pathname]); // Refetch role when navigating
 
@@ -31,7 +30,7 @@ function BaseDashboard({ role, children }) {
     navigate("/login");
   };
 
-  // Sidebar navigation based on role
+  // Updated sidebar links with consistent path structure
   const sidebarLinks = {
     superadmin: [
       { name: "Manage Users", path: "/superadmin-dashboard/manage-users" },
@@ -39,15 +38,25 @@ function BaseDashboard({ role, children }) {
       { name: "Audit Logs", path: "/superadmin-dashboard/audit-logs" },
     ],
     admin: [
+      { name: "Dashboard", path: "/admin-dashboard" },
       { name: "Inventory", path: "/inventory" },
       { name: "Requests", path: "/admin-dashboard/requests" },
       { name: "Reports", path: "/admin-dashboard/reports" },
       { name: "User Management", path: "/admin-dashboard/users" },
     ],
     user: [
+      { name: "Dashboard", path: "/user-dashboard" },
       { name: "Inventory", path: "/inventory" },
       { name: "My Requests", path: "/user-dashboard/my-requests" },
     ],
+  };
+
+  // Check if the current path matches or starts with the link path
+  const isActiveLink = (path) => {
+    if (path === "/inventory" && location.pathname === "/inventory") {
+      return true;
+    }
+    return location.pathname.startsWith(path);
   };
 
   return (
@@ -69,7 +78,7 @@ function BaseDashboard({ role, children }) {
                 <Link
                   to={path}
                   className={`block p-2 rounded ${
-                    location.pathname.startsWith(path) ? "bg-blue-700" : "hover:bg-blue-700"
+                    isActiveLink(path) ? "bg-blue-700" : "hover:bg-blue-700"
                   }`}
                 >
                   {name}
@@ -78,7 +87,6 @@ function BaseDashboard({ role, children }) {
             ))}
           </ul>
         </nav>
-
         <button
           onClick={handleLogout}
           className="mt-10 w-full bg-red-500 hover:bg-red-600 py-2 px-4 rounded"
@@ -86,7 +94,6 @@ function BaseDashboard({ role, children }) {
           Logout
         </button>
       </div>
-
       {/* Main Content */}
       <div className="flex-1 p-6 overflow-y-auto">{children}</div>
     </div>
