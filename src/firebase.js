@@ -41,14 +41,11 @@ const checkAndAssignUserRole = async (user) => {
         email: user.email,
         role: "user",
       });
-
       console.log(`Assigned default role 'user' to ${user.email}`);
       await logAudit(user.email, "Assigned role: user (new user)");
     } else {
       const existingRole = userSnap.data().role;
-      console.log(
-        `ℹ️ User ${user.email} already exists with role: ${existingRole}`
-      );
+      console.log(`ℹ️ User ${user.email} already exists with role: ${existingRole}`);
       await logAudit(user.email, `Role verified: ${existingRole}`);
     }
   } catch (error) {

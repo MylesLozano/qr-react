@@ -15,9 +15,13 @@ function ManageUsers() {
   }, []);
 
   const updateUserRole = async (userId, newRole, email) => {
-    const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, { role: newRole });
-    await logAudit(email, `Role changed to ${newRole} by SuperAdmin`);
+    try {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, { role: newRole });
+      await logAudit(email, `Role changed to ${newRole} by SuperAdmin`);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+    }
   };
 
   return (
