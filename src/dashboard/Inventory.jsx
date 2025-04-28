@@ -29,6 +29,15 @@ const debounce = (func, wait) => {
   };
 };
 
+// Add search history to localStorage
+const saveSearchHistory = (search) => {
+  const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+  if (!history.includes(search)) {
+    history.unshift(search);
+    localStorage.setItem('searchHistory', history.slice(0, 10));
+  }
+};
+
 function Inventory() {
   const [items, setItems] = useState([]);
   const [formData, setFormData] = useState({
@@ -60,6 +69,22 @@ function Inventory() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Add new state for advanced search
+  const [advancedSearch, setAdvancedSearch] = useState({
+    dateRange: { start: null, end: null },
+    priceRange: { min: null, max: null },
+    conditions: [],
+    labs: []
+  });
+
+  const [searchHistory, setSearchHistory] = useState(
+    JSON.parse(localStorage.getItem('searchHistory') || '[]')
+  );
+
+  const [savedSearches, setSavedSearches] = useState(
+    JSON.parse(localStorage.getItem('savedSearches') || '[]')
+  );
+
   // Memoize category grouping calculation
   const categoryGroups = useMemo(() => {
     const groups = {};
@@ -88,6 +113,10 @@ function Inventory() {
   const handleSearchChange = (e) => {
     const value = sanitizeInput(e.target.value);
     debouncedSearch(value);
+    if (value.trim()) {
+      saveSearchHistory(value);
+      setSearchHistory(prev => [value, ...prev].slice(0, 10));
+    }
   };
 
   useEffect(() => {
@@ -364,25 +393,74 @@ function Inventory() {
   // Get filtered items for a specific category
   const getFilteredItems = (category) => {
     return categoryGroups[category].items.filter(item => {
-      // Apply search filter if exists
+      // Basic search filter
       const matchesSearch = !searchTerm ||
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Apply condition filter if exists
+      // Condition filter
       const matchesCondition = !filterCondition || item.itemCondition === filterCondition;
 
-      // Apply lab filter if exists
+      // Lab filter
       const matchesLab = !filterLab || item.lab === filterLab;
 
-      return matchesSearch && matchesCondition && matchesLab;
+      // Date range filter
+      const matchesDateRange = !advancedSearch.dateRange.start || !advancedSearch.dateRange.end ||
+        (item.dateAcquired >= advancedSearch.dateRange.start &&
+          item.dateAcquired <= advancedSearch.dateRange.end);
+
+      // Price range filter (if implemented)
+      const matchesPriceRange = !advancedSearch.priceRange.min || !advancedSearch.priceRange.max ||
+        (item.price >= advancedSearch.priceRange.min &&
+          item.price <= advancedSearch.priceRange.max);
+
+      // Multiple conditions filter
+      const matchesConditions = advancedSearch.conditions.length === 0 ||
+        advancedSearch.conditions.includes(item.itemCondition);
+
+      // Multiple labs filter
+      const matchesLabs = advancedSearch.labs.length === 0 ||
+        advancedSearch.labs.includes(item.lab);
+
+      return matchesSearch && matchesCondition && matchesLab &&
+        matchesDateRange && matchesPriceRange &&
+        matchesConditions && matchesLabs;
     });
   };
 
   // Get available conditions and labs for filters
   const availableConditions = ["New", "Good", "Fair", "Damaged", "For Repair", "Lost", "Decommissioned"];
   const availableLabs = [...new Set(items.map(item => item.lab).filter(Boolean))];
+
+  // Save current search
+  const saveCurrentSearch = () => {
+    const search = {
+      term: searchTerm,
+      filters: {
+        condition: filterCondition,
+        lab: filterLab,
+        ...advancedSearch
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    setSavedSearches(prev => {
+      const newSearches = [search, ...prev];
+      localStorage.setItem('savedSearches', JSON.stringify(newSearches));
+      return newSearches;
+    });
+
+    toast.success('Search saved successfully!');
+  };
+
+  // Load saved search
+  const loadSavedSearch = (savedSearch) => {
+    setSearchTerm(savedSearch.term);
+    setFilterCondition(savedSearch.filters.condition);
+    setFilterLab(savedSearch.filters.lab);
+    setAdvancedSearch(savedSearch.filters);
+  };
 
   return (
     <div className="p-6 bg-white shadow-md rounded-md">
@@ -522,57 +600,139 @@ function Inventory() {
         </>
       )}
 
-      {/* Search and Filters */}
+      {/* Enhanced Search Section */}
       <div className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1">Search</label>
-            <input
-              type="text"
-              placeholder="Search items..."
-              className="border p-2 rounded w-full"
-              onChange={handleSearchChange}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search items..."
+                className="border p-2 rounded w-full"
+                onChange={handleSearchChange}
+                value={searchTerm}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-2 text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            {/* Search History */}
+            {searchHistory.length > 0 && (
+              <div className="mt-2">
+                <div className="text-xs text-gray-500">Recent Searches:</div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {searchHistory.map((term, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSearchTerm(term)}
+                      className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Advanced Filters */}
           <div>
-            <label className="block text-sm font-medium mb-1">Filter by Condition</label>
+            <label className="block text-sm font-medium mb-1">Date Range</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                className="border p-2 rounded w-full"
+                onChange={e => setAdvancedSearch(prev => ({
+                  ...prev,
+                  dateRange: { ...prev.dateRange, start: e.target.value }
+                }))}
+              />
+              <input
+                type="date"
+                className="border p-2 rounded w-full"
+                onChange={e => setAdvancedSearch(prev => ({
+                  ...prev,
+                  dateRange: { ...prev.dateRange, end: e.target.value }
+                }))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Conditions</label>
             <select
+              multiple
               className="border p-2 rounded w-full"
-              value={filterCondition}
-              onChange={(e) => setFilterCondition(e.target.value)}
+              onChange={e => {
+                const options = e.target.options;
+                const selected = [];
+                for (let i = 0; i < options.length; i++) {
+                  if (options[i].selected) {
+                    selected.push(options[i].value);
+                  }
+                }
+                setAdvancedSearch(prev => ({
+                  ...prev,
+                  conditions: selected
+                }));
+              }}
             >
-              <option value="">All Conditions</option>
               {availableConditions.map(condition => (
                 <option key={condition} value={condition}>{condition}</option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Filter by Lab</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={filterLab}
-              onChange={(e) => setFilterLab(e.target.value)}
+
+          <div className="flex items-end space-x-2">
+            <button
+              onClick={saveCurrentSearch}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             >
-              <option value="">All Labs</option>
-              {availableLabs.map(lab => (
-                <option key={lab} value={lab}>{lab}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
+              Save Search
+            </button>
             <button
               onClick={() => {
-                setSearchTerm("");
-                setFilterCondition("");
-                setFilterLab("");
+                setSearchTerm('');
+                setFilterCondition('');
+                setFilterLab('');
+                setAdvancedSearch({
+                  dateRange: { start: null, end: null },
+                  priceRange: { min: null, max: null },
+                  conditions: [],
+                  labs: []
+                });
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
             >
-              Clear Filters
+              Clear All
             </button>
           </div>
         </div>
+
+        {/* Saved Searches */}
+        {savedSearches.length > 0 && (
+          <div className="mt-4">
+            <div className="text-sm font-medium mb-2">Saved Searches:</div>
+            <div className="flex flex-wrap gap-2">
+              {savedSearches.map((search, index) => (
+                <button
+                  key={index}
+                  onClick={() => loadSavedSearch(search)}
+                  className="bg-gray-100 px-3 py-1 rounded hover:bg-gray-200 text-sm"
+                >
+                  {search.term || 'Untitled Search'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Category-based Inventory View */}
