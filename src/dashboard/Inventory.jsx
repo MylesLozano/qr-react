@@ -15,8 +15,20 @@ function Inventory() {
     dateAcquired: "",
     quantity: 1,
     remarks: "",
-    category: ""
+    category: "",
+    description: "", // New field for description
+    lab: "", // New field for lab tag
+    uniqueQR: false, // New field for QR tracking
+    itemCondition: "New" // New field for item condition
   });
+  
+  // State for category grouping and expanded categories
+  const [categoryGroups, setCategoryGroups] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCondition, setFilterCondition] = useState("");
+  const [filterLab, setFilterLab] = useState("");
+  
   const [csvData, setCsvData] = useState([]);
   const [role, setRole] = useState("");
 
@@ -33,8 +45,28 @@ function Inventory() {
 
     const q = query(collection(db, "inventory"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      setItems(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const fetchedItems = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setItems(fetchedItems);
+      
+      // Group items by category
+      const groups = {};
+      fetchedItems.forEach(item => {
+        const category = item.category || "Uncategorized";
+        if (!groups[category]) {
+          groups[category] = {
+            items: [],
+            totalQuantity: 0
+          };
+        }
+        groups[category].items.push(item);
+        groups[category].totalQuantity += (parseInt(item.quantity) || 0);
+      });
+      setCategoryGroups(groups);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -53,7 +85,20 @@ function Inventory() {
         await logAudit(auth.currentUser.email, `Added item: ${formData.name}`);
       }
       toast.success("Item added successfully!");
-      setFormData({ unitNumber: "", name: "", brand: "", serialNumber: "", dateAcquired: "", quantity: 1, remarks: "", category: "" });
+      setFormData({
+        unitNumber: "",
+        name: "",
+        brand: "",
+        serialNumber: "",
+        dateAcquired: "",
+        quantity: 1,
+        remarks: "",
+        category: "",
+        description: "",
+        lab: "",
+        uniqueQR: false,
+        itemCondition: "New"
+      });
     } catch (error) {
       toast.error("Error adding item: " + error.message);
     }
@@ -102,7 +147,6 @@ function Inventory() {
         toast.error("You must be logged in to upload CSV");
         return;
       }
-
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       if (!userDoc.exists() || !["admin", "superadmin"].includes(userDoc.data().role)) {
         toast.error("You don't have permission to upload CSV");
@@ -121,6 +165,10 @@ function Inventory() {
           quantity: parseInt(row.quantity) || 0,
           remarks: row.remarks || "",
           category: row.category || "",
+          description: row.description || "",
+          lab: row.lab || "",
+          uniqueQR: row.uniqueQR === "true" || false,
+          itemCondition: row.itemCondition || "New",
           createdAt: serverTimestamp(),
         });
       }
@@ -132,26 +180,217 @@ function Inventory() {
     }
   };
 
+  // Toggle category expansion
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  // Filter items based on search and filters
+  const filteredCategories = Object.keys(categoryGroups).filter(category => {
+    // Check if category name matches search term
+    if (searchTerm && !category.toLowerCase().includes(searchTerm.toLowerCase())) {
+      // If category doesn't match, check if any items in category match search term
+      const hasMatchingItem = categoryGroups[category].items.some(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      if (!hasMatchingItem) return false;
+    }
+    return true;
+  });
+
+  // Get filtered items for a specific category
+  const getFilteredItems = (category) => {
+    return categoryGroups[category].items.filter(item => {
+      // Apply search filter if exists
+      const matchesSearch = !searchTerm || 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // Apply condition filter if exists
+      const matchesCondition = !filterCondition || item.itemCondition === filterCondition;
+      
+      // Apply lab filter if exists
+      const matchesLab = !filterLab || item.lab === filterLab;
+      
+      return matchesSearch && matchesCondition && matchesLab;
+    });
+  };
+
+  // Get available conditions and labs for filters
+  const availableConditions = ["New", "Good", "Fair", "Damaged", "For Repair", "Lost", "Decommissioned"];
+  const availableLabs = [...new Set(items.map(item => item.lab).filter(Boolean))];
+
   return (
     <div className="p-6 bg-white shadow-md rounded-md">
       <h2 className="text-2xl font-semibold mb-4">Inventory Management</h2>
+      
+      {/* Search and Filters */}
+      <div className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Search</label>
+            <input
+              type="text"
+              placeholder="Search items..."
+              className="border p-2 rounded w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Filter by Condition</label>
+            <select
+              className="border p-2 rounded w-full"
+              value={filterCondition}
+              onChange={(e) => setFilterCondition(e.target.value)}
+            >
+              <option value="">All Conditions</option>
+              {availableConditions.map(condition => (
+                <option key={condition} value={condition}>{condition}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Filter by Lab</label>
+            <select
+              className="border p-2 rounded w-full"
+              value={filterLab}
+              onChange={(e) => setFilterLab(e.target.value)}
+            >
+              <option value="">All Labs</option>
+              {availableLabs.map(lab => (
+                <option key={lab} value={lab}>{lab}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button 
+              onClick={() => {
+                setSearchTerm("");
+                setFilterCondition("");
+                setFilterLab("");
+              }}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Add Item Form (Only for Admin/SuperAdmin) */}
       {(role === "superadmin" || role === "admin") && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {Object.keys(formData).map((key) => (
+            <input
+              type="text"
+              placeholder="Unit Number"
+              className="border p-2 rounded"
+              value={formData.unitNumber}
+              onChange={(e) => setFormData({...formData, unitNumber: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="Name"
+              className="border p-2 rounded"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="Brand"
+              className="border p-2 rounded"
+              value={formData.brand}
+              onChange={(e) => setFormData({...formData, brand: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="Serial Number"
+              className="border p-2 rounded"
+              value={formData.serialNumber}
+              onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="Category"
+              className="border p-2 rounded"
+              value={formData.category}
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+            />
+            <input
+              type="date"
+              placeholder="Date Acquired"
+              className="border p-2 rounded"
+              value={formData.dateAcquired}
+              onChange={(e) => setFormData({...formData, dateAcquired: e.target.value})}
+            />
+            <input
+              type="number"
+              placeholder="Quantity"
+              className="border p-2 rounded"
+              value={formData.quantity}
+              onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value)})}
+              min="0"
+            />
+            <input
+              type="text"
+              placeholder="Remarks"
+              className="border p-2 rounded"
+              value={formData.remarks}
+              onChange={(e) => setFormData({...formData, remarks: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="Description"
+              className="border p-2 rounded"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+            <select
+              className="border p-2 rounded"
+              value={formData.lab}
+              onChange={(e) => setFormData({...formData, lab: e.target.value})}
+            >
+              <option value="">Select Lab (Optional)</option>
+              <option value="Mac Laboratory">Mac Laboratory</option>
+              <option value="Entertainment and Multimedia Computing Lab">EMC Lab</option>
+              <option value="Other">Other</option>
+            </select>
+            <select
+              className="border p-2 rounded"
+              value={formData.itemCondition}
+              onChange={(e) => setFormData({...formData, itemCondition: e.target.value})}
+            >
+              <option value="New">New</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+              <option value="Damaged">Damaged</option>
+              <option value="For Repair">For Repair</option>
+              <option value="Lost">Lost</option>
+              <option value="Decommissioned">Decommissioned</option>
+            </select>
+            <div className="flex items-center">
               <input
-                key={key}
-                type={key === "quantity" ? "number" : "text"}
-                placeholder={key.replace(/([A-Z])/g, ' $1').trim()}
-                className="border p-2 rounded"
-                value={formData[key]}
-                onChange={(e) => setFormData({ ...formData, [key]: key === "quantity" ? parseInt(e.target.value) : e.target.value })}
+                type="checkbox"
+                id="uniqueQR"
+                checked={formData.uniqueQR}
+                onChange={(e) => setFormData({...formData, uniqueQR: e.target.checked})}
+                className="mr-2"
               />
-            ))}
+              <label htmlFor="uniqueQR">Create Unique QR?</label>
+            </div>
           </div>
-          <button onClick={addItem} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+
+          <button
+            onClick={addItem}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
             Add Item
           </button>
 
@@ -161,15 +400,13 @@ function Inventory() {
               type="file"
               accept=".csv"
               onChange={handleCsvUpload}
-              className="mb-2 block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
+              className="mb-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text"
             />
             {csvData.length > 0 && (
-              <button onClick={bulkUpload} className="ml-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              <button
+                onClick={bulkUpload}
+                className="ml-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
                 Upload CSV ({csvData.length} items)
               </button>
             )}
@@ -177,52 +414,76 @@ function Inventory() {
         </>
       )}
 
-      {/* Inventory Table */}
-      <div className="mt-8 overflow-x-auto">
-        <table className="min-w-full border-collapse border border-gray-300">
-          <thead>
-            <tr className="bg-gray-200">
-              <th className="p-2 border">Unit</th>
-              <th className="p-2 border">Name</th>
-              <th className="p-2 border">Brand</th>
-              <th className="p-2 border">Serial No.</th>
-              <th className="p-2 border">Category</th>
-              <th className="p-2 border">Date Acquired</th>
-              <th className="p-2 border">Quantity</th>
-              <th className="p-2 border">Remarks</th>
-              <th className="p-2 border">Stock Status</th>
-              {(role === "superadmin" || role === "admin") && <th className="p-2 border">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr><td colSpan="10" className="text-center p-4">No items found.</td></tr>
-            ) : (
-              items.map((item) => (
-                <tr key={item.id} className="text-center">
-                  <td className="p-2 border">{item.unitNumber || "N/A"}</td>
-                  <td className="p-2 border">{item.name}</td>
-                  <td className="p-2 border">{item.brand || "N/A"}</td>
-                  <td className="p-2 border">{item.serialNumber || "N/A"}</td>
-                  <td className="p-2 border">{item.category}</td>
-                  <td className="p-2 border">{item.dateAcquired || "N/A"}</td>
-                  <td className="p-2 border">{item.quantity}</td>
-                  <td className="p-2 border">{item.remarks || "N/A"}</td>
-                  <td className="p-2 border">
-                    <span className={`px-2 py-1 rounded text-white ${stockStatusColor(item.quantity)}`}>{item.quantity > 0 ? (item.quantity >= 5 ? "Available" : "Low Stock") : "Out of Stock"}</span>
-                  </td>
-                  {(role === "superadmin" || role === "admin") && (
-                    <td className="p-2 border">
-                      <button onClick={() => deleteItem(item.id, item.name)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
-                        Delete
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Category-based Inventory View */}
+      <div className="mt-8">
+        <h3 className="text-xl font-semibold mb-4">Inventory by Category</h3>
+        
+        {filteredCategories.length === 0 ? (
+          <p className="text-center p-4">No items found matching your search.</p>
+        ) : (
+          <>
+            {filteredCategories.map(category => (
+              <div key={category} className="mb-4 border rounded overflow-hidden">
+                <div 
+                  className="bg-gray-100 p-3 flex justify-between items-center cursor-pointer"
+                  onClick={() => toggleCategory(category)}
+                >
+                  <div className="font-medium">{category}</div>
+                  <div className="flex items-center">
+                    <span className="mr-4">Total: {categoryGroups[category].totalQuantity}</span>
+                    <span className={`${expandedCategories[category] ? 'transform rotate-180' : ''} transition-transform`}>
+                      ▼
+                    </span>
+                  </div>
+                </div>
+                
+                {expandedCategories[category] && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        <th className="p-2 border">Unit Number</th>
+                        <th className="p-2 border">Name</th>
+                        <th className="p-2 border">Brand</th>
+                        <th className="p-2 border">Lab</th>
+                        <th className="p-2 border">Condition</th>
+                        <th className="p-2 border">Stock Status</th>
+                        {(role === "admin" || role === "superadmin") && <th className="p-2 border">Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getFilteredItems(category).map(item => (
+                        <tr key={item.id} className="text-center">
+                          <td className="p-2 border">{item.unitNumber || "N/A"}</td>
+                          <td className="p-2 border">{item.name}</td>
+                          <td className="p-2 border">{item.brand || "N/A"}</td>
+                          <td className="p-2 border">{item.lab || "N/A"}</td>
+                          <td className="p-2 border">{item.itemCondition || "New"}</td>
+                          <td className="p-2 border">
+                            <span className={`px-2 py-1 rounded text-white ${stockStatusColor(item.quantity)}`}>
+                              {item.quantity > 0 ? (item.quantity >= 5 ? "Available" : "Low Stock") : "Out of Stock"}
+                            </span>
+                          </td>
+                          {(role === "admin" || role === "superadmin") && (
+                            <td className="p-2 border">
+                              <button
+                                onClick={() => deleteItem(item.id, item.name)}
+                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
