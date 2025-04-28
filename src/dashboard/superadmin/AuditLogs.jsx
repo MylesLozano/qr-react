@@ -111,9 +111,9 @@ function AuditLogs() {
           </div>
           <div>
             <span className={`px-2 py-1 rounded text-white ${log.type === 'create' ? 'bg-green-500' :
-                log.type === 'update' ? 'bg-blue-500' :
-                  log.type === 'delete' ? 'bg-red-500' :
-                    'bg-gray-500'
+              log.type === 'update' ? 'bg-blue-500' :
+                log.type === 'delete' ? 'bg-red-500' :
+                  'bg-gray-500'
               }`}>
               {log.type}
             </span>

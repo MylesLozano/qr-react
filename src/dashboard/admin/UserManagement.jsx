@@ -106,8 +106,8 @@ function UserManagement() {
               value={user.role}
               onChange={(e) => handleRoleChange(user.id, e.target.value)}
               className={`px-2 py-1 rounded text-white ${user.role === 'admin' ? 'bg-blue-500' :
-                  user.role === 'superadmin' ? 'bg-purple-500' :
-                    'bg-green-500'
+                user.role === 'superadmin' ? 'bg-purple-500' :
+                  'bg-green-500'
                 }`}
             >
               <option value="user">User</option>

@@ -8,6 +8,7 @@ import QRCodeManager from '../components/QRCodeManager';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigate } from "react-router-dom";
 
 // Add sanitization functions
 const sanitizeInput = (input) => {
@@ -50,6 +51,7 @@ const saveSearchHistory = (search) => {
 
 function Inventory() {
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [formData, setFormData] = useState({
     unitNumber: "",
@@ -554,6 +556,13 @@ function Inventory() {
     <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
       <div className={`max-w-7xl mx-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
         <div className="mb-8">
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className={`mb-4 px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium flex items-center ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : ''}`}
+          >
+            <span className="mr-2">←</span> Back
+          </button>
           <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
 
           {/* Search Bar */}

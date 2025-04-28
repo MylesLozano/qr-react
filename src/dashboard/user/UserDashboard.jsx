@@ -20,8 +20,8 @@ function UserDashboard() {
     setLoadingCounts(true);
     const currentUser = auth.currentUser;
     if (!currentUser) {
-        setLoadingCounts(false);
-        return; // Should not happen if protected route works, but good practice
+      setLoadingCounts(false);
+      return; // Should not happen if protected route works, but good practice
     }
 
     const inventoryCol = collection(db, "inventory");
@@ -29,12 +29,12 @@ function UserDashboard() {
 
     // --- Fetch Inventory Count (Example using getCountFromServer for one-time fetch) ---
     const fetchInventoryCount = async () => {
-        try {
-            const snapshot = await getCountFromServer(inventoryCol);
-            setInventoryCount(snapshot.data().count);
-        } catch (error) {
-            console.error("Error fetching inventory count:", error);
-        }
+      try {
+        const snapshot = await getCountFromServer(inventoryCol);
+        setInventoryCount(snapshot.data().count);
+      } catch (error) {
+        console.error("Error fetching inventory count:", error);
+      }
     };
 
     fetchInventoryCount(); // Call the async function
@@ -43,20 +43,20 @@ function UserDashboard() {
     const myRequestsQuery = query(myRequestsCol, where("userId", "==", currentUser.uid));
 
     const unsubscribe = onSnapshot(myRequestsQuery, (snapshot) => {
-        let total = 0;
-        let approved = 0;
-        snapshot.forEach(doc => {
-            total++;
-            if (doc.data().status === 'approved') {
-                approved++;
-            }
-        });
-        setMyRequestsCount(total);
-        setApprovedRequestsCount(approved);
-        setLoadingCounts(false); // Set loading false after counts are updated
+      let total = 0;
+      let approved = 0;
+      snapshot.forEach(doc => {
+        total++;
+        if (doc.data().status === 'approved') {
+          approved++;
+        }
+      });
+      setMyRequestsCount(total);
+      setApprovedRequestsCount(approved);
+      setLoadingCounts(false); // Set loading false after counts are updated
     }, (error) => {
-        console.error("Error fetching request counts:", error);
-        setLoadingCounts(false);
+      console.error("Error fetching request counts:", error);
+      setLoadingCounts(false);
     });
 
     // Cleanup listener
@@ -85,7 +85,7 @@ function UserDashboard() {
         <div className="p-5 bg-white shadow rounded-lg text-center">
           <h2 className="text-xl font-bold">Approved Requests</h2>
           <p className="text-2xl mt-2">
-             {loadingCounts ? "..." : approvedRequestsCount}
+            {loadingCounts ? "..." : approvedRequestsCount}
           </p>
         </div>
       </div>

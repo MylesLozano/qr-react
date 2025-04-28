@@ -41,9 +41,9 @@ function Reports() {
       <h1 className="text-2xl font-bold mb-6">Reports</h1>
       <div className="bg-white p-6 rounded shadow">
         {loading ? (
-           <p className="text-gray-700">Loading available reports...</p>
+          <p className="text-gray-700">Loading available reports...</p>
         ) : error ? (
-           <p className="text-red-500">{error}</p>
+          <p className="text-red-500">{error}</p>
         ) : reportsList.length === 0 ? (
           <p className="text-gray-500">No reports available currently.</p>
         ) : (
@@ -52,14 +52,14 @@ function Reports() {
               Downloadable reports:
             </p>
             <ul className="list-disc pl-5">
-                {reportsList.map(report => (
-                    <li key={report.id} className="mb-2">
-                       {/* Assuming report doc has 'name' and 'downloadUrl' fields */}
-                       <a href={report.downloadUrl} download className="text-blue-600 hover:underline">
-                           {report.name} - {report.generatedAt?.toDate().toLocaleDateString()}
-                       </a>
-                    </li>
-                ))}
+              {reportsList.map(report => (
+                <li key={report.id} className="mb-2">
+                  {/* Assuming report doc has 'name' and 'downloadUrl' fields */}
+                  <a href={report.downloadUrl} download className="text-blue-600 hover:underline">
+                    {report.name} - {report.generatedAt?.toDate().toLocaleDateString()}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
         )}

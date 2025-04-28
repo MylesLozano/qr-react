@@ -8,10 +8,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 function SuperAdminDashboard() {
   usePageTitle("QCheckCITE - SuperAdmin");
-  
+
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Determine active page based on URL path
   const getActivePage = () => {
     if (location.pathname.includes("/superadmin-dashboard/manage-users")) return "manageUsers";
@@ -22,7 +22,7 @@ function SuperAdminDashboard() {
 
   // Set active page on component mount and when location changes
   const [activePage, setActivePage] = useState(() => getActivePage());
-  
+
   useEffect(() => {
     setActivePage(getActivePage());
   }, [location.pathname]);
@@ -61,35 +61,6 @@ function SuperAdminDashboard() {
   return (
     <BaseDashboard role="superadmin">
       <h1 className="text-3xl font-bold mb-4">SuperAdmin Dashboard</h1>
-      
-      {/* Secondary Navigation Buttons */}
-      <div className="flex gap-4 mb-6">
-        <button
-          className={`px-4 py-2 rounded ${
-            activePage === "manageUsers" ? "bg-blue-700" : "bg-blue-500"
-          } text-white`}
-          onClick={() => handleButtonClick("manageUsers")}
-        >
-          Manage Users
-        </button>
-        <button
-          className={`px-4 py-2 rounded ${
-            activePage === "inventory" ? "bg-green-700" : "bg-green-500"
-          } text-white`}
-          onClick={() => handleButtonClick("inventory")}
-        >
-          Inventory
-        </button>
-        <button
-          className={`px-4 py-2 rounded ${
-            activePage === "auditLogs" ? "bg-purple-700" : "bg-purple-500"
-          } text-white`}
-          onClick={() => handleButtonClick("auditLogs")}
-        >
-          Audit Logs
-        </button>
-      </div>
-      
       {/* Render the component for the active page */}
       {renderActivePage()}
     </BaseDashboard>
