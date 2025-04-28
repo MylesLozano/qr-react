@@ -4,7 +4,9 @@ import { db, logAudit, auth } from "../firebase";
 import { serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
 import Papa from "papaparse";
-import { QRCodeSVG } from "qrcode.react";
+import QRCodeManager from '../components/QRCodeManager';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 // Add sanitization functions
 const sanitizeInput = (input) => {
@@ -518,54 +520,6 @@ function Inventory() {
     }
   };
 
-  // Generate QR codes in batch
-  const generateBatchQr = async (items) => {
-    try {
-      setIsGeneratingQr(true);
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const item of items) {
-        try {
-          const qrData = {
-            id: item.id,
-            name: item.name,
-            unitNumber: item.unitNumber,
-            lab: item.lab,
-            condition: item.itemCondition,
-            lastUpdated: new Date().toISOString()
-          };
-
-          await updateDoc(doc(db, "inventory", item.id), {
-            uniqueQR: true,
-            qrData: qrData,
-            qrGeneratedAt: serverTimestamp()
-          });
-          successCount++;
-        } catch (error) {
-          console.error(`Error generating QR for ${item.name}:`, error);
-          errorCount++;
-        }
-      }
-
-      if (auth.currentUser) {
-        await logAudit(auth.currentUser.email, `Generated QR codes in batch: ${successCount} success, ${errorCount} failed`);
-      }
-
-      if (errorCount > 0) {
-        toast.warning(`Generated ${successCount} QR codes, ${errorCount} failed`);
-      } else {
-        toast.success(`Successfully generated ${successCount} QR codes`);
-      }
-    } catch (error) {
-      console.error("Batch QR generation error:", error);
-      toast.error(`Error during batch QR generation: ${error.message}`);
-    } finally {
-      setIsGeneratingQr(false);
-      setBatchQrItems([]);
-    }
-  };
-
   // Preview QR code
   const previewQrCode = (item) => {
     if (!item.uniqueQR) return;
@@ -573,6 +527,72 @@ function Inventory() {
       item,
       data: item.qrData
     });
+  };
+
+  // Memoize filtered items for better performance
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const matchesSearch = !searchTerm ||
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.unitNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCondition = !filterCondition || item.itemCondition === filterCondition;
+      const matchesLab = !filterLab || item.lab === filterLab;
+      return matchesSearch && matchesCondition && matchesLab;
+    });
+  }, [items, searchTerm, filterCondition, filterLab]);
+
+  // Row component for virtual list
+  const Row = ({ index, style }) => {
+    const item = filteredItems[index];
+    return (
+      <div style={style} className="border-b">
+        <div className="grid grid-cols-6 gap-4 p-4 items-center">
+          <div>{item.unitNumber}</div>
+          <div>{item.name}</div>
+          <div>{item.lab}</div>
+          <div>{item.itemCondition}</div>
+          <div>
+            <span className={`px-2 py-1 rounded text-white ${stockStatusColor(item.quantity)}`}>
+              {item.quantity > 0 ? (item.quantity >= 5 ? "Available" : "Low Stock") : "Out of Stock"}
+            </span>
+          </div>
+          <div className="flex space-x-2">
+            {item.uniqueQR ? (
+              <button
+                onClick={() => previewQrCode(item)}
+                className="text-green-600 hover:text-green-800"
+              >
+                View QR
+              </button>
+            ) : (
+              <button
+                onClick={() => generateQrCode(item)}
+                disabled={isGeneratingQr}
+                className={`text-blue-600 hover:text-blue-800 ${isGeneratingQr ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Generate QR
+              </button>
+            )}
+            {(role === "admin" || role === "superadmin") && (
+              <>
+                <button
+                  onClick={() => setEditingItem(item)}
+                  className="text-yellow-600 hover:text-yellow-800"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteItem(item.id, item.name)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -848,102 +868,20 @@ function Inventory() {
         )}
       </div>
 
-      {/* Category-based Inventory View */}
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold mb-4">Inventory by Category</h3>
-
-        {filteredCategories.length === 0 ? (
-          <p className="text-center p-4">No items found matching your search.</p>
-        ) : (
-          <>
-            {filteredCategories.map(category => (
-              <div key={category} className="mb-4 border rounded overflow-hidden">
-                <div
-                  className="bg-gray-100 p-3 flex justify-between items-center cursor-pointer"
-                  onClick={() => toggleCategory(category)}
-                >
-                  <div className="font-medium">{category}</div>
-                  <div className="flex items-center">
-                    <span className="mr-4">Total: {categoryGroups[category].totalQuantity}</span>
-                    <span className={`${expandedCategories[category] ? 'transform rotate-180' : ''} transition-transform`}>
-                      ▼
-                    </span>
-                  </div>
-                </div>
-
-                {expandedCategories[category] && (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse border border-gray-300">
-                      <thead>
-                        <tr className="bg-gray-200">
-                          <th className="p-2 border">Unit Number</th>
-                          <th className="p-2 border">Name</th>
-                          <th className="p-2 border">Brand</th>
-                          <th className="p-2 border">Lab</th>
-                          <th className="p-2 border">Condition</th>
-                          <th className="p-2 border">Stock Status</th>
-                          <th className="p-2 border">QR</th>
-                          {(role === "admin" || role === "superadmin") && <th className="p-2 border">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getFilteredItems(category).map(item => (
-                          <tr key={item.id} className="text-center">
-                            <td className="p-2 border">{item.unitNumber || "N/A"}</td>
-                            <td className="p-2 border">{item.name}</td>
-                            <td className="p-2 border">{item.brand || "N/A"}</td>
-                            <td className="p-2 border">{item.lab || "N/A"}</td>
-                            <td className="p-2 border">{item.itemCondition || "New"}</td>
-                            <td className="p-2 border">
-                              <span className={`px-2 py-1 rounded text-white ${stockStatusColor(item.quantity)}`}>
-                                {item.quantity > 0 ? (item.quantity >= 5 ? "Available" : "Low Stock") : "Out of Stock"}
-                              </span>
-                            </td>
-                            <td className="p-2 border">
-                              {item.uniqueQR ? (
-                                <button
-                                  onClick={() => previewQrCode(item)}
-                                  className="text-green-600 hover:text-green-800"
-                                >
-                                  View QR
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => generateQrCode(item)}
-                                  disabled={isGeneratingQr}
-                                  className={`text-blue-600 hover:text-blue-800 ${isGeneratingQr ? 'opacity-50 cursor-not-allowed' : ''
-                                    }`}
-                                >
-                                  Generate QR
-                                </button>
-                              )}
-                            </td>
-                            {(role === "admin" || role === "superadmin") && (
-                              <td className="p-2 border space-x-2">
-                                <button
-                                  onClick={() => setEditingItem(item)}
-                                  className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                                >
-                                  Update
-                                </button>
-                                <button
-                                  onClick={() => deleteItem(item.id, item.name)}
-                                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                                >
-                                  Delete
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ))}
-          </>
-        )}
+      {/* Virtualized List */}
+      <div className="mt-4" style={{ height: '600px' }}>
+        <AutoSizer>
+          {({ height, width }) => (
+            <List
+              height={height}
+              itemCount={filteredItems.length}
+              itemSize={70}
+              width={width}
+            >
+              {Row}
+            </List>
+          )}
+        </AutoSizer>
       </div>
 
       {/* QR Code Section */}
@@ -1006,18 +944,12 @@ function Inventory() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white p-6 rounded-md">
               <h3 className="text-xl font-semibold mb-4">QR Code Preview</h3>
-              <div className="flex flex-col items-center">
-                <QRCodeSVG
-                  value={JSON.stringify(qrPreview.data)}
-                  size={256}
-                  level="H"
-                  includeMargin={true}
-                />
-                <div className="mt-4 text-center">
-                  <div className="font-medium">{qrPreview.item.name}</div>
-                  <div className="text-sm text-gray-600">{qrPreview.item.unitNumber}</div>
-                </div>
-              </div>
+              <QRCodeManager
+                item={qrPreview.item}
+                onPreview={previewQrCode}
+                isGenerating={isGeneratingQr}
+                showActions={false}
+              />
               <button
                 onClick={() => setQrPreview(null)}
                 className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
