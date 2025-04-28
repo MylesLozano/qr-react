@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { collection, addDoc, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, updateDoc, where } from "firebase/firestore";
 import { db, logAudit, auth } from "../firebase";
 import { serverTimestamp } from "firebase/firestore";
@@ -117,6 +117,8 @@ function Inventory() {
   // Add new state for category details modal
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+
+  const addEditFormRef = useRef(null);
 
   // Enhanced search functionality
   const filteredItems = useMemo(() => {
@@ -292,6 +294,12 @@ function Inventory() {
       ...item,
       dateAcquired: item.dateAcquired || ""
     });
+    // Scroll to Add/Edit Item Form
+    setTimeout(() => {
+      if (addEditFormRef.current) {
+        addEditFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   const handleSaveEdit = async () => {
@@ -548,7 +556,7 @@ function Inventory() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
 
-          {/* Search and Filters */}
+          {/* Search Bar */}
           <div className="flex flex-wrap gap-4 mb-6">
             <select
               value={searchField}
@@ -588,54 +596,88 @@ function Inventory() {
             </select>
           </div>
 
-          {/* CSV Upload Section */}
-          <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <h2 className="text-xl font-semibold mb-4">Bulk Upload</h2>
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCsvUpload}
-                className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
-              />
-              <button
-                onClick={bulkUpload}
-                disabled={isUploading || csvData.length === 0}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-              >
-                {isUploading ? 'Uploading...' : 'Upload CSV'}
-              </button>
-            </div>
-            {csvData.length > 0 && (
-              <p className="mt-2 text-sm text-gray-500">
-                {csvData.length} items ready to upload
-              </p>
-            )}
-          </div>
-
-          {/* Category Groups */}
-          <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <h2 className="text-xl font-semibold mb-4">Categories</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(categoryGroups).map(([category, { items, totalQuantity }]) => (
-                <div
-                  key={category}
-                  onClick={() => toggleCategory(category)}
-                  className={`p-4 rounded-lg cursor-pointer transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'
-                    }`}
+          {/* Bulk Upload and QR Stats side-by-side */}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            {/* Bulk Upload */}
+            <div className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h2 className="text-xl font-semibold mb-4">Bulk Upload</h2>
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvUpload}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <button
+                  onClick={bulkUpload}
+                  disabled={isUploading || csvData.length === 0}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
                 >
-                  <h3 className="font-semibold">{category}</h3>
-                  <p className="text-sm text-gray-500">
-                    {items.length} items • Total Quantity: {totalQuantity}
-                  </p>
+                  {isUploading ? 'Uploading...' : 'Upload CSV'}
+                </button>
+              </div>
+              {csvData.length > 0 && (
+                <p className="mt-2 text-sm text-gray-500">
+                  {csvData.length} items ready to upload
+                </p>
+              )}
+            </div>
+            {/* QR Stats */}
+            <div className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h2 className="text-xl font-semibold mb-2">QR Code Statistics</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Items with QR</p>
+                  <p className="text-2xl font-bold">{qrStats.totalWithQr}</p>
                 </div>
-              ))}
+                <div>
+                  <p className="text-sm text-gray-500">Items without QR</p>
+                  <p className="text-2xl font-bold">{qrStats.totalWithoutQr}</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Add/Edit Item Form */}
+          {/* Categories and Virtualized List side-by-side */}
+          <div className="flex flex-col lg:flex-row gap-4 mb-6">
+            {/* Categories */}
+            <div className={`w-full lg:w-1/3 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h2 className="text-xl font-semibold mb-4">Categories</h2>
+              <div className="grid grid-cols-1 gap-4">
+                {Object.entries(categoryGroups).map(([category, { items, totalQuantity }]) => (
+                  <div
+                    key={category}
+                    onClick={() => toggleCategory(category)}
+                    className={`p-4 rounded-lg cursor-pointer transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+                  >
+                    <h3 className="font-semibold">{category}</h3>
+                    <p className="text-sm text-gray-500">
+                      {items.length} items • Total Quantity: {totalQuantity}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Virtualized List */}
+            <div className="w-full lg:w-2/3 h-[600px]">
+              <AutoSizer>
+                {({ height, width }) => (
+                  <List
+                    height={height}
+                    itemCount={filteredItems.length}
+                    itemSize={80}
+                    width={width}
+                  >
+                    {Row}
+                  </List>
+                )}
+              </AutoSizer>
+            </div>
+          </div>
+
+          {/* Add/Edit Item Form below Categories and List */}
           {(role === 'admin' || role === 'superadmin') && (
-            <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div ref={addEditFormRef} className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
               <h2 className="text-xl font-semibold mb-4">{isEditing ? 'Edit Item' : 'Add New Item'}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <input
@@ -695,9 +737,9 @@ function Inventory() {
                   className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
                 >
                   <option value="">Select Lab</option>
-                  <option value="Lab1">Lab 1</option>
-                  <option value="Lab2">Lab 2</option>
-                  <option value="Lab3">Lab 3</option>
+                  <option value="Mac Lab">Mac Lab</option>
+                  <option value="EMC Lab">EMC Lab</option>
+                  <option value="Others">Others</option>
                 </select>
                 <textarea
                   placeholder="Description"
@@ -749,38 +791,8 @@ function Inventory() {
             </div>
           )}
 
-          {/* QR Stats */}
-          <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-            }`}>
-            <h2 className="text-xl font-semibold mb-2">QR Code Statistics</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Items with QR</p>
-                <p className="text-2xl font-bold">{qrStats.totalWithQr}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Items without QR</p>
-                <p className="text-2xl font-bold">{qrStats.totalWithoutQr}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Virtualized List */}
-          <div className="h-[600px]">
-            <AutoSizer>
-              {({ height, width }) => (
-                <List
-                  height={height}
-                  itemCount={filteredItems.length}
-                  itemSize={80}
-                  width={width}
-                >
-                  {Row}
-                </List>
-              )}
-            </AutoSizer>
-          </div>
-
+          {/* Category Details Modal */}
+          {showCategoryDetails && <CategoryDetailsModal />}
           {/* QR Preview Modal */}
           {qrPreview && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -802,7 +814,6 @@ function Inventory() {
           )}
         </div>
       </div>
-      {showCategoryDetails && <CategoryDetailsModal />}
     </div>
   );
 }
