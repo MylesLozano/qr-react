@@ -1,14 +1,40 @@
 @import "tailwindcss";
 
-/* Your custom styles */
+:root {
+  /* Light theme variables */
+  --bg-primary: #f4f4f4;
+  --bg-secondary: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #cccccc;
+  --button-bg: #0056b3;
+  --button-hover: #003f88;
+  --toast-success: #28a745;
+  --toast-error: #dc3545;
+  --toast-info: #17a2b8;
+  --toast-warning: #ffc107;
+}
+
+.dark {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --border-color: #404040;
+  --button-bg: #0069d9;
+  --button-hover: #0056b3;
+  --toast-success: #218838;
+  --toast-error: #c82333;
+  --toast-info: #138496;
+  --toast-warning: #e0a800;
+}
+
 body {
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #f4f4f4;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   min-height: 100vh;
 }
 
@@ -30,21 +56,23 @@ body {
   align-items: center;
   padding: 2rem;
   text-align: center;
-  background-color: #f7f7f7;
+  background-color: var(--bg-secondary);
 }
 
 input {
   width: 100%;
   padding: 10px;
   margin: 10px 0 20px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 button {
   margin-top: 1.2rem;
   padding: 0.8rem 1.6rem;
-  background-color: #0056b3;
+  background-color: var(--button-bg);
   color: white;
   border: none;
   border-radius: 6px;
@@ -54,7 +82,7 @@ button {
 }
 
 button:hover {
-  background-color: #003f88;
+  background-color: var(--button-hover);
 }
 
 /* Toastify Overrides */
@@ -67,6 +95,8 @@ button:hover {
   font-size: 14px;
   padding: 12px 16px;
   border-radius: 8px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .Toastify__toast-body {
@@ -77,17 +107,22 @@ button:hover {
 }
 
 .Toastify__toast--success {
-  background-color: #28a745;
+  background-color: var(--toast-success);
 }
 
 .Toastify__toast--error {
-  background-color: #dc3545;
+  background-color: var(--toast-error);
 }
 
 .Toastify__toast--info {
-  background-color: #17a2b8;
+  background-color: var(--toast-info);
 }
 
 .Toastify__toast--warning {
-  background-color: #ffc107;
+  background-color: var(--toast-warning);
+}
+
+/* Dark mode transitions */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }

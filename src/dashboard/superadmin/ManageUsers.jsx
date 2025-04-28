@@ -29,7 +29,7 @@ function ManageUsers() {
       <h2 className="text-xl font-semibold mb-4">Manage Users</h2>
       <table className="w-full border-collapse border border-gray-300">
         <thead>
-          <tr className="bg-gray-200">
+          <tr className="bg-blue-500 text-white">
             <th className="p-2 border border-gray-300">Email</th>
             <th className="p-2 border border-gray-300">Role</th>
             <th className="p-2 border border-gray-300">Actions</th>

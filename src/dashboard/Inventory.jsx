@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, updateDoc, where } from "firebase/firestore";
 import { db, logAudit, auth } from "../firebase";
 import { serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
@@ -7,6 +7,7 @@ import Papa from "papaparse";
 import QRCodeManager from '../components/QRCodeManager';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import { useTheme } from '../context/ThemeContext';
 
 // Add sanitization functions
 const sanitizeInput = (input) => {
@@ -34,14 +35,21 @@ const debounce = (func, wait) => {
 
 // Add search history to localStorage
 const saveSearchHistory = (search) => {
-  const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+  let history;
+  try {
+    history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    if (!Array.isArray(history)) history = [];
+  } catch {
+    history = [];
+  }
   if (!history.includes(search)) {
     history.unshift(search);
-    localStorage.setItem('searchHistory', history.slice(0, 10));
+    localStorage.setItem('searchHistory', JSON.stringify(history.slice(0, 10)));
   }
 };
 
 function Inventory() {
+  const { isDarkMode } = useTheme();
   const [items, setItems] = useState([]);
   const [formData, setFormData] = useState({
     unitNumber: "",
@@ -52,10 +60,10 @@ function Inventory() {
     quantity: 1,
     remarks: "",
     category: "",
-    description: "", // New field for description
-    lab: "", // New field for lab tag
-    uniqueQR: false, // New field for QR tracking
-    itemCondition: "New" // New field for item condition
+    description: "",
+    lab: "",
+    uniqueQR: false,
+    itemCondition: "New"
   });
 
   // State for expanded categories and filters
@@ -63,11 +71,13 @@ function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCondition, setFilterCondition] = useState("");
   const [filterLab, setFilterLab] = useState("");
+  const [searchField, setSearchField] = useState("name"); // New state for search field selection
 
   const [csvData, setCsvData] = useState([]);
   const [role, setRole] = useState("");
 
   const [editingItem, setEditingItem] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -80,9 +90,15 @@ function Inventory() {
     labs: []
   });
 
-  const [searchHistory, setSearchHistory] = useState(
-    JSON.parse(localStorage.getItem('searchHistory') || '[]')
-  );
+  let initialSearchHistory;
+  try {
+    initialSearchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    if (!Array.isArray(initialSearchHistory)) initialSearchHistory = [];
+  } catch {
+    initialSearchHistory = [];
+  }
+
+  const [searchHistory, setSearchHistory] = useState(initialSearchHistory);
 
   const [savedSearches, setSavedSearches] = useState(
     JSON.parse(localStorage.getItem('savedSearches') || '[]')
@@ -98,10 +114,43 @@ function Inventory() {
     lastGenerated: null
   });
 
+  // Add new state for category details modal
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+
+  // Enhanced search functionality
+  const filteredItems = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return items.filter(item => {
+      // If no search term, show all
+      if (!term) return (
+        (filterCondition === "" || item.itemCondition === filterCondition) &&
+        (filterLab === "" || item.lab === filterLab)
+      );
+      // Global search: match if any field contains the term
+      const fieldsToSearch = [
+        item.name,
+        item.brand,
+        item.serialNumber,
+        item.category,
+        item.remarks,
+        item.unitNumber,
+        item.lab,
+        item.description
+      ];
+      const matchesSearch = fieldsToSearch.some(field =>
+        typeof field === 'string' && field.toLowerCase().includes(term)
+      );
+      const matchesCondition = filterCondition === "" || item.itemCondition === filterCondition;
+      const matchesLab = filterLab === "" || item.lab === filterLab;
+      return matchesSearch && matchesCondition && matchesLab;
+    });
+  }, [items, searchTerm, filterCondition, filterLab]);
+
   // Memoize category grouping calculation
   const categoryGroups = useMemo(() => {
     const groups = {};
-    items.forEach(item => {
+    filteredItems.forEach(item => {
       const category = item.category || "Uncategorized";
       if (!groups[category]) {
         groups[category] = {
@@ -113,7 +162,7 @@ function Inventory() {
       groups[category].totalQuantity += (parseInt(item.quantity) || 0);
     });
     return groups;
-  }, [items]);
+  }, [filteredItems]);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -236,274 +285,164 @@ function Inventory() {
     }
   };
 
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setIsEditing(true);
+    setFormData({
+      ...item,
+      dateAcquired: item.dateAcquired || ""
+    });
+  };
+
   const handleSaveEdit = async () => {
     if (!editingItem) return;
 
-    if (!editingItem.name.trim()) {
-      toast.error("Name cannot be empty.");
-      return;
-    }
-    if (editingItem.quantity < 0) {
-      toast.error("Quantity cannot be negative.");
-      return;
-    }
-
+    setIsLoading(true);
     try {
-      await updateDoc(doc(db, "inventory", editingItem.id), {
-        name: editingItem.name,
-        quantity: editingItem.quantity,
-        itemCondition: editingItem.itemCondition,
-        lab: editingItem.lab,
-        description: editingItem.description,
-        updatedAt: serverTimestamp(),
-      });
+      const itemRef = doc(db, "inventory", editingItem.id);
+      const sanitizedData = {
+        ...formData,
+        name: sanitizeInput(formData.name),
+        brand: sanitizeInput(formData.brand),
+        serialNumber: sanitizeInput(formData.serialNumber),
+        category: sanitizeInput(formData.category),
+        quantity: sanitizeNumber(formData.quantity),
+        remarks: sanitizeInput(formData.remarks),
+        description: sanitizeInput(formData.description),
+        lab: sanitizeInput(formData.lab),
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(itemRef, sanitizedData);
+
+      if (auth.currentUser) {
+        await logAudit(auth.currentUser.email, `Updated item: ${sanitizedData.name}`);
+      }
+
       toast.success("Item updated successfully!");
       setEditingItem(null);
+      setIsEditing(false);
+      setFormData({
+        unitNumber: "",
+        name: "",
+        brand: "",
+        serialNumber: "",
+        dateAcquired: "",
+        quantity: 1,
+        remarks: "",
+        category: "",
+        description: "",
+        lab: "",
+        uniqueQR: false,
+        itemCondition: "New"
+      });
     } catch (error) {
       console.error("Error updating item:", error);
-      toast.error("Failed to update item.");
+      toast.error(`Error updating item: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const deleteItem = async (id, name) => {
-    if (!window.confirm(`Delete '${name}'?`)) return;
+    if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
+
     try {
       await deleteDoc(doc(db, "inventory", id));
       if (auth.currentUser) {
         await logAudit(auth.currentUser.email, `Deleted item: ${name}`);
       }
-      toast.info(`Deleted '${name}'.`);
+      toast.success("Item deleted successfully!");
     } catch (error) {
-      toast.error("Error deleting item: " + error.message);
+      console.error("Error deleting item:", error);
+      toast.error(`Error deleting item: ${error.message}`);
     }
   };
 
   const stockStatusColor = (qty) => {
-    if (qty === 0) return "bg-red-500";
-    if (qty < 5) return "bg-yellow-400";
-    return "bg-green-500";
+    if (qty <= 0) return "text-red-500";
+    if (qty <= 5) return "text-yellow-500";
+    return "text-green-500";
   };
 
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    console.log("File selected:", file.name);
+
     Papa.parse(file, {
       header: true,
       complete: (results) => {
-        console.log("CSV parse results:", results.data);
-        setCsvData(results.data.filter(row => row.name));
+        setCsvData(results.data);
       },
       error: (error) => {
-        console.error("CSV parse error:", error);
-        toast.error("Error parsing CSV file: " + error.message);
+        toast.error(`Error parsing CSV: ${error.message}`);
       }
     });
   };
 
   const bulkUpload = async () => {
+    if (csvData.length === 0) {
+      toast.error("No data to upload!");
+      return;
+    }
+
     setIsUploading(true);
+    let skippedRows = 0;
     try {
-      // Check user role before proceeding
-      if (!auth.currentUser) {
-        toast.error("You must be logged in to upload CSV");
-        setIsUploading(false);
-        return;
-      }
-      const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-      if (!userDoc.exists() || !["admin", "superadmin"].includes(userDoc.data().role)) {
-        toast.error("You don't have permission to upload CSV");
-        setIsUploading(false);
-        return;
-      }
-
-      if (!csvData.length) {
-        toast.error("No data to upload");
-        setIsUploading(false);
-        return;
-      }
-
-      // Process in batches of 500
-      const batchSize = 500;
-      const batches = [];
-      for (let i = 0; i < csvData.length; i += batchSize) {
-        batches.push(csvData.slice(i, i + batchSize));
-      }
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const batch of batches) {
-        try {
-          const batchPromises = batch.map(row => {
-            // Validate required fields
-            if (!row.name) {
-              errorCount++;
-              return Promise.reject(new Error(`Row missing name: ${JSON.stringify(row)}`));
-            }
-
-            const quantity = parseInt(row.quantity);
-            if (isNaN(quantity) || quantity < 0) {
-              errorCount++;
-              return Promise.reject(new Error(`Invalid quantity in row: ${JSON.stringify(row)}`));
-            }
-
-            return addDoc(collection(db, "inventory"), {
-              unitNumber: row.unitNumber || "",
-              name: row.name,
-              brand: row.brand || "",
-              serialNumber: row.serialNumber || "",
-              dateAcquired: row.dateAcquired || null,
-              quantity: quantity,
-              remarks: row.remarks || "",
-              category: row.category || "",
-              description: row.description || "",
-              lab: row.lab || "",
-              uniqueQR: row.uniqueQR === "true" || false,
-              itemCondition: row.itemCondition || "New",
-              createdAt: serverTimestamp(),
-            });
-          });
-
-          await Promise.all(batchPromises);
-          successCount += batch.length;
-        } catch (error) {
-          console.error("Error in batch upload:", error);
-          errorCount += batch.length;
+      for (const item of csvData) {
+        // Only require name, quantity, and category
+        const name = sanitizeInput(item.name);
+        const quantity = sanitizeNumber(item.quantity);
+        const category = sanitizeInput(item.category);
+        if (!name || !category || isNaN(quantity)) {
+          skippedRows++;
+          continue;
         }
+        const sanitizedItem = {
+          unitNumber: sanitizeInput(item.unitNum) || "",
+          name,
+          brand: sanitizeInput(item.brand) || "",
+          serialNumber: sanitizeInput(item.serialNum) || "",
+          dateAcquired: item.dateAcqui || null,
+          quantity,
+          remarks: sanitizeInput(item.remarks) || "",
+          category,
+          uniqueQR: false,
+          itemCondition: "New",
+          createdAt: serverTimestamp()
+        };
+        await addDoc(collection(db, "inventory"), sanitizedItem);
       }
 
       if (auth.currentUser) {
-        await logAudit(auth.currentUser.email, `Bulk uploaded ${successCount} items, ${errorCount} failed`);
+        await logAudit(auth.currentUser.email, `Bulk uploaded ${csvData.length - skippedRows} items (skipped ${skippedRows})`);
       }
 
-      if (errorCount > 0) {
-        toast.warning(`Uploaded ${successCount} items, ${errorCount} failed. Check console for details.`);
-      } else {
-        toast.success(`Successfully uploaded ${successCount} items`);
-      }
-
+      toast.success(`Successfully uploaded ${csvData.length - skippedRows} items!${skippedRows > 0 ? ` Skipped ${skippedRows} row(s) missing required fields.` : ''}`);
       setCsvData([]);
     } catch (error) {
-      console.error("Bulk upload error:", error);
-      toast.error(`Error during bulk upload: ${error.message}`);
+      console.error("Error in bulk upload:", error);
+      toast.error(`Error in bulk upload: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Toggle category expansion
   const toggleCategory = (category) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
+    setSelectedCategory(category);
+    setShowCategoryDetails(true);
   };
 
-  // Filter items based on search and filters
-  const filteredCategories = Object.keys(categoryGroups).filter(category => {
-    // Check if category name matches search term
-    if (searchTerm && !category.toLowerCase().includes(searchTerm.toLowerCase())) {
-      // If category doesn't match, check if any items in category match search term
-      const hasMatchingItem = categoryGroups[category].items.some(item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      if (!hasMatchingItem) return false;
-    }
-    return true;
-  });
-
-  // Get filtered items for a specific category
   const getFilteredItems = (category) => {
-    return categoryGroups[category].items.filter(item => {
-      // Basic search filter
-      const matchesSearch = !searchTerm ||
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
-
-      // Condition filter
-      const matchesCondition = !filterCondition || item.itemCondition === filterCondition;
-
-      // Lab filter
-      const matchesLab = !filterLab || item.lab === filterLab;
-
-      // Date range filter
-      const matchesDateRange = !advancedSearch.dateRange.start || !advancedSearch.dateRange.end ||
-        (item.dateAcquired >= advancedSearch.dateRange.start &&
-          item.dateAcquired <= advancedSearch.dateRange.end);
-
-      // Price range filter (if implemented)
-      const matchesPriceRange = !advancedSearch.priceRange.min || !advancedSearch.priceRange.max ||
-        (item.price >= advancedSearch.priceRange.min &&
-          item.price <= advancedSearch.priceRange.max);
-
-      // Multiple conditions filter
-      const matchesConditions = advancedSearch.conditions.length === 0 ||
-        advancedSearch.conditions.includes(item.itemCondition);
-
-      // Multiple labs filter
-      const matchesLabs = advancedSearch.labs.length === 0 ||
-        advancedSearch.labs.includes(item.lab);
-
-      return matchesSearch && matchesCondition && matchesLab &&
-        matchesDateRange && matchesPriceRange &&
-        matchesConditions && matchesLabs;
-    });
+    return filteredItems.filter(item => item.category === category);
   };
 
-  // Get available conditions and labs for filters
-  const availableConditions = ["New", "Good", "Fair", "Damaged", "For Repair", "Lost", "Decommissioned"];
-  const availableLabs = [...new Set(items.map(item => item.lab).filter(Boolean))];
-
-  // Save current search
-  const saveCurrentSearch = () => {
-    const search = {
-      term: searchTerm,
-      filters: {
-        condition: filterCondition,
-        lab: filterLab,
-        ...advancedSearch
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    setSavedSearches(prev => {
-      const newSearches = [search, ...prev];
-      localStorage.setItem('savedSearches', JSON.stringify(newSearches));
-      return newSearches;
-    });
-
-    toast.success('Search saved successfully!');
-  };
-
-  // Load saved search
-  const loadSavedSearch = (savedSearch) => {
-    setSearchTerm(savedSearch.term);
-    setFilterCondition(savedSearch.filters.condition);
-    setFilterLab(savedSearch.filters.lab);
-    setAdvancedSearch(savedSearch.filters);
-  };
-
-  // Generate QR code for an item
   const generateQrCode = async (item) => {
+    setIsGeneratingQr(true);
     try {
-      setIsGeneratingQr(true);
-      const qrData = {
-        id: item.id,
-        name: item.name,
-        unitNumber: item.unitNumber,
-        lab: item.lab,
-        condition: item.itemCondition,
-        lastUpdated: new Date().toISOString()
-      };
-
-      // Update item with QR status
-      await updateDoc(doc(db, "inventory", item.id), {
+      const itemRef = doc(db, "inventory", item.id);
+      await updateDoc(itemRef, {
         uniqueQR: true,
-        qrData: qrData,
         qrGeneratedAt: serverTimestamp()
       });
 
@@ -511,81 +450,53 @@ function Inventory() {
         await logAudit(auth.currentUser.email, `Generated QR for item: ${item.name}`);
       }
 
-      toast.success(`QR code generated for ${item.name}`);
+      toast.success("QR code generated successfully!");
     } catch (error) {
-      console.error("Error generating QR:", error);
-      toast.error(`Failed to generate QR: ${error.message}`);
+      console.error("Error generating QR code:", error);
+      toast.error(`Error generating QR code: ${error.message}`);
     } finally {
       setIsGeneratingQr(false);
     }
   };
 
-  // Preview QR code
   const previewQrCode = (item) => {
-    if (!item.uniqueQR) return;
-    setQrPreview({
-      item,
-      data: item.qrData
-    });
+    setQrPreview(item);
   };
 
-  // Memoize filtered items for better performance
-  const filteredItems = useMemo(() => {
-    return items.filter(item => {
-      const matchesSearch = !searchTerm ||
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.unitNumber.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCondition = !filterCondition || item.itemCondition === filterCondition;
-      const matchesLab = !filterLab || item.lab === filterLab;
-      return matchesSearch && matchesCondition && matchesLab;
-    });
-  }, [items, searchTerm, filterCondition, filterLab]);
-
-  // Row component for virtual list
   const Row = ({ index, style }) => {
     const item = filteredItems[index];
     return (
-      <div style={style} className="border-b">
-        <div className="grid grid-cols-6 gap-4 p-4 items-center">
-          <div>{item.unitNumber}</div>
-          <div>{item.name}</div>
-          <div>{item.lab}</div>
-          <div>{item.itemCondition}</div>
-          <div>
-            <span className={`px-2 py-1 rounded text-white ${stockStatusColor(item.quantity)}`}>
-              {item.quantity > 0 ? (item.quantity >= 5 ? "Available" : "Low Stock") : "Out of Stock"}
-            </span>
+      <div style={style} className={`p-4 ${index % 2 === 0 ? (isDarkMode ? 'bg-gray-800' : 'bg-white') : (isDarkMode ? 'bg-gray-700' : 'bg-gray-50')}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+              Category: {item.category} | Serial: {item.serialNumber} | Brand: {item.brand}
+            </p>
           </div>
-          <div className="flex space-x-2">
-            {item.uniqueQR ? (
-              <button
-                onClick={() => previewQrCode(item)}
-                className="text-green-600 hover:text-green-800"
-              >
-                View QR
-              </button>
-            ) : (
-              <button
-                onClick={() => generateQrCode(item)}
-                disabled={isGeneratingQr}
-                className={`text-blue-600 hover:text-blue-800 ${isGeneratingQr ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                Generate QR
-              </button>
-            )}
-            {(role === "admin" || role === "superadmin") && (
+          <div className="flex items-center space-x-4">
+            <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
+              Qty: {item.quantity}
+            </span>
+            {(role === 'admin' || role === 'superadmin') && (
               <>
                 <button
-                  onClick={() => setEditingItem(item)}
-                  className="text-yellow-600 hover:text-yellow-800"
+                  onClick={() => handleEdit(item)}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => deleteItem(item.id, item.name)}
-                  className="text-red-600 hover:text-red-800"
+                  className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   Delete
+                </button>
+                <button
+                  onClick={() => previewQrCode(item)}
+                  className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                >
+                  QR
                 </button>
               </>
             )}
@@ -595,440 +506,303 @@ function Inventory() {
     );
   };
 
-  return (
-    <div className="p-6 bg-white shadow-md rounded-md">
-      <h2 className="text-2xl font-semibold mb-4">Inventory Management</h2>
+  const CategoryDetailsModal = () => {
+    if (!selectedCategory) return null;
 
-      {/* Add Item Form (Only for Admin/SuperAdmin) */}
-      {(role === "superadmin" || role === "admin") && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <input
-              type="text"
-              placeholder="Unit Number"
-              className="border p-2 rounded"
-              value={formData.unitNumber}
-              onChange={(e) => setFormData({ ...formData, unitNumber: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Name"
-              className="border p-2 rounded"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Brand"
-              className="border p-2 rounded"
-              value={formData.brand}
-              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Serial Number"
-              className="border p-2 rounded"
-              value={formData.serialNumber}
-              onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Category"
-              className="border p-2 rounded"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            />
-            <input
-              type="date"
-              placeholder="Date Acquired"
-              className="border p-2 rounded"
-              value={formData.dateAcquired}
-              onChange={(e) => setFormData({ ...formData, dateAcquired: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="Quantity"
-              className="border p-2 rounded"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
-              min="0"
-            />
-            <input
-              type="text"
-              placeholder="Remarks"
-              className="border p-2 rounded"
-              value={formData.remarks}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Description"
-              className="border p-2 rounded"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-            <select
-              className="border p-2 rounded"
-              value={formData.lab}
-              onChange={(e) => setFormData({ ...formData, lab: e.target.value })}
+    const categoryItems = filteredItems.filter(item => item.category === selectedCategory);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className={`p-6 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">{selectedCategory}</h2>
+            <button
+              onClick={() => setShowCategoryDetails(false)}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
             >
-              <option value="">Select Lab (Optional)</option>
-              <option value="Mac Laboratory">Mac Laboratory</option>
-              <option value="Entertainment and Multimedia Computing Lab">EMC Lab</option>
-              <option value="Other">Other</option>
+              Close
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categoryItems.map((item) => (
+              <div key={item.id} className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                <h3 className="font-semibold mb-2">{item.name}</h3>
+                <p className="text-sm mb-1">Brand: {item.brand}</p>
+                <p className="text-sm mb-1">Serial: {item.serialNumber}</p>
+                <p className="text-sm mb-1">Quantity: {item.quantity}</p>
+                <p className="text-sm mb-1">Condition: {item.itemCondition}</p>
+                <p className="text-sm mb-1">Lab: {item.lab}</p>
+                {item.description && <p className="text-sm mb-1">Description: {item.description}</p>}
+                {item.remarks && <p className="text-sm">Remarks: {item.remarks}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+      <div className={`max-w-7xl mx-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
+
+          {/* Search and Filters */}
+          <div className="flex flex-wrap gap-4 mb-6">
+            <select
+              value={searchField}
+              onChange={(e) => setSearchField(e.target.value)}
+              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+            >
+              <option value="name">Name</option>
+              <option value="serialNumber">Serial Number</option>
+              <option value="brand">Brand</option>
+              <option value="category">Category</option>
             </select>
+            <input
+              type="text"
+              placeholder={`Search by ${searchField}...`}
+              onChange={handleSearchChange}
+              className={`flex-1 min-w-[200px] p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+            />
             <select
-              className="border p-2 rounded"
-              value={formData.itemCondition}
-              onChange={(e) => setFormData({ ...formData, itemCondition: e.target.value })}
+              value={filterCondition}
+              onChange={(e) => setFilterCondition(e.target.value)}
+              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
             >
+              <option value="">All Conditions</option>
               <option value="New">New</option>
-              <option value="Good">Good</option>
-              <option value="Fair">Fair</option>
+              <option value="Used">Used</option>
               <option value="Damaged">Damaged</option>
-              <option value="For Repair">For Repair</option>
-              <option value="Lost">Lost</option>
-              <option value="Decommissioned">Decommissioned</option>
             </select>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="uniqueQR"
-                checked={formData.uniqueQR}
-                onChange={(e) => setFormData({ ...formData, uniqueQR: e.target.checked })}
-                className="mr-2"
-              />
-              <label htmlFor="uniqueQR">Create Unique QR?</label>
-            </div>
+            <select
+              value={filterLab}
+              onChange={(e) => setFilterLab(e.target.value)}
+              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+            >
+              <option value="">All Labs</option>
+              <option value="Mac Lab">Mac Lab</option>
+              <option value="EMC Lab">EMC Lab</option>
+              <option value="Others">Others</option>
+            </select>
           </div>
 
-          <button
-            onClick={addItem}
-            disabled={isLoading}
-            className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-          >
-            {isLoading ? 'Adding...' : 'Add Item'}
-          </button>
-
-          {/* CSV Upload */}
-          <div className="mt-6">
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleCsvUpload}
-              className="mb-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text"
-            />
-            {csvData.length > 0 && (
+          {/* CSV Upload Section */}
+          <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className="text-xl font-semibold mb-4">Bulk Upload</h2>
+            <div className="flex items-center gap-4">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvUpload}
+                className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+              />
               <button
                 onClick={bulkUpload}
-                disabled={isUploading}
-                className={`ml-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                disabled={isUploading || csvData.length === 0}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
               >
-                {isUploading ? 'Uploading...' : `Upload CSV (${csvData.length} items)`}
+                {isUploading ? 'Uploading...' : 'Upload CSV'}
               </button>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Enhanced Search Section */}
-      <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Search</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search items..."
-                className="border p-2 rounded w-full"
-                onChange={handleSearchChange}
-                value={searchTerm}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-2 text-gray-500 hover:text-gray-700"
-                >
-                  ×
-                </button>
-              )}
             </div>
-
-            {/* Search History */}
-            {searchHistory.length > 0 && (
-              <div className="mt-2">
-                <div className="text-xs text-gray-500">Recent Searches:</div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {searchHistory.map((term, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSearchTerm(term)}
-                      className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {csvData.length > 0 && (
+              <p className="mt-2 text-sm text-gray-500">
+                {csvData.length} items ready to upload
+              </p>
             )}
           </div>
 
-          {/* Advanced Filters */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Date Range</label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                className="border p-2 rounded w-full"
-                onChange={e => setAdvancedSearch(prev => ({
-                  ...prev,
-                  dateRange: { ...prev.dateRange, start: e.target.value }
-                }))}
-              />
-              <input
-                type="date"
-                className="border p-2 rounded w-full"
-                onChange={e => setAdvancedSearch(prev => ({
-                  ...prev,
-                  dateRange: { ...prev.dateRange, end: e.target.value }
-                }))}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Conditions</label>
-            <select
-              multiple
-              className="border p-2 rounded w-full"
-              onChange={e => {
-                const options = e.target.options;
-                const selected = [];
-                for (let i = 0; i < options.length; i++) {
-                  if (options[i].selected) {
-                    selected.push(options[i].value);
-                  }
-                }
-                setAdvancedSearch(prev => ({
-                  ...prev,
-                  conditions: selected
-                }));
-              }}
-            >
-              {availableConditions.map(condition => (
-                <option key={condition} value={condition}>{condition}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end space-x-2">
-            <button
-              onClick={saveCurrentSearch}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Save Search
-            </button>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilterCondition('');
-                setFilterLab('');
-                setAdvancedSearch({
-                  dateRange: { start: null, end: null },
-                  priceRange: { min: null, max: null },
-                  conditions: [],
-                  labs: []
-                });
-              }}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-
-        {/* Saved Searches */}
-        {savedSearches.length > 0 && (
-          <div className="mt-4">
-            <div className="text-sm font-medium mb-2">Saved Searches:</div>
-            <div className="flex flex-wrap gap-2">
-              {savedSearches.map((search, index) => (
-                <button
-                  key={index}
-                  onClick={() => loadSavedSearch(search)}
-                  className="bg-gray-100 px-3 py-1 rounded hover:bg-gray-200 text-sm"
-                >
-                  {search.term || 'Untitled Search'}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Virtualized List */}
-      <div className="mt-4" style={{ height: '600px' }}>
-        <AutoSizer>
-          {({ height, width }) => (
-            <List
-              height={height}
-              itemCount={filteredItems.length}
-              itemSize={70}
-              width={width}
-            >
-              {Row}
-            </List>
-          )}
-        </AutoSizer>
-      </div>
-
-      {/* QR Code Section */}
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold">QR Code Management</h3>
-          <div className="text-sm text-gray-600">
-            {qrStats.totalWithQr} with QR, {qrStats.totalWithoutQr} without
-          </div>
-        </div>
-
-        {/* QR Code Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <button
-            onClick={() => {
-              const itemsWithoutQr = items.filter(item => !item.uniqueQR);
-              setBatchQrItems(itemsWithoutQr);
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Select Items for Batch QR
-          </button>
-
-          {batchQrItems.length > 0 && (
-            <button
-              onClick={() => generateBatchQr(batchQrItems)}
-              disabled={isGeneratingQr}
-              className={`bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${isGeneratingQr ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-            >
-              {isGeneratingQr ? 'Generating...' : `Generate ${batchQrItems.length} QR Codes`}
-            </button>
-          )}
-
-          <button
-            onClick={() => setBatchQrItems([])}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-          >
-            Clear Selection
-          </button>
-        </div>
-
-        {/* Selected Items for Batch QR */}
-        {batchQrItems.length > 0 && (
-          <div className="mb-6">
-            <h4 className="text-lg font-medium mb-2">Selected Items ({batchQrItems.length})</h4>
+          {/* Category Groups */}
+          <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className="text-xl font-semibold mb-4">Categories</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {batchQrItems.map(item => (
-                <div key={item.id} className="border p-3 rounded">
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-sm text-gray-600">{item.unitNumber}</div>
+              {Object.entries(categoryGroups).map(([category, { items, totalQuantity }]) => (
+                <div
+                  key={category}
+                  onClick={() => toggleCategory(category)}
+                  className={`p-4 rounded-lg cursor-pointer transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                >
+                  <h3 className="font-semibold">{category}</h3>
+                  <p className="text-sm text-gray-500">
+                    {items.length} items • Total Quantity: {totalQuantity}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
-        )}
 
-        {/* QR Code Preview Modal */}
-        {qrPreview && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-6 rounded-md">
-              <h3 className="text-xl font-semibold mb-4">QR Code Preview</h3>
-              <QRCodeManager
-                item={qrPreview.item}
-                onPreview={previewQrCode}
-                isGenerating={isGeneratingQr}
-                showActions={false}
-              />
-              <button
-                onClick={() => setQrPreview(null)}
-                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-              >
-                Close
-              </button>
+          {/* Add/Edit Item Form */}
+          {(role === 'admin' || role === 'superadmin') && (
+            <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h2 className="text-xl font-semibold mb-4">{isEditing ? 'Edit Item' : 'Add New Item'}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  placeholder="Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <input
+                  type="text"
+                  placeholder="Brand"
+                  value={formData.brand}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <input
+                  type="text"
+                  placeholder="Serial Number"
+                  value={formData.serialNumber}
+                  onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <input
+                  type="text"
+                  placeholder="Category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <input
+                  type="date"
+                  placeholder="Date Acquired"
+                  value={formData.dateAcquired}
+                  onChange={(e) => setFormData({ ...formData, dateAcquired: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <select
+                  value={formData.itemCondition}
+                  onChange={(e) => setFormData({ ...formData, itemCondition: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                >
+                  <option value="New">New</option>
+                  <option value="Used">Used</option>
+                  <option value="Damaged">Damaged</option>
+                </select>
+                <select
+                  value={formData.lab}
+                  onChange={(e) => setFormData({ ...formData, lab: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                >
+                  <option value="">Select Lab</option>
+                  <option value="Lab1">Lab 1</option>
+                  <option value="Lab2">Lab 2</option>
+                  <option value="Lab3">Lab 3</option>
+                </select>
+                <textarea
+                  placeholder="Description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <textarea
+                  placeholder="Remarks"
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+              </div>
+              <div className="mt-4 flex justify-end space-x-4">
+                {isEditing && (
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditingItem(null);
+                      setFormData({
+                        unitNumber: "",
+                        name: "",
+                        brand: "",
+                        serialNumber: "",
+                        dateAcquired: "",
+                        quantity: 1,
+                        remarks: "",
+                        category: "",
+                        description: "",
+                        lab: "",
+                        uniqueQR: false,
+                        itemCondition: "New"
+                      });
+                    }}
+                    className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={isEditing ? handleSaveEdit : addItem}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {isLoading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add Item')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* QR Stats */}
+          <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <h2 className="text-xl font-semibold mb-2">QR Code Statistics</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Items with QR</p>
+                <p className="text-2xl font-bold">{qrStats.totalWithQr}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Items without QR</p>
+                <p className="text-2xl font-bold">{qrStats.totalWithoutQr}</p>
+              </div>
             </div>
           </div>
-        )}
-      </div>
 
-      {editingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-md w-full max-w-lg">
-            <h2 className="text-xl font-semibold mb-4">Edit Item</h2>
-
-            {/* Editable Fields */}
-            <div className="space-y-4">
-              <input
-                type="text"
-                className="border p-2 rounded w-full"
-                value={editingItem.name}
-                onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                placeholder="Name"
-              />
-              <input
-                type="number"
-                className="border p-2 rounded w-full"
-                value={editingItem.quantity}
-                onChange={(e) => setEditingItem({ ...editingItem, quantity: parseInt(e.target.value) })}
-                placeholder="Quantity"
-                min="0"
-              />
-              <select
-                value={editingItem.itemCondition}
-                onChange={e => setEditingItem({ ...editingItem, itemCondition: e.target.value })}
-                className="border p-2 rounded w-full"
-              >
-                <option value="New">New</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Damaged">Damaged</option>
-                <option value="For Repair">For Repair</option>
-                <option value="Lost">Lost</option>
-                <option value="Decommissioned">Decommissioned</option>
-              </select>
-              <input
-                type="text"
-                className="border p-2 rounded w-full"
-                value={editingItem.lab}
-                onChange={(e) => setEditingItem({ ...editingItem, lab: e.target.value })}
-                placeholder="Lab (Mac Lab, EMC Lab, etc.)"
-              />
-              <textarea
-                className="border p-2 rounded w-full"
-                value={editingItem.description}
-                onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                placeholder="Description"
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-4 mt-6">
-              <button
-                onClick={() => setEditingItem(null)}
-                className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Save Changes
-              </button>
-            </div>
+          {/* Virtualized List */}
+          <div className="h-[600px]">
+            <AutoSizer>
+              {({ height, width }) => (
+                <List
+                  height={height}
+                  itemCount={filteredItems.length}
+                  itemSize={80}
+                  width={width}
+                >
+                  {Row}
+                </List>
+              )}
+            </AutoSizer>
           </div>
+
+          {/* QR Preview Modal */}
+          {qrPreview && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                <QRCodeManager
+                  item={qrPreview}
+                  onGenerate={() => generateQrCode(qrPreview)}
+                  onPreview={() => previewQrCode(qrPreview)}
+                  isLoading={isGeneratingQr}
+                />
+                <button
+                  onClick={() => setQrPreview(null)}
+                  className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
+      {showCategoryDetails && <CategoryDetailsModal />}
     </div>
   );
 }

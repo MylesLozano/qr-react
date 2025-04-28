@@ -1,43 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { auth, getUserRole } from '../../firebase';
+import { auth, getUserRole } from '../firebase';
 import { toast } from 'react-toastify';
+import { useTheme } from '../context/ThemeContext';
 
 function BaseDashboard({ children, role }) {
   const [userRole, setUserRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const location = useLocation();
+  const { isDarkMode } = useTheme();
 
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      try {
-        if (auth.currentUser) {
-          const role = await getUserRole(auth.currentUser.uid);
-          setUserRole(role);
-        }
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-        toast.error("Failed to load user permissions");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserRole();
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      toast.success("Logged out successfully");
-    } catch (error) {
-      console.error("Error signing out:", error);
-      toast.error("Failed to log out");
-    }
-  };
-
-  const getNavItems = () => {
+  // Memoize navigation items
+  const navItems = useMemo(() => {
     const commonItems = [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
       { path: '/inventory', label: 'Inventory', icon: '📦' },
@@ -60,97 +37,126 @@ function BaseDashboard({ children, role }) {
     }
 
     return items;
+  }, [userRole]);
+
+  const fetchUserRole = useCallback(async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const role = await getUserRole(currentUser.uid);
+        setUserRole(role);
+        setError(null);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+      setError(error);
+      if (retryCount < 3) {
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+          fetchUserRole();
+        }, 2000);
+      } else {
+        toast.error("Failed to load user permissions after multiple attempts");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [retryCount]);
+
+  useEffect(() => {
+    fetchUserRole();
+  }, [fetchUserRole]);
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to log out");
+    }
   };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape' && isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMenuOpen]);
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-lg">Loading dashboard...</div>
+      <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="text-lg text-gray-800 dark:text-gray-200">Loading dashboard...</div>
       </div>
     );
   }
 
-  if (!userRole || (role && userRole !== role)) {
+  if (error && retryCount >= 3) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-red-500 text-xl">
-          ⚠️ Access Denied: You do not have permission to view this page.
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="text-red-500 text-xl mb-4">
+          ⚠️ Failed to load dashboard
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 right-4 z-50">
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-md bg-white shadow-md"
-        >
-          {isMenuOpen ? '✕' : '☰'}
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-40`}>
-        <div className="h-full w-64 bg-white shadow-lg">
-          <div className="p-4 border-b">
-            <div className="text-xl font-bold text-blue-600">QCheckCITE</div>
-            <div className="text-sm text-gray-600">
-              {auth.currentUser?.email}
-            </div>
-            <div className="text-xs text-gray-500">
-              Role: {userRole}
-            </div>
-          </div>
-
-          <nav className="p-4">
-            <ul className="space-y-2">
-              {getNavItems().map((item) => (
-                <li key={item.path}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+      {/* Navigation */}
+      <nav className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <span className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  QCheckCITE
+                </span>
+              </div>
+              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                {navItems.map((item) => (
                   <Link
+                    key={item.path}
                     to={item.path}
-                    className={`flex items-center p-2 rounded-md ${location.pathname === item.path
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                    className={`${location.pathname === item.path
+                      ? `${isDarkMode ? 'border-blue-400 text-white' : 'border-blue-500 text-gray-900'}`
+                      : `${isDarkMode ? 'border-transparent text-gray-300 hover:border-gray-300 hover:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`
+                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                   >
                     <span className="mr-2">{item.icon}</span>
                     {item.label}
                   </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <div className="absolute bottom-0 w-full p-4 border-t">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-md"
-            >
-              <span className="mr-2">🚪</span>
-              Logout
-            </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center">
+              <button
+                onClick={handleLogout}
+                className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+                  }`}
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </nav>
 
       {/* Main Content */}
-      <div className="md:ml-64">
-        {/* Overlay for mobile menu */}
-        {isMenuOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
-            onClick={() => setIsMenuOpen(false)}
-          />
-        )}
-
-        {/* Content */}
-        <main className="p-4 md:p-6">
-          {children}
-        </main>
-      </div>
+      <main className={`max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        {children}
+      </main>
     </div>
   );
 }
