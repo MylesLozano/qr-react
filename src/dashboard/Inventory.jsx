@@ -4,7 +4,7 @@ import { db, logAudit, auth } from "../firebase";
 import { serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
 import Papa from "papaparse";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 
 // Add sanitization functions
 const sanitizeInput = (input) => {
@@ -1007,7 +1007,7 @@ function Inventory() {
             <div className="bg-white p-6 rounded-md">
               <h3 className="text-xl font-semibold mb-4">QR Code Preview</h3>
               <div className="flex flex-col items-center">
-                <QRCode
+                <QRCodeSVG
                   value={JSON.stringify(qrPreview.data)}
                   size={256}
                   level="H"

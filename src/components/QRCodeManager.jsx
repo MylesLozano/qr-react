@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
 import { toast } from 'react-toastify';
@@ -41,7 +41,7 @@ function QRCodeManager({
     return (
         <div className="flex flex-col items-center">
             <div ref={setQrRef} className="p-4 bg-white inline-block">
-                <QRCode
+                <QRCodeSVG
                     value={JSON.stringify(qrData)}
                     size={size}
                     level="H"
