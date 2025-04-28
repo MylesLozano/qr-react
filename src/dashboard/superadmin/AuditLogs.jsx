@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where, Timestamp } from "firebase/firestore";
 import { db, auth, getUserRole } from "../../firebase"; // Adjust import path
 import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
@@ -14,6 +14,7 @@ function AuditLogs() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [role, setRole] = useState(null);
 
   // Fetch user role
@@ -36,7 +37,8 @@ function AuditLogs() {
       const term = searchTerm.toLowerCase();
       result = result.filter(log =>
         log.userEmail.toLowerCase().includes(term) ||
-        log.action.toLowerCase().includes(term)
+        log.action.toLowerCase().includes(term) ||
+        log.details?.toLowerCase().includes(term)
       );
     }
 
@@ -45,8 +47,20 @@ function AuditLogs() {
       result = result.filter(log => log.type === filter);
     }
 
+    // Apply date range filter
+    if (dateRange.start && dateRange.end) {
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+      endDate.setHours(23, 59, 59, 999); // End of day
+
+      result = result.filter(log => {
+        const logDate = log.timestamp?.toDate();
+        return logDate >= startDate && logDate <= endDate;
+      });
+    }
+
     return result;
-  }, [logs, searchTerm, filter]);
+  }, [logs, searchTerm, filter, dateRange]);
 
   useEffect(() => {
     setLoading(true);
@@ -67,6 +81,7 @@ function AuditLogs() {
         console.error("Error fetching audit logs:", err);
         setError("Failed to load audit logs. Please try again later.");
         setLoading(false);
+        toast.error("Failed to load audit logs");
       }
     );
 
@@ -75,7 +90,11 @@ function AuditLogs() {
 
   // Restrict access to non-SuperAdmins
   if (role !== "superadmin") {
-    return <p className="text-red-500">⚠️ Access Denied: You do not have permission to view audit logs.</p>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-500 text-xl">⚠️ Access Denied: You do not have permission to view audit logs.</p>
+      </div>
+    );
   }
 
   // Row component for virtual list
@@ -116,7 +135,7 @@ function AuditLogs() {
         <h1 className="text-2xl font-bold mb-6">Audit Logs</h1>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <input
             type="text"
             placeholder="Search logs..."
@@ -134,6 +153,46 @@ function AuditLogs() {
             <option value="update">Update</option>
             <option value="delete">Delete</option>
           </select>
+          <input
+            type="date"
+            value={dateRange.start || ''}
+            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+            className="border p-2 rounded"
+            placeholder="Start Date"
+          />
+          <input
+            type="date"
+            value={dateRange.end || ''}
+            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+            className="border p-2 rounded"
+            placeholder="End Date"
+          />
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-sm text-gray-600">Total Logs</div>
+            <div className="text-2xl font-bold">{filteredLogs.length}</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-sm text-gray-600">Create Actions</div>
+            <div className="text-2xl font-bold text-green-500">
+              {filteredLogs.filter(log => log.type === 'create').length}
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-sm text-gray-600">Update Actions</div>
+            <div className="text-2xl font-bold text-blue-500">
+              {filteredLogs.filter(log => log.type === 'update').length}
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-sm text-gray-600">Delete Actions</div>
+            <div className="text-2xl font-bold text-red-500">
+              {filteredLogs.filter(log => log.type === 'delete').length}
+            </div>
+          </div>
         </div>
 
         {/* Virtualized List */}
