@@ -76,8 +76,8 @@ function App() {
 
             {/* SuperAdmin Routes */}
             <Route path="/superadmin-dashboard" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
-            <Route path="/superadmin-dashboard/manage-users" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
-            <Route path="/superadmin-dashboard/audit-logs" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
+            <Route path="/superadmin-dashboard/manage-users" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><ManageUsers /></ProtectedRoute>} />
+            <Route path="/superadmin-dashboard/audit-logs" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><AuditLogs /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={role === "admin"}><AdminDashboard /></ProtectedRoute>} />

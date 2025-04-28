@@ -70,7 +70,7 @@ const getUserRole = async (uid) => {
 // Function to log audit events
 const logAudit = async (email, action) => {
   try {
-    const auditRef = await addDoc(collection(db, "audit_logs"), {
+    const auditRef = await addDoc(collection(db, "auditLogs"), {
       email,
       action,
       timestamp: serverTimestamp(),

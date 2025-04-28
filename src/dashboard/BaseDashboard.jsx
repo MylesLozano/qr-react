@@ -16,19 +16,27 @@ function BaseDashboard({ children, role }) {
   // Memoize navigation items
   const navItems = useMemo(() => {
     const commonItems = [
-      { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
       { path: '/inventory', label: 'Inventory', icon: '📦' },
     ];
 
     const adminItems = [
       { path: '/user-management', label: 'User Management', icon: '👥' },
+      { path: '/admin-dashboard/requests', label: 'Requests', icon: '📥' },
+      { path: '/admin-dashboard/reports', label: 'Reports', icon: '📊' },
     ];
 
     const superAdminItems = [
-      { path: '/audit-logs', label: 'Audit Logs', icon: '📝' },
+      { path: '/superadmin-dashboard/audit-logs', label: 'Audit Logs', icon: '📝' },
+    ];
+
+    const userItems = [
+      { path: '/user-dashboard/my-requests', label: 'My Requests', icon: '📄' },
     ];
 
     let items = [...commonItems];
+    if (userRole === 'user') {
+      items = [...items, ...userItems];
+    }
     if (userRole === 'admin' || userRole === 'superadmin') {
       items = [...items, ...adminItems];
     }
