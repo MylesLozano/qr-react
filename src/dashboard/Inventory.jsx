@@ -32,6 +32,8 @@ function Inventory() {
   const [csvData, setCsvData] = useState([]);
   const [role, setRole] = useState("");
 
+  const [editingItem, setEditingItem] = useState(null);
+
   useEffect(() => {
     const fetchUserRole = async () => {
       if (auth.currentUser) {
@@ -101,6 +103,35 @@ function Inventory() {
       });
     } catch (error) {
       toast.error("Error adding item: " + error.message);
+    }
+  };
+  
+  const handleSaveEdit = async () => {
+    if (!editingItem) return;
+  
+    if (!editingItem.name.trim()) {
+      toast.error("Name cannot be empty.");
+      return;
+    }
+    if (editingItem.quantity < 0) {
+      toast.error("Quantity cannot be negative.");
+      return;
+    }
+  
+    try {
+      await updateDoc(doc(db, "inventory", editingItem.id), {
+        name: editingItem.name,
+        quantity: editingItem.quantity,
+        itemCondition: editingItem.itemCondition,
+        lab: editingItem.lab,
+        description: editingItem.description,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success("Item updated successfully!");
+      setEditingItem(null);
+    } catch (error) {
+      console.error("Error updating item:", error);
+      toast.error("Failed to update item.");
     }
   };
 
@@ -229,60 +260,6 @@ function Inventory() {
   return (
     <div className="p-6 bg-white shadow-md rounded-md">
       <h2 className="text-2xl font-semibold mb-4">Inventory Management</h2>
-      
-      {/* Search and Filters */}
-      <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Search</label>
-            <input
-              type="text"
-              placeholder="Search items..."
-              className="border p-2 rounded w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Filter by Condition</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={filterCondition}
-              onChange={(e) => setFilterCondition(e.target.value)}
-            >
-              <option value="">All Conditions</option>
-              {availableConditions.map(condition => (
-                <option key={condition} value={condition}>{condition}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Filter by Lab</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={filterLab}
-              onChange={(e) => setFilterLab(e.target.value)}
-            >
-              <option value="">All Labs</option>
-              {availableLabs.map(lab => (
-                <option key={lab} value={lab}>{lab}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button 
-              onClick={() => {
-                setSearchTerm("");
-                setFilterCondition("");
-                setFilterLab("");
-              }}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Add Item Form (Only for Admin/SuperAdmin) */}
       {(role === "superadmin" || role === "admin") && (
@@ -414,6 +391,60 @@ function Inventory() {
         </>
       )}
 
+      {/* Search and Filters */}
+      <div className="mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Search</label>
+                  <input
+                    type="text"
+                    placeholder="Search items..."
+                    className="border p-2 rounded w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Filter by Condition</label>
+                  <select
+                    className="border p-2 rounded w-full"
+                    value={filterCondition}
+                    onChange={(e) => setFilterCondition(e.target.value)}
+                  >
+                    <option value="">All Conditions</option>
+                    {availableConditions.map(condition => (
+                      <option key={condition} value={condition}>{condition}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Filter by Lab</label>
+                  <select
+                    className="border p-2 rounded w-full"
+                    value={filterLab}
+                    onChange={(e) => setFilterLab(e.target.value)}
+                  >
+                    <option value="">All Labs</option>
+                    {availableLabs.map(lab => (
+                      <option key={lab} value={lab}>{lab}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button 
+                    onClick={() => {
+                      setSearchTerm("");
+                      setFilterCondition("");
+                      setFilterLab("");
+                    }}
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+
       {/* Category-based Inventory View */}
       <div className="mt-8">
         <h3 className="text-xl font-semibold mb-4">Inventory by Category</h3>
@@ -465,13 +496,19 @@ function Inventory() {
                             </span>
                           </td>
                           {(role === "admin" || role === "superadmin") && (
-                            <td className="p-2 border">
-                              <button
-                                onClick={() => deleteItem(item.id, item.name)}
-                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                              >
-                                Delete
-                              </button>
+                            <td className="p-2 border space-x-2">
+                            <button
+                              onClick={() => setEditingItem(item)}
+                              className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                            >
+                              Update
+                            </button>
+                            <button
+                              onClick={() => deleteItem(item.id, item.name)}
+                              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                            >
+                              Delete
+                            </button>
                             </td>
                           )}
                         </tr>
@@ -485,6 +522,74 @@ function Inventory() {
           </>
         )}
       </div>
+      {editingItem && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="bg-white p-6 rounded-md w-full max-w-lg">
+          <h2 className="text-xl font-semibold mb-4">Edit Item</h2>
+
+          {/* Editable Fields */}
+          <div className="space-y-4">
+            <input
+              type="text"
+              className="border p-2 rounded w-full"
+              value={editingItem.name}
+              onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+              placeholder="Name"
+            />
+            <input
+              type="number"
+              className="border p-2 rounded w-full"
+              value={editingItem.quantity}
+              onChange={(e) => setEditingItem({ ...editingItem, quantity: parseInt(e.target.value) })}
+              placeholder="Quantity"
+              min="0"
+            />
+            <select
+            value={editingItem.itemCondition}
+            onChange={e => setEditingItem({ ...editingItem, itemCondition: e.target.value })}
+            className="border p-2 rounded w-full"
+            >
+              <option value="New">New</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+              <option value="Damaged">Damaged</option>
+              <option value="For Repair">For Repair</option>
+              <option value="Lost">Lost</option>
+              <option value="Decommissioned">Decommissioned</option>
+            </select>
+            <input
+              type="text"
+              className="border p-2 rounded w-full"
+              value={editingItem.lab}
+              onChange={(e) => setEditingItem({ ...editingItem, lab: e.target.value })}
+              placeholder="Lab (Mac Lab, EMC Lab, etc.)"
+            />
+            <textarea
+              className="border p-2 rounded w-full"
+              value={editingItem.description}
+              onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+              placeholder="Description"
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-4 mt-6">
+            <button
+              onClick={() => setEditingItem(null)}
+              className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
