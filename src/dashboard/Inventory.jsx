@@ -4,6 +4,7 @@ import { db, logAudit, auth } from "../firebase";
 import { serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
 import Papa from "papaparse";
+import QRCode from "qrcode.react";
 
 // Add sanitization functions
 const sanitizeInput = (input) => {
@@ -85,6 +86,16 @@ function Inventory() {
     JSON.parse(localStorage.getItem('savedSearches') || '[]')
   );
 
+  // Add new QR-related states
+  const [qrPreview, setQrPreview] = useState(null);
+  const [batchQrItems, setBatchQrItems] = useState([]);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [qrStats, setQrStats] = useState({
+    totalWithQr: 0,
+    totalWithoutQr: 0,
+    lastGenerated: null
+  });
+
   // Memoize category grouping calculation
   const categoryGroups = useMemo(() => {
     const groups = {};
@@ -141,6 +152,18 @@ function Inventory() {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const stats = items.reduce((acc, item) => {
+      if (item.uniqueQR) {
+        acc.totalWithQr++;
+      } else {
+        acc.totalWithoutQr++;
+      }
+      return acc;
+    }, { totalWithQr: 0, totalWithoutQr: 0 });
+    setQrStats(stats);
+  }, [items]);
 
   const addItem = async () => {
     setIsLoading(true);
@@ -462,6 +485,96 @@ function Inventory() {
     setAdvancedSearch(savedSearch.filters);
   };
 
+  // Generate QR code for an item
+  const generateQrCode = async (item) => {
+    try {
+      setIsGeneratingQr(true);
+      const qrData = {
+        id: item.id,
+        name: item.name,
+        unitNumber: item.unitNumber,
+        lab: item.lab,
+        condition: item.itemCondition,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Update item with QR status
+      await updateDoc(doc(db, "inventory", item.id), {
+        uniqueQR: true,
+        qrData: qrData,
+        qrGeneratedAt: serverTimestamp()
+      });
+
+      if (auth.currentUser) {
+        await logAudit(auth.currentUser.email, `Generated QR for item: ${item.name}`);
+      }
+
+      toast.success(`QR code generated for ${item.name}`);
+    } catch (error) {
+      console.error("Error generating QR:", error);
+      toast.error(`Failed to generate QR: ${error.message}`);
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  // Generate QR codes in batch
+  const generateBatchQr = async (items) => {
+    try {
+      setIsGeneratingQr(true);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const item of items) {
+        try {
+          const qrData = {
+            id: item.id,
+            name: item.name,
+            unitNumber: item.unitNumber,
+            lab: item.lab,
+            condition: item.itemCondition,
+            lastUpdated: new Date().toISOString()
+          };
+
+          await updateDoc(doc(db, "inventory", item.id), {
+            uniqueQR: true,
+            qrData: qrData,
+            qrGeneratedAt: serverTimestamp()
+          });
+          successCount++;
+        } catch (error) {
+          console.error(`Error generating QR for ${item.name}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (auth.currentUser) {
+        await logAudit(auth.currentUser.email, `Generated QR codes in batch: ${successCount} success, ${errorCount} failed`);
+      }
+
+      if (errorCount > 0) {
+        toast.warning(`Generated ${successCount} QR codes, ${errorCount} failed`);
+      } else {
+        toast.success(`Successfully generated ${successCount} QR codes`);
+      }
+    } catch (error) {
+      console.error("Batch QR generation error:", error);
+      toast.error(`Error during batch QR generation: ${error.message}`);
+    } finally {
+      setIsGeneratingQr(false);
+      setBatchQrItems([]);
+    }
+  };
+
+  // Preview QR code
+  const previewQrCode = (item) => {
+    if (!item.uniqueQR) return;
+    setQrPreview({
+      item,
+      data: item.qrData
+    });
+  };
+
   return (
     <div className="p-6 bg-white shadow-md rounded-md">
       <h2 className="text-2xl font-semibold mb-4">Inventory Management</h2>
@@ -769,6 +882,7 @@ function Inventory() {
                           <th className="p-2 border">Lab</th>
                           <th className="p-2 border">Condition</th>
                           <th className="p-2 border">Stock Status</th>
+                          <th className="p-2 border">QR</th>
                           {(role === "admin" || role === "superadmin") && <th className="p-2 border">Actions</th>}
                         </tr>
                       </thead>
@@ -784,6 +898,25 @@ function Inventory() {
                               <span className={`px-2 py-1 rounded text-white ${stockStatusColor(item.quantity)}`}>
                                 {item.quantity > 0 ? (item.quantity >= 5 ? "Available" : "Low Stock") : "Out of Stock"}
                               </span>
+                            </td>
+                            <td className="p-2 border">
+                              {item.uniqueQR ? (
+                                <button
+                                  onClick={() => previewQrCode(item)}
+                                  className="text-green-600 hover:text-green-800"
+                                >
+                                  View QR
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => generateQrCode(item)}
+                                  disabled={isGeneratingQr}
+                                  className={`text-blue-600 hover:text-blue-800 ${isGeneratingQr ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                >
+                                  Generate QR
+                                </button>
+                              )}
                             </td>
                             {(role === "admin" || role === "superadmin") && (
                               <td className="p-2 border space-x-2">
@@ -812,6 +945,90 @@ function Inventory() {
           </>
         )}
       </div>
+
+      {/* QR Code Section */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold">QR Code Management</h3>
+          <div className="text-sm text-gray-600">
+            {qrStats.totalWithQr} with QR, {qrStats.totalWithoutQr} without
+          </div>
+        </div>
+
+        {/* QR Code Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <button
+            onClick={() => {
+              const itemsWithoutQr = items.filter(item => !item.uniqueQR);
+              setBatchQrItems(itemsWithoutQr);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Select Items for Batch QR
+          </button>
+
+          {batchQrItems.length > 0 && (
+            <button
+              onClick={() => generateBatchQr(batchQrItems)}
+              disabled={isGeneratingQr}
+              className={`bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${isGeneratingQr ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+            >
+              {isGeneratingQr ? 'Generating...' : `Generate ${batchQrItems.length} QR Codes`}
+            </button>
+          )}
+
+          <button
+            onClick={() => setBatchQrItems([])}
+            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+          >
+            Clear Selection
+          </button>
+        </div>
+
+        {/* Selected Items for Batch QR */}
+        {batchQrItems.length > 0 && (
+          <div className="mb-6">
+            <h4 className="text-lg font-medium mb-2">Selected Items ({batchQrItems.length})</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {batchQrItems.map(item => (
+                <div key={item.id} className="border p-3 rounded">
+                  <div className="font-medium">{item.name}</div>
+                  <div className="text-sm text-gray-600">{item.unitNumber}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* QR Code Preview Modal */}
+        {qrPreview && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-md">
+              <h3 className="text-xl font-semibold mb-4">QR Code Preview</h3>
+              <div className="flex flex-col items-center">
+                <QRCode
+                  value={JSON.stringify(qrPreview.data)}
+                  size={256}
+                  level="H"
+                  includeMargin={true}
+                />
+                <div className="mt-4 text-center">
+                  <div className="font-medium">{qrPreview.item.name}</div>
+                  <div className="text-sm text-gray-600">{qrPreview.item.unitNumber}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setQrPreview(null)}
+                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {editingItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-md w-full max-w-lg">

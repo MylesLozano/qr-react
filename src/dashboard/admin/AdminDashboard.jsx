@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
-import QRCode from "react-qr-code";
-import { saveAs } from "file-saver";
-import html2canvas from "html2canvas";
+import React, { useState } from 'react';
+import QRCodeManager from '../../components/QRCodeManager';
+import { toast } from 'react-toastify';
 import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, getCountFromServer } from "firebase/firestore";
@@ -10,17 +9,39 @@ import { db } from "../../firebase";
 function AdminDashboard() {
   usePageTitle("QCheckCITE - Admin");
 
-  const [qrValue, setQrValue] = useState("https://yourwebsite.com");
-  const qrRef = useRef(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // 📥 Function to Download QR Code as Image
-  const downloadQR = async () => {
-    if (!qrRef.current) return;
+  const handleGenerateQR = async (item) => {
+    setIsGenerating(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setQrValue(JSON.stringify({
+        id: item.id,
+        name: item.name,
+        unitNumber: item.unitNumber,
+        lab: item.lab,
+        condition: item.itemCondition,
+        lastUpdated: new Date().toISOString()
+      }));
+      toast.success('QR code generated successfully!');
+    } catch (error) {
+      console.error('Error generating QR:', error);
+      toast.error('Failed to generate QR code');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
-    const canvas = await html2canvas(qrRef.current);
-    canvas.toBlob((blob) => {
-      saveAs(blob, "qrcode.png");
-    });
+  const handlePreviewQR = (item) => {
+    setQrValue(JSON.stringify({
+      id: item.id,
+      name: item.name,
+      unitNumber: item.unitNumber,
+      lab: item.lab,
+      condition: item.itemCondition,
+      lastUpdated: new Date().toISOString()
+    }));
   };
 
   // State for summary data
@@ -77,29 +98,23 @@ function AdminDashboard() {
 
       {/* QR Code Generator Section */}
       <div className="bg-white p-6 shadow rounded-lg text-center">
-        <h2 className="text-xl font-semibold mb-4">Generate QR Code</h2>
+        <h2 className="text-xl font-semibold mb-4">QR Code Generator</h2>
 
-        {/* Input Field for Custom QR Code Value */}
-        <input
-          type="text"
-          className="border p-2 rounded w-full mb-4"
-          placeholder="Enter text or URL"
-          value={qrValue}
-          onChange={(e) => setQrValue(e.target.value)}
-        />
-
-        {/* QR Code Display */}
-        <div ref={qrRef} className="p-4 bg-white inline-block">
-          <QRCode value={qrValue} size={256} />
+        <div className="mb-4">
+          <QRCodeManager
+            item={{
+              id: 'sample',
+              name: 'Sample Item',
+              unitNumber: '123',
+              lab: 'Main Lab',
+              itemCondition: 'Good',
+              uniqueQR: true
+            }}
+            onGenerate={handleGenerateQR}
+            onPreview={handlePreviewQR}
+            isGenerating={isGenerating}
+          />
         </div>
-
-        {/* Download Button */}
-        <button
-          onClick={downloadQR}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Download QR Code
-        </button>
       </div>
     </BaseDashboard>
   );
