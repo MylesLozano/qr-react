@@ -203,8 +203,8 @@ function BaseDashboard({ children }) {
                 <button
                   onClick={toggleTheme}
                   className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md transition-colors duration-200 ${isDarkMode
-                      ? 'bg-gray-700 text-white hover:bg-gray-600'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    ? 'bg-gray-700 text-white hover:bg-gray-600'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                     }`}
                   aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
                 >
@@ -214,8 +214,8 @@ function BaseDashboard({ children }) {
                   onClick={handleLogout}
                   disabled={isLoading}
                   className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors duration-200 ${isDarkMode
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : 'bg-red-500 hover:bg-red-600'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-red-500 hover:bg-red-600'
                     } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Logout"
                 >
