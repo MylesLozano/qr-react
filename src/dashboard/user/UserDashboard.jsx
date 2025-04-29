@@ -150,8 +150,8 @@ function UserDashboard() {
               <div
                 key={index}
                 className={`p-5 rounded-lg shadow transition-colors duration-200 ${isDarkMode
-                    ? "bg-gray-800 hover:bg-gray-700"
-                    : "bg-white hover:bg-gray-50"
+                  ? "bg-gray-800 hover:bg-gray-700"
+                  : "bg-white hover:bg-gray-50"
                   }`}
                 role="region"
                 aria-label={card.title}
@@ -206,8 +206,8 @@ function UserDashboard() {
                 <button
                   onClick={resetScanner}
                   className={`mt-2 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode
-                      ? "bg-blue-600 hover:bg-blue-700 text-white"
-                      : "bg-blue-500 hover:bg-blue-600 text-white"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-blue-500 hover:bg-blue-600 text-white"
                     }`}
                   aria-label="Scan again"
                 >
