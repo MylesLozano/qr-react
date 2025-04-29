@@ -31,6 +31,7 @@ const Reports = lazy(() => import("./dashboard/admin/Reports"));
 const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
 const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCategories'));
 const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
+const ReportGenerator = lazy(() => import('./dashboard/admin/ReportGenerator'));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -89,6 +90,7 @@ function App() {
               <Route path="reports" element={<Reports />} />
               <Route path="categories" element={<InventoryCategories />} />
               <Route path="templates" element={<ReportTemplates />} />
+              <Route path="generate-report" element={<ReportGenerator />} />
             </Route>
             <Route path="/admin-dashboard/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
 

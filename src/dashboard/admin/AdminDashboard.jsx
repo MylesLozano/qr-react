@@ -149,6 +149,9 @@ function AdminDashboard() {
           <Link to="templates" className="nav-link">
             <i className="fas fa-file-alt"></i> Report Templates
           </Link>
+          <Link to="generate-report" className="nav-link">
+            <i className="fas fa-file-export"></i> Generate Report
+          </Link>
         </div>
       </div>
     </BaseDashboard>
