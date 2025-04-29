@@ -8,6 +8,7 @@ import "react-toastify/dist/ReactToastify.css";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { ThemeProvider } from "./context/ThemeContext";
+import { canPerformAction } from './utils/roleUtils';
 
 const getDashboardPath = (role) => {
   switch (role) {
@@ -78,19 +79,59 @@ function App() {
             <Route path="/login" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />} />
 
             {/* SuperAdmin Routes */}
-            <Route path="/superadmin-dashboard" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><SuperAdminDashboard /></ProtectedRoute>} />
-            <Route path="/superadmin-dashboard/manage-users" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><ManageUsers /></ProtectedRoute>} />
-            <Route path="/superadmin-dashboard/audit-logs" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><AuditLogs /></ProtectedRoute>} />
+            <Route path="/superadmin-dashboard" element={
+              <ProtectedRoute requiredRole="superadmin">
+                <SuperAdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/superadmin-dashboard/manage-users" element={
+              <ProtectedRoute requiredAction="manage_users">
+                <ManageUsers />
+              </ProtectedRoute>
+            } />
+            <Route path="/superadmin-dashboard/audit-logs" element={
+              <ProtectedRoute requiredAction="view_audit_logs">
+                <AuditLogs />
+              </ProtectedRoute>
+            } />
 
             {/* Admin Routes */}
-            <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={role === "admin"}><AdminDashboard /></ProtectedRoute>}>
+            <Route path="/admin-dashboard" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }>
               <Route index element={<Navigate to="inventory" replace />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="requests" element={<Requests />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="categories" element={<InventoryCategories />} />
-              <Route path="templates" element={<ReportTemplates />} />
-              <Route path="generate-report" element={<ReportGenerator />} />
+              <Route path="inventory" element={
+                <ProtectedRoute requiredAction="view_inventory">
+                  <Inventory />
+                </ProtectedRoute>
+              } />
+              <Route path="requests" element={
+                <ProtectedRoute requiredAction="manage_requests">
+                  <Requests />
+                </ProtectedRoute>
+              } />
+              <Route path="reports" element={
+                <ProtectedRoute requiredAction="generate_reports">
+                  <Reports />
+                </ProtectedRoute>
+              } />
+              <Route path="categories" element={
+                <ProtectedRoute requiredAction="manage_categories">
+                  <InventoryCategories />
+                </ProtectedRoute>
+              } />
+              <Route path="templates" element={
+                <ProtectedRoute requiredAction="manage_templates">
+                  <ReportTemplates />
+                </ProtectedRoute>
+              } />
+              <Route path="generate-report" element={
+                <ProtectedRoute requiredAction="generate_reports">
+                  <ReportGenerator />
+                </ProtectedRoute>
+              } />
             </Route>
             <Route path="/admin-dashboard/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
 
@@ -102,8 +143,16 @@ function App() {
             } />
 
             {/* User Routes */}
-            <Route path="/user-dashboard" element={<ProtectedRoute isAuthenticated={role === "user"}><UserDashboard /></ProtectedRoute>} />
-            <Route path="/user-dashboard/my-requests" element={<ProtectedRoute isAuthenticated={role === "user"}><MyRequests /></ProtectedRoute>} />
+            <Route path="/user-dashboard" element={
+              <ProtectedRoute requiredRole="user">
+                <UserDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/user-dashboard/my-requests" element={
+              <ProtectedRoute requiredRole="user">
+                <MyRequests />
+              </ProtectedRoute>
+            } />
 
             {/* Catch-All Redirect */}
             <Route path="*" element={<Navigate to={isAuthenticated ? getDashboardPath(role) : "/login"} />} />

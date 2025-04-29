@@ -1,13 +1,33 @@
-import React from "react";
-import { Navigate } from "react-router-dom";
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+import { hasPermission } from './utils/roleUtils';
+import { toast } from 'react-toastify';
 
-function ProtectedRoute({ isAuthenticated, isLoading, children }) {
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen text-lg font-medium text-gray-700">
-              Loading...</div>;
+function ProtectedRoute({ children, requiredRole, requiredAction }) {
+  const { user, role, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  if (!user) {
+    toast.error('Please log in to access this page');
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requiredRole && !hasPermission(role, requiredRole)) {
+    toast.error('You do not have permission to access this page');
+    return <Navigate to="/unauthorized" state={{ from: location }} replace />;
+  }
+
+  if (requiredAction && !canPerformAction(role, requiredAction)) {
+    toast.error('You do not have permission to perform this action');
+    return <Navigate to="/unauthorized" state={{ from: location }} replace />;
+  }
+
+  return children;
 }
 
 export default ProtectedRoute;
