@@ -9,5 +9,17 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    rollupOptions: {
+      external: ['jspdf', 'jspdf-autotable'],
+      output: {
+        globals: {
+          jspdf: 'jsPDF',
+          'jspdf-autotable': 'jsPDFAutoTable'
+        }
+      }
+    }
   },
+  optimizeDeps: {
+    include: ['jspdf', 'jspdf-autotable']
+  }
 });
