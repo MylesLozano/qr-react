@@ -20,6 +20,7 @@ function UserDashboard() {
   const [scanResult, setScanResult] = useState(null);
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState(null);
+  const [scanning, setScanning] = useState(false);
 
   // State for dynamic counts
   const [inventoryCount, setInventoryCount] = useState(0);
@@ -33,11 +34,13 @@ function UserDashboard() {
   // Handle QR scan result
   const handleScanResult = useCallback((result) => {
     try {
+      setScanning(false);
       setScanResult(result);
       setPaused(true);
       toast.success("QR code scanned successfully!");
     } catch (error) {
       console.error("Error processing scan result:", error);
+      setError(error.message);
       toast.error("Failed to process QR code");
     }
   }, []);
@@ -46,6 +49,7 @@ function UserDashboard() {
   const handleScanError = useCallback((error) => {
     console.error("QR Scan Error:", error);
     setError(error.message);
+    setScanning(false);
     toast.error("Failed to scan QR code");
   }, []);
 
@@ -54,6 +58,7 @@ function UserDashboard() {
     setPaused(false);
     setScanResult(null);
     setError(null);
+    setScanning(true);
   }, []);
 
   // Fetch counts
@@ -122,16 +127,19 @@ function UserDashboard() {
     {
       title: "Available Inventory",
       count: inventoryCount,
-      description: "Total items available in inventory",
+      icon: "📦",
+      description: "Total items available for request",
     },
     {
       title: "My Requests",
       count: myRequestsCount,
-      description: "Total requests made by you",
+      icon: "📝",
+      description: "Total requests submitted",
     },
     {
       title: "Approved Requests",
       count: approvedRequestsCount,
+      icon: "✅",
       description: "Total approved requests",
     },
   ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
@@ -140,7 +148,7 @@ function UserDashboard() {
     <ErrorBoundary>
       <BaseDashboard role="user">
         <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-          <h1 className="text-3xl font-bold mb-4" role="heading" aria-level="1">
+          <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">
             User Dashboard
           </h1>
 
@@ -149,70 +157,70 @@ function UserDashboard() {
             {summaryCards.map((card, index) => (
               <div
                 key={index}
-                className={`p-5 rounded-lg shadow transition-colors duration-200 ${isDarkMode
-                  ? "bg-gray-800 hover:bg-gray-700"
-                  : "bg-white hover:bg-gray-50"
+                className={`p-6 rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"
                   }`}
                 role="region"
                 aria-label={card.title}
               >
-                <h2 className="text-xl font-bold mb-2">{card.title}</h2>
-                <p className="text-2xl" aria-live="polite">
-                  {loadingCounts ? (
-                    <LoadingSpinner size="small" />
-                  ) : (
-                    card.count
-                  )}
-                </p>
-                <p className="text-sm mt-2 opacity-75">{card.description}</p>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">{card.title}</h2>
+                  <span className="text-2xl">{card.icon}</span>
+                </div>
+                {loadingCounts ? (
+                  <LoadingSpinner size="small" />
+                ) : (
+                  <>
+                    <p className="text-3xl font-bold mb-2">{card.count}</p>
+                    <p className="text-sm text-gray-500">{card.description}</p>
+                  </>
+                )}
               </div>
             ))}
           </div>
 
           {/* QR Scanner Section */}
-          <div
-            className={`rounded-lg shadow p-6 transition-colors duration-200 ${isDarkMode ? "bg-gray-800" : "bg-white"
-              }`}
-            role="region"
-            aria-label="QR Code Scanner"
-          >
-            <h2 className="text-xl font-semibold mb-4">Scan QR Code</h2>
-            <Scanner
-              onScan={handleScanResult}
-              onError={handleScanError}
-              formats={["qr_code", "code_128"]}
-              paused={paused}
-              classNames={{
-                container: "w-full h-auto",
-                video: isDarkMode ? "invert" : "",
-              }}
-            />
-            {(scanResult || error) && (
-              <div
-                className={`mt-3 p-3 rounded transition-colors duration-200 ${isDarkMode ? "bg-gray-700" : "bg-gray-100"
-                  }`}
-              >
-                {scanResult && (
-                  <>
-                    <h3 className="font-semibold mb-2">Scanned Code:</h3>
-                    <p className="break-all">{scanResult}</p>
-                  </>
-                )}
-                {error && (
-                  <p className="text-red-500 mb-2" role="alert">
-                    {error}
-                  </p>
-                )}
+          <div className={`p-6 rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"
+            }`}>
+            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
+              QR Code Scanner
+            </h2>
+
+            {error && (
+              <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
+                <p>{error}</p>
+              </div>
+            )}
+
+            {scanResult ? (
+              <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
+                <p>Scanned Result: {scanResult}</p>
                 <button
                   onClick={resetScanner}
-                  className={`mt-2 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode
+                  className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode
                     ? "bg-blue-600 hover:bg-blue-700 text-white"
                     : "bg-blue-500 hover:bg-blue-600 text-white"
                     }`}
-                  aria-label="Scan again"
+                  aria-label="Scan another QR code"
                 >
-                  Scan Again
+                  Scan Another
                 </button>
+              </div>
+            ) : (
+              <div className="relative">
+                {scanning && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+                    <LoadingSpinner size="large" />
+                  </div>
+                )}
+                <Scanner
+                  onResult={handleScanResult}
+                  onError={handleScanError}
+                  options={{
+                    delayBetweenScanAttempts: 100,
+                    delayBetweenScanSuccess: 500,
+                  }}
+                  className="rounded-lg"
+                />
               </div>
             )}
           </div>
