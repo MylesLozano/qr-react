@@ -94,21 +94,18 @@ function App() {
             <Route path="/login" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />} />
 
             {/* SuperAdmin Routes */}
-            <Route path="/superadmin-dashboard" element={
+            <Route path="/superadmin-dashboard/*" element={
               <ProtectedRoute requiredRole="superadmin">
                 <SuperAdminDashboard />
               </ProtectedRoute>
-            } />
-            <Route path="/superadmin-dashboard/manage-users" element={
-              <ProtectedRoute requiredAction="manage_users">
-                <ManageUsers />
-              </ProtectedRoute>
-            } />
-            <Route path="/superadmin-dashboard/audit-logs" element={
-              <ProtectedRoute requiredAction="view_audit_logs">
-                <AuditLogs />
-              </ProtectedRoute>
-            } />
+            }>
+              <Route index element={<Navigate to="user-management" replace />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="requests" element={<Requests />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
+              <Route path="user-management" element={<ManageUsers />} />
+            </Route>
 
             {/* Admin Routes */}
             <Route path="/admin-dashboard" element={

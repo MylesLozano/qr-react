@@ -11,7 +11,6 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { db, logAudit } from "../../firebase";
-import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -328,8 +327,8 @@ function Requests() {
 
   return (
     <ErrorBoundary>
-      <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-        <h1 className="text-2xl font-bold mb-6" role="heading" aria-level="1">Manage Requests</h1>
+      <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        <h1 className="text-2xl font-bold mb-6">Manage Requests</h1>
 
         {error && (
           <div className={`p-4 mb-6 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
@@ -341,127 +340,124 @@ function Requests() {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <BaseDashboard role="admin">
-            <div className="space-y-6">
-              {/* Filters */}
-              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
-                }`}>
-                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Filters</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label htmlFor="statusFilter" className="block text-sm font-medium mb-2">
-                      Status
-                    </label>
-                    <select
-                      id="statusFilter"
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                        }`}
-                      aria-label="Filter by status"
-                    >
-                      {statusOptions.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
+          <div className="space-y-6">
+            {/* Filters */}
+            <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}>
+              <h2 className="text-lg font-semibold mb-4">Filters</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label htmlFor="statusFilter" className="block text-sm font-medium mb-2">
+                    Status
+                  </label>
+                  <select
+                    id="statusFilter"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                      }`}
+                    aria-label="Filter by status"
+                  >
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label htmlFor="searchTerm" className="block text-sm font-medium mb-2">
-                      Search
-                    </label>
+                <div>
+                  <label htmlFor="searchTerm" className="block text-sm font-medium mb-2">
+                    Search
+                  </label>
+                  <input
+                    type="text"
+                    id="searchTerm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by item, user, or lab"
+                    className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                      }`}
+                    aria-label="Search requests"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date Range</label>
+                  <div className="flex gap-2">
                     <input
-                      type="text"
-                      id="searchTerm"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search by item, user, or lab"
-                      className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
                         }`}
-                      aria-label="Search requests"
+                      aria-label="Start date"
+                    />
+                    <input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="End date"
                     />
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Date Range</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={dateRange.start}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                          }`}
-                        aria-label="Start date"
-                      />
-                      <input
-                        type="date"
-                        value={dateRange.end}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                          }`}
-                        aria-label="End date"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
-                }`}>
-                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Actions</h2>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => bulkUpdateStatus('approved')}
-                    disabled={isUpdating || selectedRequests.size === 0}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
-                      } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Approve selected requests"
-                  >
-                    {isUpdating ? <LoadingSpinner size="small" /> : 'Approve Selected'}
-                  </button>
-                  <button
-                    onClick={() => bulkUpdateStatus('rejected')}
-                    disabled={isUpdating || selectedRequests.size === 0}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
-                      } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Reject selected requests"
-                  >
-                    {isUpdating ? <LoadingSpinner size="small" /> : 'Reject Selected'}
-                  </button>
-                  <button
-                    onClick={exportToCSV}
-                    disabled={isExporting || filteredRequests.length === 0}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                      } text-white ${(isExporting || filteredRequests.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Export requests to CSV"
-                  >
-                    {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Request List */}
-              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
-                }`}>
-                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Requests</h2>
-                <div className="h-[600px]">
-                  <AutoSizer>
-                    {({ height, width }) => (
-                      <List
-                        height={height}
-                        itemCount={filteredRequests.length}
-                        itemSize={100}
-                        width={width}
-                      >
-                        {Row}
-                      </List>
-                    )}
-                  </AutoSizer>
                 </div>
               </div>
             </div>
-          </BaseDashboard>
+
+            {/* Actions */}
+            <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+              }`}>
+              <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Actions</h2>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => bulkUpdateStatus('approved')}
+                  disabled={isUpdating || selectedRequests.size === 0}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                    } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label="Approve selected requests"
+                >
+                  {isUpdating ? <LoadingSpinner size="small" /> : 'Approve Selected'}
+                </button>
+                <button
+                  onClick={() => bulkUpdateStatus('rejected')}
+                  disabled={isUpdating || selectedRequests.size === 0}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+                    } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label="Reject selected requests"
+                >
+                  {isUpdating ? <LoadingSpinner size="small" /> : 'Reject Selected'}
+                </button>
+                <button
+                  onClick={exportToCSV}
+                  disabled={isExporting || filteredRequests.length === 0}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white ${(isExporting || filteredRequests.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label="Export requests to CSV"
+                >
+                  {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
+                </button>
+              </div>
+            </div>
+
+            {/* Request List */}
+            <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+              }`}>
+              <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Requests</h2>
+              <div className="h-[600px]">
+                <AutoSizer>
+                  {({ height, width }) => (
+                    <List
+                      height={height}
+                      itemCount={filteredRequests.length}
+                      itemSize={100}
+                      width={width}
+                    >
+                      {Row}
+                    </List>
+                  )}
+                </AutoSizer>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </ErrorBoundary>

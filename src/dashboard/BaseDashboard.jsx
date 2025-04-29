@@ -38,6 +38,27 @@ const NAVIGATION_ITEMS = {
   ],
   superadmin: [
     {
+      path: '/superadmin-dashboard/inventory',
+      label: 'Inventory',
+      icon: '📦',
+      action: 'view_inventory',
+      description: 'View and manage inventory items'
+    },
+    {
+      path: '/superadmin-dashboard/requests',
+      label: 'Requests',
+      icon: '📥',
+      action: 'manage_requests',
+      description: 'Manage user requests'
+    },
+    {
+      path: '/superadmin-dashboard/reports',
+      label: 'Reports',
+      icon: '📊',
+      action: 'generate_reports',
+      description: 'Generate and view reports'
+    },
+    {
       path: '/superadmin-dashboard/audit-logs',
       label: 'Audit Logs',
       icon: '📝',
@@ -45,7 +66,7 @@ const NAVIGATION_ITEMS = {
       description: 'View system audit logs'
     },
     {
-      path: '/superadmin-dashboard/manage-users',
+      path: '/superadmin-dashboard/user-management',
       label: 'User Management',
       icon: '👥',
       action: 'manage_users',
@@ -89,19 +110,16 @@ function BaseDashboard({ children }) {
 
   // Memoize navigation items based on role and permissions
   const navItems = useMemo(() => {
-    let items = [...NAVIGATION_ITEMS.common];
-
-    if (role === 'user') {
-      items = [...items, ...NAVIGATION_ITEMS.user];
-    }
-    if (role === 'admin' || role === 'superadmin') {
-      items = [...items, ...NAVIGATION_ITEMS.admin];
-    }
     if (role === 'superadmin') {
-      items = [...items, ...NAVIGATION_ITEMS.superadmin];
+      return NAVIGATION_ITEMS.superadmin;
     }
-
-    return items.filter(item => !item.action || canPerformAction(role, item.action));
+    if (role === 'admin') {
+      return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.admin];
+    }
+    if (role === 'user') {
+      return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.user];
+    }
+    return [];
   }, [role]);
 
   // Handle logout with loading state
@@ -174,10 +192,16 @@ function BaseDashboard({ children }) {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`${location.pathname === item.path
-                        ? `${isDarkMode ? 'border-blue-400 text-white' : 'border-blue-500 text-gray-900'}`
-                        : `${isDarkMode ? 'border-transparent text-gray-300 hover:border-gray-300 hover:text-white' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`
-                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200`}
+                      className={`${(location.pathname === item.path || location.pathname.includes(item.path))
+                        ? `${isDarkMode
+                          ? 'border-blue-500 text-blue-500 bg-gray-800'
+                          : 'border-blue-600 text-blue-600 bg-white'
+                        }`
+                        : `${isDarkMode
+                          ? 'border-transparent text-gray-300 hover:text-gray-100 hover:border-gray-300'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`
+                        } inline-flex items-center px-4 pt-1 border-b-2 text-sm font-medium transition-all duration-200`}
                       aria-current={location.pathname === item.path ? 'page' : undefined}
                       title={item.description}
                     >

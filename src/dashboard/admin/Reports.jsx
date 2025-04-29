@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, orderBy, onSnapshot, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, logAudit } from "../../firebase";
@@ -254,8 +253,8 @@ function Reports() {
 
   return (
     <ErrorBoundary>
-      <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-        <h1 className="text-2xl font-bold mb-6" role="heading" aria-level="1">Reports</h1>
+      <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        <h1 className="text-2xl font-bold mb-6">Reports</h1>
 
         {error && (
           <div className={`p-4 mb-6 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
@@ -267,187 +266,184 @@ function Reports() {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <BaseDashboard role="admin">
-            <div className="space-y-6">
-              {/* Report Generation Form */}
-              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
-                }`}>
-                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Generate Report</h2>
+          <div className="space-y-6">
+            {/* Report Generation Form */}
+            <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}>
+              <h2 className="text-lg font-semibold mb-4">Generate Report</h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="reportType" className="block text-sm font-medium mb-2">
+                    Report Type
+                  </label>
+                  <select
+                    id="reportType"
+                    value={reportType}
+                    onChange={(e) => setReportType(e.target.value)}
+                    className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                      }`}
+                    aria-label="Report type"
+                  >
+                    {reportTypes.map(type => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date Range</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="Start date"
+                    />
+                    <input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="End date"
+                    />
+                  </div>
+                </div>
+
+                {reportType === "requests" && (
                   <div>
-                    <label htmlFor="reportType" className="block text-sm font-medium mb-2">
-                      Report Type
+                    <label htmlFor="filterStatus" className="block text-sm font-medium mb-2">
+                      Status
                     </label>
                     <select
-                      id="reportType"
-                      value={reportType}
-                      onChange={(e) => setReportType(e.target.value)}
+                      id="filterStatus"
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
                       className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
                         }`}
-                      aria-label="Report type"
+                      aria-label="Filter by status"
                     >
-                      {reportTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
+                      {statusOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                   </div>
+                )}
 
+                {reportType === "inventory" && (
                   <div>
-                    <label className="block text-sm font-medium mb-2">Date Range</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={dateRange.start}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                          }`}
-                        aria-label="Start date"
-                      />
-                      <input
-                        type="date"
-                        value={dateRange.end}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                          }`}
-                        aria-label="End date"
-                      />
-                    </div>
+                    <label htmlFor="filterLab" className="block text-sm font-medium mb-2">
+                      Lab
+                    </label>
+                    <select
+                      id="filterLab"
+                      value={filterLab}
+                      onChange={(e) => setFilterLab(e.target.value)}
+                      className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="Filter by lab"
+                    >
+                      {labOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
                   </div>
-
-                  {reportType === "requests" && (
-                    <div>
-                      <label htmlFor="filterStatus" className="block text-sm font-medium mb-2">
-                        Status
-                      </label>
-                      <select
-                        id="filterStatus"
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                          }`}
-                        aria-label="Filter by status"
-                      >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {reportType === "inventory" && (
-                    <div>
-                      <label htmlFor="filterLab" className="block text-sm font-medium mb-2">
-                        Lab
-                      </label>
-                      <select
-                        id="filterLab"
-                        value={filterLab}
-                        onChange={(e) => setFilterLab(e.target.value)}
-                        className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                          }`}
-                        aria-label="Filter by lab"
-                      >
-                        {labOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6 flex gap-4">
-                  <button
-                    onClick={generateReport}
-                    disabled={isGenerating}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                      } text-white ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Generate report"
-                  >
-                    {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
-                  </button>
-
-                  <button
-                    onClick={exportToCSV}
-                    disabled={isExporting || reportData.length === 0}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
-                      } text-white ${(isExporting || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Export report to CSV"
-                  >
-                    {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
-                  </button>
-
-                  <button
-                    onClick={saveReport}
-                    disabled={isSaving || reportData.length === 0}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
-                      } text-white ${(isSaving || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Save report"
-                  >
-                    {isSaving ? <LoadingSpinner size="small" /> : 'Save Report'}
-                  </button>
-                </div>
+                )}
               </div>
 
-              {/* Report Data Display */}
-              {reportData.length > 0 && (
-                <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
-                  }`}>
-                  <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Report Data</h2>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full" role="table" aria-label="Report data">
-                      <thead>
-                        <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          {Object.keys(reportData[0]).map(key => (
-                            <th key={key} className="px-4 py-2 text-left">{key}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.map((row, index) => (
-                          <tr key={index} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
-                            {Object.values(row).map((value, i) => (
-                              <td key={i} className="px-4 py-2">{String(value)}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={generateReport}
+                  disabled={isGenerating}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label="Generate report"
+                >
+                  {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
+                </button>
 
-              {/* Saved Reports */}
+                <button
+                  onClick={exportToCSV}
+                  disabled={isExporting || reportData.length === 0}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                    } text-white ${(isExporting || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label="Export report to CSV"
+                >
+                  {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
+                </button>
+
+                <button
+                  onClick={saveReport}
+                  disabled={isSaving || reportData.length === 0}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
+                    } text-white ${(isSaving || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label="Save report"
+                >
+                  {isSaving ? <LoadingSpinner size="small" /> : 'Save Report'}
+                </button>
+              </div>
+            </div>
+
+            {/* Report Data Display */}
+            {reportData.length > 0 && (
               <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
                 }`}>
-                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Saved Reports</h2>
+                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Report Data</h2>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full" role="table" aria-label="Saved reports">
+                  <table className="min-w-full" role="table" aria-label="Report data">
                     <thead>
                       <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <th className="px-4 py-2 text-left">Type</th>
-                        <th className="px-4 py-2 text-left">Generated By</th>
-                        <th className="px-4 py-2 text-left">Date</th>
-                        <th className="px-4 py-2 text-left">Records</th>
+                        {Object.keys(reportData[0]).map(key => (
+                          <th key={key} className="px-4 py-2 text-left">{key}</th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {availableReports.map(report => (
-                        <tr key={report.id} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
-                          <td className="px-4 py-2">{report.type}</td>
-                          <td className="px-4 py-2">{report.generatedBy}</td>
-                          <td className="px-4 py-2">
-                            {report.generatedAt?.toDate().toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2">{report.data.length}</td>
+                      {reportData.map((row, index) => (
+                        <tr key={index} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
+                          {Object.values(row).map((value, i) => (
+                            <td key={i} className="px-4 py-2">{String(value)}</td>
+                          ))}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+            )}
+
+            {/* Saved Reports */}
+            <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+              }`}>
+              <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Saved Reports</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full" role="table" aria-label="Saved reports">
+                  <thead>
+                    <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <th className="px-4 py-2 text-left">Type</th>
+                      <th className="px-4 py-2 text-left">Generated By</th>
+                      <th className="px-4 py-2 text-left">Date</th>
+                      <th className="px-4 py-2 text-left">Records</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableReports.map(report => (
+                      <tr key={report.id} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
+                        <td className="px-4 py-2">{report.type}</td>
+                        <td className="px-4 py-2">{report.generatedBy}</td>
+                        <td className="px-4 py-2">
+                          {report.generatedAt?.toDate().toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2">{report.data.length}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </BaseDashboard>
+          </div>
         )}
       </div>
     </ErrorBoundary>
