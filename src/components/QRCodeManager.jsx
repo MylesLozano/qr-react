@@ -196,8 +196,8 @@ function QRCodeManager({
                     {error && (
                         <div
                             className={`p-4 rounded mb-4 ${isDarkMode
-                                    ? 'bg-red-900 text-red-100 border-red-700'
-                                    : 'bg-red-100 text-red-700 border-red-400'
+                                ? 'bg-red-900 text-red-100 border-red-700'
+                                : 'bg-red-100 text-red-700 border-red-400'
                                 } border`}
                             role="alert"
                         >
@@ -254,8 +254,8 @@ function QRCodeManager({
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${isGenerating
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700'
                                     }`}
                                 aria-label="Generate QR Code"
                             >
@@ -265,8 +265,8 @@ function QRCodeManager({
                                 onClick={handlePreview}
                                 disabled={!qrData}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-green-600 hover:bg-green-700'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-green-600 hover:bg-green-700'
                                     }`}
                                 aria-label="Preview QR Code"
                             >
@@ -276,8 +276,8 @@ function QRCodeManager({
                                 onClick={handleDownload}
                                 disabled={!qrData || isDownloading}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData || isDownloading
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-purple-600 hover:bg-purple-700'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-purple-600 hover:bg-purple-700'
                                     }`}
                                 aria-label="Download QR Code"
                             >
