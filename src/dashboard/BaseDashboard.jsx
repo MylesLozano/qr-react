@@ -11,7 +11,7 @@ function BaseDashboard({ children, role }) {
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const location = useLocation();
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   // Memoize navigation items
   const navItems = useMemo(() => {
@@ -149,6 +149,13 @@ function BaseDashboard({ children, role }) {
               </div>
             </div>
             <div className="flex items-center">
+              <button
+                onClick={toggleTheme}
+                className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md ${isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  }`}
+              >
+                {isDarkMode ? '🌞 Light' : '🌙 Dark'}
+              </button>
               <button
                 onClick={handleLogout}
                 className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
