@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, where, limit, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, logAudit } from '../../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../context/ThemeContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 import { canPerformAction } from '../../utils/roleUtils';
-import { ErrorBoundary } from '../../components/ErrorBoundary';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 const ReportTemplates = () => {
     const { user } = useAuth();

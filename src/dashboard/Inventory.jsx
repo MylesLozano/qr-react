@@ -15,13 +15,11 @@ import ErrorBoundary from '../components/ErrorBoundary';
 
 // Utility functions
 const sanitizeInput = (input) => {
-  if (typeof input !== 'string') return input;
-  return input.replace(/[<>]/g, '');
+  return input.trim().replace(/[<>]/g, '');
 };
 
-const sanitizeNumber = (input) => {
-  if (typeof input === 'number') return input;
-  return parseInt(input.toString().replace(/[^0-9]/g, '')) || 0;
+const sanitizeNumber = (number) => {
+  return Math.max(0, Math.floor(Number(number)));
 };
 
 const debounce = (func, wait) => {
@@ -52,13 +50,19 @@ const saveSearchHistory = (search) => {
 
 // Validation functions
 const validateItem = (item) => {
-  const errors = [];
-  if (!item.name?.trim()) errors.push('Name is required');
-  if (!item.category?.trim()) errors.push('Category is required');
-  if (isNaN(item.quantity) || item.quantity < 0) errors.push('Quantity must be a positive number');
-  if (item.name?.length > 100) errors.push('Name is too long');
-  if (item.brand?.length > 100) errors.push('Brand is too long');
-  if (item.serialNumber?.length > 50) errors.push('Serial number is too long');
+  const errors = {};
+  if (!item.name || item.name.length < 2) {
+    errors.name = 'Name must be at least 2 characters long';
+  }
+  if (!item.description || item.description.length < 5) {
+    errors.description = 'Description must be at least 5 characters long';
+  }
+  if (item.quantity < 0) {
+    errors.quantity = 'Quantity cannot be negative';
+  }
+  if (item.price < 0) {
+    errors.price = 'Price cannot be negative';
+  }
   return errors;
 };
 
@@ -94,7 +98,7 @@ function Inventory() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
-  const [validationErrors, setValidationErrors] = useState([]);
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Advanced search state
   const [advancedSearch, setAdvancedSearch] = useState({
@@ -146,33 +150,14 @@ function Inventory() {
 
   // Enhanced search functionality with memoization
   const filteredItems = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return items.filter(item => {
-      if (!term) return (
-        (filterCondition === "" || item.itemCondition === filterCondition) &&
-        (filterLab === "" || item.lab === filterLab)
-      );
-
-      const fieldsToSearch = [
-        item.name,
-        item.brand,
-        item.serialNumber,
-        item.category,
-        item.remarks,
-        item.unitNumber,
-        item.lab,
-        item.description
-      ];
-
-      const matchesSearch = fieldsToSearch.some(field =>
-        typeof field === 'string' && field.toLowerCase().includes(term)
-      );
-      const matchesCondition = filterCondition === "" || item.itemCondition === filterCondition;
-      const matchesLab = filterLab === "" || item.lab === filterLab;
-
-      return matchesSearch && matchesCondition && matchesLab;
-    });
-  }, [items, searchTerm, filterCondition, filterLab]);
+    if (!searchTerm) return items;
+    const term = searchTerm.toLowerCase();
+    return items.filter(item =>
+      item.name.toLowerCase().includes(term) ||
+      item.description.toLowerCase().includes(term) ||
+      item.category.toLowerCase().includes(term)
+    );
+  }, [items, searchTerm]);
 
   // Memoize category grouping calculation
   const categoryGroups = useMemo(() => {
@@ -253,16 +238,16 @@ function Inventory() {
     }
 
     const errors = validateItem(formData);
-    if (errors.length > 0) {
+    if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      toast.error(errors.join(', '));
+      toast.error(Object.values(errors).join(', '));
       return;
     }
 
     try {
       setIsLoading(true);
       setError(null);
-      setValidationErrors([]);
+      setValidationErrors({});
 
       const sanitizedData = {
         ...formData,
@@ -316,7 +301,7 @@ function Inventory() {
     setEditingItem(item);
     setFormData(item);
     setIsEditing(true);
-    setValidationErrors([]);
+    setValidationErrors({});
   };
 
   // Save edit with validation and permission check
@@ -327,16 +312,16 @@ function Inventory() {
     }
 
     const errors = validateItem(formData);
-    if (errors.length > 0) {
+    if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      toast.error(errors.join(', '));
+      toast.error(Object.values(errors).join(', '));
       return;
     }
 
     try {
       setIsLoading(true);
       setError(null);
-      setValidationErrors([]);
+      setValidationErrors({});
 
       const sanitizedData = {
         ...formData,
