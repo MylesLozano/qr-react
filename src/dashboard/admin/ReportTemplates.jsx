@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, where, limit, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, where, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db, logAudit } from '../../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../context/ThemeContext';
@@ -7,8 +7,15 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 import { canPerformAction } from '../../utils/roleUtils';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import usePageTitle from '../../hooks/usePageTitle';
 
+/**
+ * ReportTemplates component - Manages report templates for generating reports
+ * @component
+ * @returns {JSX.Element} The rendered ReportTemplates component
+ */
 const ReportTemplates = () => {
+    usePageTitle("QCheckCITE - Report Templates");
     const { user } = useAuth();
     const { isDarkMode } = useTheme();
     const [templates, setTemplates] = useState([]);
@@ -29,64 +36,79 @@ const ReportTemplates = () => {
     });
     const [error, setError] = useState(null);
     const [auditLogs, setAuditLogs] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Check permissions
-    const canManageTemplates = canPerformAction(user?.role, 'manage_templates');
-    const canViewTemplates = canPerformAction(user?.role, 'view_templates');
+    const canManageTemplates = useMemo(() => canPerformAction(user?.role, 'manage_templates'), [user?.role]);
+    const canViewTemplates = useMemo(() => canPerformAction(user?.role, 'view_templates'), [user?.role]);
 
+    // Fetch templates with real-time updates
     useEffect(() => {
         if (!canViewTemplates) {
             toast.error('You do not have permission to view templates');
             return;
         }
-        fetchTemplates();
-        fetchAuditLogs();
+
+        let unsubscribeTemplates;
+        let unsubscribeAuditLogs;
+
+        const setupListeners = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+
+                // Templates listener
+                const templatesRef = collection(db, 'report_templates');
+                const templatesQuery = query(templatesRef, orderBy('createdAt', 'desc'));
+                unsubscribeTemplates = onSnapshot(templatesQuery, (snapshot) => {
+                    const templatesData = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setTemplates(templatesData);
+                }, (error) => {
+                    console.error('Error in templates listener:', error);
+                    setError('Failed to fetch templates');
+                    toast.error('Failed to fetch templates');
+                });
+
+                // Audit logs listener
+                const logsRef = collection(db, 'audit_logs');
+                const logsQuery = query(
+                    logsRef,
+                    where('action', 'in', ['create_template', 'update_template', 'delete_template']),
+                    orderBy('timestamp', 'desc'),
+                    limit(10)
+                );
+                unsubscribeAuditLogs = onSnapshot(logsQuery, (snapshot) => {
+                    const logs = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setAuditLogs(logs);
+                }, (error) => {
+                    console.error('Error in audit logs listener:', error);
+                });
+
+            } catch (error) {
+                console.error('Error setting up listeners:', error);
+                setError('Failed to initialize data');
+                toast.error('Failed to initialize data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        setupListeners();
+
+        return () => {
+            if (unsubscribeTemplates) unsubscribeTemplates();
+            if (unsubscribeAuditLogs) unsubscribeAuditLogs();
+        };
     }, [canViewTemplates]);
 
-    const fetchTemplates = async () => {
-        try {
-            setLoading(true);
-            const templatesRef = collection(db, 'report_templates');
-            const q = query(
-                templatesRef,
-                orderBy('createdAt', 'desc')
-            );
-            const snapshot = await getDocs(q);
-            const templatesData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setTemplates(templatesData);
-        } catch (error) {
-            console.error('Error fetching templates:', error);
-            setError('Failed to fetch templates');
-            toast.error('Failed to fetch templates');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchAuditLogs = async () => {
-        try {
-            const logsRef = collection(db, 'audit_logs');
-            const q = query(
-                logsRef,
-                where('action', 'in', ['create_template', 'update_template', 'delete_template']),
-                orderBy('timestamp', 'desc'),
-                limit(10)
-            );
-            const snapshot = await getDocs(q);
-            const logs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setAuditLogs(logs);
-        } catch (error) {
-            console.error('Error fetching audit logs:', error);
-        }
-    };
-
-    const logAuditAction = async (action, details) => {
+    // Log audit action with error handling
+    const logAuditAction = useCallback(async (action, details) => {
         try {
             await addDoc(collection(db, 'audit_logs'), {
                 userId: user.uid,
@@ -96,23 +118,39 @@ const ReportTemplates = () => {
             });
         } catch (error) {
             console.error('Error logging audit action:', error);
+            toast.error('Failed to log audit action');
         }
-    };
+    }, [user?.uid]);
 
-    const handleSubmit = async (e) => {
+    // Validate form data
+    const validateForm = useCallback(() => {
+        if (!formData.name.trim()) {
+            toast.error('Template name is required');
+            return false;
+        }
+        if (formData.fields.length === 0) {
+            toast.error('At least one field is required');
+            return false;
+        }
+        return true;
+    }, [formData]);
+
+    // Handle form submission
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         if (!canManageTemplates) {
             toast.error('You do not have permission to manage templates');
             return;
         }
 
+        if (!validateForm()) return;
+
         try {
-            setLoading(true);
+            setIsSubmitting(true);
             const templateData = {
                 ...formData,
-                createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                createdBy: user.uid
+                updatedBy: user.uid
             };
 
             if (editingTemplate) {
@@ -120,6 +158,8 @@ const ReportTemplates = () => {
                 await logAuditAction('update_template', { templateId: editingTemplate.id });
                 toast.success('Template updated successfully');
             } else {
+                templateData.createdAt = serverTimestamp();
+                templateData.createdBy = user.uid;
                 await addDoc(collection(db, 'report_templates'), templateData);
                 await logAuditAction('create_template', { templateName: formData.name });
                 toast.success('Template created successfully');
@@ -134,23 +174,23 @@ const ReportTemplates = () => {
                 sorting: []
             });
             setEditingTemplate(null);
-            fetchTemplates();
         } catch (error) {
             console.error('Error saving template:', error);
             setError('Failed to save template');
             toast.error('Failed to save template');
         } finally {
-            setLoading(false);
+            setIsSubmitting(false);
         }
-    };
+    }, [canManageTemplates, formData, editingTemplate, user?.uid, validateForm, logAuditAction]);
 
-    const handleDelete = async (templateId) => {
+    // Handle template deletion
+    const handleDelete = useCallback(async (templateId) => {
         if (!canManageTemplates) {
             toast.error('You do not have permission to delete templates');
             return;
         }
 
-        if (!window.confirm('Are you sure you want to delete this template?')) {
+        if (!window.confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
             return;
         }
 
@@ -159,7 +199,6 @@ const ReportTemplates = () => {
             await deleteDoc(doc(db, 'report_templates', templateId));
             await logAuditAction('delete_template', { templateId });
             toast.success('Template deleted successfully');
-            fetchTemplates();
         } catch (error) {
             console.error('Error deleting template:', error);
             setError('Failed to delete template');
@@ -167,9 +206,10 @@ const ReportTemplates = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [canManageTemplates, logAuditAction]);
 
-    const handleEdit = (template) => {
+    // Handle template editing
+    const handleEdit = useCallback((template) => {
         if (!canManageTemplates) {
             toast.error('You do not have permission to edit templates');
             return;
@@ -183,11 +223,16 @@ const ReportTemplates = () => {
             filters: template.filters,
             sorting: template.sorting
         });
-    };
+    }, [canManageTemplates]);
 
-    const addField = () => {
-        if (!newField.name) {
+    // Add field to template
+    const addField = useCallback(() => {
+        if (!newField.name.trim()) {
             toast.error('Field name is required');
+            return;
+        }
+        if (formData.fields.some(field => field.name === newField.name)) {
+            toast.error('Field name must be unique');
             return;
         }
         setFormData(prev => ({
@@ -199,30 +244,32 @@ const ReportTemplates = () => {
             type: 'text',
             required: false
         });
-    };
+    }, [newField, formData.fields]);
 
-    const removeField = (index) => {
+    // Remove field from template
+    const removeField = useCallback((index) => {
         setFormData(prev => ({
             ...prev,
             fields: prev.fields.filter((_, i) => i !== index)
         }));
-    };
+    }, []);
 
     if (!canViewTemplates) {
         return (
-            <div className="p-4">
-                <div className="text-red-500">Access Denied</div>
+            <div className={`p-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+                <div className="text-red-500" role="alert">Access Denied</div>
             </div>
         );
     }
 
     return (
         <ErrorBoundary>
-            <div className={`p-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-                <h1 className="text-2xl font-bold mb-4">Report Templates</h1>
+            <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+                <h1 className="text-2xl font-bold mb-6" role="heading" aria-level="1">Report Templates</h1>
 
                 {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <div className={`p-4 mb-6 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
+                        }`} role="alert">
                         {error}
                     </div>
                 )}
@@ -232,38 +279,54 @@ const ReportTemplates = () => {
                 ) : (
                     <>
                         {canManageTemplates && (
-                            <div className="mb-6">
-                                <h2 className="text-xl font-semibold mb-4">
+                            <div className={`mb-8 p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                                }`}>
+                                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
                                     {editingTemplate ? 'Edit Template' : 'Create New Template'}
                                 </h2>
-                                <form onSubmit={handleSubmit} className="space-y-4">
+                                <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
-                                        <label className="block mb-2">Template Name</label>
+                                        <label htmlFor="templateName" className="block text-sm font-medium mb-2">
+                                            Template Name
+                                        </label>
                                         <input
+                                            id="templateName"
                                             type="text"
                                             value={formData.name}
                                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                            className={`w-full p-2 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+                                            className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                                                }`}
                                             required
+                                            aria-label="Template name"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block mb-2">Description</label>
+                                        <label htmlFor="templateDescription" className="block text-sm font-medium mb-2">
+                                            Description
+                                        </label>
                                         <textarea
+                                            id="templateDescription"
                                             value={formData.description}
                                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                            className={`w-full p-2 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+                                            className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                                                }`}
                                             rows="3"
+                                            aria-label="Template description"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block mb-2">Output Format</label>
+                                        <label htmlFor="outputFormat" className="block text-sm font-medium mb-2">
+                                            Output Format
+                                        </label>
                                         <select
+                                            id="outputFormat"
                                             value={formData.outputFormat}
                                             onChange={(e) => setFormData(prev => ({ ...prev, outputFormat: e.target.value }))}
-                                            className={`w-full p-2 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+                                            className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                                                }`}
+                                            aria-label="Output format"
                                         >
                                             <option value="pdf">PDF</option>
                                             <option value="csv">CSV</option>
@@ -272,51 +335,86 @@ const ReportTemplates = () => {
                                     </div>
 
                                     <div>
-                                        <h3 className="text-lg font-semibold mb-2">Fields</h3>
-                                        <div className="space-y-2">
+                                        <h3 className="text-lg font-medium mb-4" role="heading" aria-level="3">Fields</h3>
+                                        <div className="space-y-4">
                                             {formData.fields.map((field, index) => (
-                                                <div key={index} className="flex items-center space-x-2">
-                                                    <span>{field.name} ({field.type})</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeField(index)}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        Remove
-                                                    </button>
+                                                <div key={index} className={`p-4 rounded border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                                                    }`}>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className="font-medium">{field.name}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeField(index)}
+                                                            className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+                                                                } text-white`}
+                                                            aria-label={`Remove field ${field.name}`}
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                    <div className="text-sm">
+                                                        Type: {field.type} | Required: {field.required ? 'Yes' : 'No'}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="mt-4 flex space-x-2">
-                                            <input
-                                                type="text"
-                                                value={newField.name}
-                                                onChange={(e) => setNewField(prev => ({ ...prev, name: e.target.value }))}
-                                                placeholder="Field Name"
-                                                className={`p-2 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                                            />
-                                            <select
-                                                value={newField.type}
-                                                onChange={(e) => setNewField(prev => ({ ...prev, type: e.target.value }))}
-                                                className={`p-2 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                                            >
-                                                <option value="text">Text</option>
-                                                <option value="number">Number</option>
-                                                <option value="date">Date</option>
-                                                <option value="boolean">Boolean</option>
-                                            </select>
-                                            <label className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={newField.required}
-                                                    onChange={(e) => setNewField(prev => ({ ...prev, required: e.target.checked }))}
-                                                />
-                                                <span>Required</span>
-                                            </label>
+
+                                        <div className="mt-4 p-4 rounded border transition-colors duration-200 ${
+                                            isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                                        }">
+                                            <h4 className="text-md font-medium mb-4" role="heading" aria-level="4">Add New Field</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label htmlFor="fieldName" className="block text-sm font-medium mb-2">
+                                                        Field Name
+                                                    </label>
+                                                    <input
+                                                        id="fieldName"
+                                                        type="text"
+                                                        value={newField.name}
+                                                        onChange={(e) => setNewField(prev => ({ ...prev, name: e.target.value }))}
+                                                        className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                                                            }`}
+                                                        aria-label="New field name"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="fieldType" className="block text-sm font-medium mb-2">
+                                                        Type
+                                                    </label>
+                                                    <select
+                                                        id="fieldType"
+                                                        value={newField.type}
+                                                        onChange={(e) => setNewField(prev => ({ ...prev, type: e.target.value }))}
+                                                        className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                                                            }`}
+                                                        aria-label="Field type"
+                                                    >
+                                                        <option value="text">Text</option>
+                                                        <option value="number">Number</option>
+                                                        <option value="date">Date</option>
+                                                        <option value="boolean">Boolean</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex items-end">
+                                                    <label className="flex items-center space-x-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={newField.required}
+                                                            onChange={(e) => setNewField(prev => ({ ...prev, required: e.target.checked }))}
+                                                            className="rounded border-gray-300"
+                                                            aria-label="Field required"
+                                                        />
+                                                        <span>Required</span>
+                                                    </label>
+                                                </div>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={addField}
-                                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                                className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                                                    } text-white`}
+                                                aria-label="Add field"
                                             >
                                                 Add Field
                                             </button>
@@ -325,64 +423,80 @@ const ReportTemplates = () => {
 
                                     <button
                                         type="submit"
-                                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                                        disabled={isSubmitting}
+                                        className={`w-full px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                                            } text-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        aria-label={editingTemplate ? 'Update template' : 'Create template'}
                                     >
-                                        {editingTemplate ? 'Update Template' : 'Create Template'}
+                                        {isSubmitting ? <LoadingSpinner size="small" /> : (editingTemplate ? 'Update Template' : 'Create Template')}
                                     </button>
                                 </form>
                             </div>
                         )}
 
-                        <div>
-                            <h2 className="text-xl font-semibold mb-4">Existing Templates</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {templates.map(template => (
-                                    <div
-                                        key={template.id}
-                                        className={`p-4 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                                    >
-                                        <h3 className="text-lg font-semibold">{template.name}</h3>
-                                        <p className="text-sm text-gray-500 mb-2">{template.description}</p>
-                                        <div className="text-sm mb-2">
-                                            <span className="font-semibold">Format:</span> {template.outputFormat}
-                                        </div>
-                                        <div className="text-sm mb-2">
-                                            <span className="font-semibold">Fields:</span> {template.fields.length}
-                                        </div>
-                                        {canManageTemplates && (
-                                            <div className="flex space-x-2 mt-4">
-                                                <button
-                                                    onClick={() => handleEdit(template)}
-                                                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(template.id)}
-                                                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                        <div className={`mb-8 p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                            }`}>
+                            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Existing Templates</h2>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full" role="table" aria-label="Report templates">
+                                    <thead>
+                                        <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                            <th className="px-4 py-2 text-left">Name</th>
+                                            <th className="px-4 py-2 text-left">Description</th>
+                                            <th className="px-4 py-2 text-left">Fields</th>
+                                            <th className="px-4 py-2 text-left">Format</th>
+                                            <th className="px-4 py-2 text-left">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {templates.map((template) => (
+                                            <tr key={template.id} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
+                                                <td className="px-4 py-2">{template.name}</td>
+                                                <td className="px-4 py-2">{template.description}</td>
+                                                <td className="px-4 py-2">{template.fields.length}</td>
+                                                <td className="px-4 py-2">{template.outputFormat.toUpperCase()}</td>
+                                                <td className="px-4 py-2">
+                                                    {canManageTemplates && (
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEdit(template)}
+                                                                className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                                                                    } text-white`}
+                                                                aria-label={`Edit template ${template.name}`}
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(template.id)}
+                                                                className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+                                                                    } text-white`}
+                                                                aria-label={`Delete template ${template.name}`}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <div className="mt-8">
-                            <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-                            <div className={`p-4 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
-                                {auditLogs.map(log => (
-                                    <div key={log.id} className="border-b py-2 last:border-b-0">
-                                        <div className="flex justify-between">
-                                            <span className="font-semibold">{log.action}</span>
-                                            <span className="text-sm text-gray-500">
-                                                {new Date(log.timestamp?.toDate()).toLocaleString()}
-                                            </span>
+                        <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                            }`}>
+                            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Recent Activity</h2>
+                            <div className="space-y-4">
+                                {auditLogs.map((log) => (
+                                    <div key={log.id} className={`p-4 rounded border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                                        }`}>
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-medium">{log.action.replace('_', ' ')}</span>
+                                            <span className="text-sm">{new Date(log.timestamp?.toDate()).toLocaleString()}</span>
                                         </div>
-                                        <div className="text-sm text-gray-500">
-                                            {JSON.stringify(log.details)}
+                                        <div className="text-sm mt-2">
+                                            {log.details.templateName || log.details.templateId}
                                         </div>
                                     </div>
                                 ))}
