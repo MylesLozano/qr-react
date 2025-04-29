@@ -1,84 +1,89 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { auth, getUserRole } from '../firebase';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { auth } from '../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { canPerformAction } from '../utils/roleUtils';
 
-function BaseDashboard({ children, role }) {
-  const [userRole, setUserRole] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+function BaseDashboard({ children }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
   const location = useLocation();
+  const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, role } = useAuth();
 
-  // Memoize navigation items
+  // Memoize navigation items based on role and permissions
   const navItems = useMemo(() => {
     const commonItems = [
-      { path: '/inventory', label: 'Inventory', icon: '📦' },
+      {
+        path: '/inventory',
+        label: 'Inventory',
+        icon: '📦',
+        action: 'view_inventory'
+      },
     ];
 
     const adminItems = [
-      { path: '/user-management', label: 'User Management', icon: '👥' },
-      { path: '/admin-dashboard/requests', label: 'Requests', icon: '📥' },
-      { path: '/admin-dashboard/reports', label: 'Reports', icon: '📊' },
+      {
+        path: '/admin-dashboard/requests',
+        label: 'Requests',
+        icon: '📥',
+        action: 'manage_requests'
+      },
+      {
+        path: '/admin-dashboard/reports',
+        label: 'Reports',
+        icon: '📊',
+        action: 'generate_reports'
+      },
     ];
 
     const superAdminItems = [
-      { path: '/superadmin-dashboard/audit-logs', label: 'Audit Logs', icon: '📝' },
+      {
+        path: '/superadmin-dashboard/audit-logs',
+        label: 'Audit Logs',
+        icon: '📝',
+        action: 'view_audit_logs'
+      },
+      {
+        path: '/superadmin-dashboard/manage-users',
+        label: 'User Management',
+        icon: '👥',
+        action: 'manage_users'
+      },
     ];
 
     const userItems = [
-      { path: '/user-dashboard/my-requests', label: 'My Requests', icon: '📄' },
+      {
+        path: '/user-dashboard/my-requests',
+        label: 'My Requests',
+        icon: '📄',
+        action: 'view_requests'
+      },
     ];
 
     let items = [...commonItems];
-    if (userRole === 'user') {
+
+    if (role === 'user') {
       items = [...items, ...userItems];
     }
-    if (userRole === 'admin' || userRole === 'superadmin') {
+    if (role === 'admin' || role === 'superadmin') {
       items = [...items, ...adminItems];
     }
-    if (userRole === 'superadmin') {
+    if (role === 'superadmin') {
       items = [...items, ...superAdminItems];
     }
 
-    return items;
-  }, [userRole]);
-
-  const fetchUserRole = useCallback(async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const role = await getUserRole(currentUser.uid);
-        setUserRole(role);
-        setError(null);
-      }
-    } catch (error) {
-      console.error("Error fetching user role:", error);
-      setError(error);
-      if (retryCount < 3) {
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-          fetchUserRole();
-        }, 2000);
-      } else {
-        toast.error("Failed to load user permissions after multiple attempts");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [retryCount]);
-
-  useEffect(() => {
-    fetchUserRole();
-  }, [fetchUserRole]);
+    // Filter items based on permissions
+    return items.filter(item => !item.action || canPerformAction(role, item.action));
+  }, [role]);
 
   const handleLogout = async () => {
     try {
       await auth.signOut();
       toast.success("Logged out successfully");
+      navigate('/login');
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Failed to log out");
@@ -96,28 +101,8 @@ function BaseDashboard({ children, role }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isMenuOpen]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-lg text-gray-800 dark:text-gray-200">Loading dashboard...</div>
-      </div>
-    );
-  }
-
-  if (error && retryCount >= 3) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-red-500 text-xl mb-4">
-          ⚠️ Failed to load dashboard
-        </div>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
+  if (!user) {
+    return null; // AuthProvider will handle redirection
   }
 
   return (
@@ -132,6 +117,7 @@ function BaseDashboard({ children, role }) {
                   QCheckCITE
                 </span>
               </div>
+              {/* Desktop Navigation */}
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 {navItems.map((item) => (
                   <Link
@@ -149,6 +135,14 @@ function BaseDashboard({ children, role }) {
               </div>
             </div>
             <div className="flex items-center">
+              {/* Mobile menu button */}
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none"
+              >
+                <span className="sr-only">Open main menu</span>
+                {isMenuOpen ? '✕' : '☰'}
+              </button>
               <button
                 onClick={toggleTheme}
                 className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md ${isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
@@ -166,6 +160,27 @@ function BaseDashboard({ children, role }) {
             </div>
           </div>
         </div>
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="sm:hidden">
+            <div className="pt-2 pb-3 space-y-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`${location.pathname === item.path
+                    ? `${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`
+                    : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`
+                    } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <span className="mr-2">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Main Content */}

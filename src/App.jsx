@@ -133,11 +133,15 @@ function App() {
                 </ProtectedRoute>
               } />
             </Route>
-            <Route path="/admin-dashboard/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
+            <Route path="/admin-dashboard/users" element={
+              <ProtectedRoute requiredAction="manage_users">
+                <UserManagement />
+              </ProtectedRoute>
+            } />
 
             {/* Shared Routes */}
             <Route path="/inventory" element={
-              <ProtectedRoute isAuthenticated={["superadmin", "admin", "user"].includes(role)}>
+              <ProtectedRoute requiredAction="view_inventory">
                 <Inventory />
               </ProtectedRoute>
             } />
