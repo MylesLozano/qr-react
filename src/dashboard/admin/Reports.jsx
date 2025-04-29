@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, orderBy, onSnapshot, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
@@ -12,6 +12,11 @@ import { canPerformAction } from "../../utils/roleUtils";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 
+/**
+ * Reports component - Manages report generation, export, and storage
+ * @component
+ * @returns {JSX.Element} The rendered Reports component
+ */
 function Reports() {
   usePageTitle("QCheckCITE - Reports");
   const { isDarkMode } = useTheme();
@@ -27,6 +32,8 @@ function Reports() {
   const [availableReports, setAvailableReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Permission checks
   const canGenerateReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
@@ -34,62 +41,85 @@ function Reports() {
   const canSaveReports = useMemo(() => canPerformAction(role, 'save_reports'), [role]);
 
   // Report type options
-  const reportTypes = [
+  const reportTypes = useMemo(() => [
     { value: "inventory", label: "Inventory Report" },
     { value: "requests", label: "Request Report" },
     { value: "users", label: "User Report" },
     { value: "audit", label: "Audit Log Report" }
-  ];
+  ], []);
 
   // Status options
-  const statusOptions = [
+  const statusOptions = useMemo(() => [
     { value: "all", label: "All Statuses" },
     { value: "pending", label: "Pending" },
     { value: "approved", label: "Approved" },
     { value: "rejected", label: "Rejected" }
-  ];
+  ], []);
 
   // Lab options
-  const labOptions = [
+  const labOptions = useMemo(() => [
     { value: "all", label: "All Labs" },
     { value: "Mac Lab", label: "Mac Lab" },
     { value: "EMC Lab", label: "EMC Lab" },
     { value: "Others", label: "Others" }
-  ];
+  ], []);
 
-  // Fetch available reports
+  // Fetch available reports with real-time updates
   useEffect(() => {
     if (!user) return;
 
-    setLoading(true);
-    const reportsQuery = query(collection(db, "reports"), orderBy("generatedAt", "desc"));
-    const unsubscribe = onSnapshot(reportsQuery,
-      (snapshot) => {
-        const reports = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setAvailableReports(reports);
+    let unsubscribe;
+    const setupListener = async () => {
+      try {
+        setLoading(true);
         setError(null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching reports:", error);
-        setError("Failed to load reports");
-        toast.error("Failed to load reports");
+        const reportsQuery = query(collection(db, "reports"), orderBy("generatedAt", "desc"));
+        unsubscribe = onSnapshot(reportsQuery,
+          (snapshot) => {
+            const reports = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setAvailableReports(reports);
+          },
+          (error) => {
+            console.error("Error in reports listener:", error);
+            setError("Failed to load reports");
+            toast.error("Failed to load reports");
+          }
+        );
+      } catch (error) {
+        console.error("Error setting up reports listener:", error);
+        setError("Failed to initialize reports");
+        toast.error("Failed to initialize reports");
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    setupListener();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [user]);
 
-  // Generate report
-  const generateReport = async () => {
+  // Validate report parameters
+  const validateReportParams = useCallback(() => {
+    if (dateRange.start && dateRange.end && new Date(dateRange.start) > new Date(dateRange.end)) {
+      toast.error("End date must be after start date");
+      return false;
+    }
+    return true;
+  }, [dateRange]);
+
+  // Generate report with error handling
+  const generateReport = useCallback(async () => {
     if (!canGenerateReports) {
       toast.error("You don't have permission to generate reports");
       return;
     }
+
+    if (!validateReportParams()) return;
 
     setIsGenerating(true);
     try {
@@ -140,19 +170,24 @@ function Reports() {
         ...doc.data()
       }));
 
+      if (data.length === 0) {
+        toast.warning("No data found for the selected criteria");
+      }
+
       setReportData(data);
       await logAudit(user.email, `Generated ${reportType} report`);
       toast.success("Report generated successfully!");
     } catch (error) {
       console.error("Error generating report:", error);
+      setError("Failed to generate report");
       toast.error("Failed to generate report");
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user?.email, validateReportParams]);
 
-  // Export report to CSV
-  const exportToCSV = async () => {
+  // Export report to CSV with error handling
+  const exportToCSV = useCallback(async () => {
     if (!canExportReports) {
       toast.error("You don't have permission to export reports");
       return;
@@ -163,6 +198,7 @@ function Reports() {
       return;
     }
 
+    setIsExporting(true);
     try {
       const csv = Papa.unparse(reportData);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -172,12 +208,15 @@ function Reports() {
       toast.success("Report exported successfully!");
     } catch (error) {
       console.error("Error exporting report:", error);
+      setError("Failed to export report");
       toast.error("Failed to export report");
+    } finally {
+      setIsExporting(false);
     }
-  };
+  }, [canExportReports, reportData, reportType, user?.email]);
 
-  // Save report to Firestore
-  const saveReport = async () => {
+  // Save report to Firestore with error handling
+  const saveReport = useCallback(async () => {
     if (!canSaveReports) {
       toast.error("You don't have permission to save reports");
       return;
@@ -188,6 +227,7 @@ function Reports() {
       return;
     }
 
+    setIsSaving(true);
     try {
       const reportRef = collection(db, "reports");
       await addDoc(reportRef, {
@@ -205,185 +245,210 @@ function Reports() {
       toast.success("Report saved successfully!");
     } catch (error) {
       console.error("Error saving report:", error);
+      setError("Failed to save report");
       toast.error("Failed to save report");
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }, [canSaveReports, reportData, reportType, dateRange, filterStatus, filterLab, user?.email]);
 
   return (
     <ErrorBoundary>
-      <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        {loading && <LoadingSpinner />}
+      <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+        <h1 className="text-2xl font-bold mb-6" role="heading" aria-level="1">Reports</h1>
+
         {error && (
-          <div className="text-red-500 text-center mb-4">
+          <div className={`p-4 mb-6 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
+            }`} role="alert">
             {error}
           </div>
         )}
-        <BaseDashboard role="admin">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6">Reports</h1>
 
-            {/* Report Generation Form */}
-            <div className={`p-6 rounded-lg shadow mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h2 className="text-xl font-semibold mb-4">Generate Report</h2>
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          <BaseDashboard role="admin">
+            <div className="space-y-6">
+              {/* Report Generation Form */}
+              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                }`}>
+                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Generate Report</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Report Type</label>
-                  <select
-                    value={reportType}
-                    onChange={(e) => setReportType(e.target.value)}
-                    className={`w-full p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="reportType" className="block text-sm font-medium mb-2">
+                      Report Type
+                    </label>
+                    <select
+                      id="reportType"
+                      value={reportType}
+                      onChange={(e) => setReportType(e.target.value)}
+                      className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="Report type"
+                    >
+                      {reportTypes.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Date Range</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={dateRange.start}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                          }`}
+                        aria-label="Start date"
+                      />
+                      <input
+                        type="date"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                          }`}
+                        aria-label="End date"
+                      />
+                    </div>
+                  </div>
+
+                  {reportType === "requests" && (
+                    <div>
+                      <label htmlFor="filterStatus" className="block text-sm font-medium mb-2">
+                        Status
+                      </label>
+                      <select
+                        id="filterStatus"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                          }`}
+                        aria-label="Filter by status"
+                      >
+                        {statusOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {reportType === "inventory" && (
+                    <div>
+                      <label htmlFor="filterLab" className="block text-sm font-medium mb-2">
+                        Lab
+                      </label>
+                      <select
+                        id="filterLab"
+                        value={filterLab}
+                        onChange={(e) => setFilterLab(e.target.value)}
+                        className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                          }`}
+                        aria-label="Filter by lab"
+                      >
+                        {labOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 flex gap-4">
+                  <button
+                    onClick={generateReport}
+                    disabled={isGenerating}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                      } text-white ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label="Generate report"
                   >
-                    {reportTypes.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
+                    {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
+                  </button>
+
+                  <button
+                    onClick={exportToCSV}
+                    disabled={isExporting || reportData.length === 0}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                      } text-white ${(isExporting || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label="Export report to CSV"
+                  >
+                    {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
+                  </button>
+
+                  <button
+                    onClick={saveReport}
+                    disabled={isSaving || reportData.length === 0}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
+                      } text-white ${(isSaving || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label="Save report"
+                  >
+                    {isSaving ? <LoadingSpinner size="small" /> : 'Save Report'}
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Date Range</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={dateRange.start}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                      className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                    <input
-                      type="date"
-                      value={dateRange.end}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                      className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                  </div>
-                </div>
-
-                {reportType === "requests" && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Status</label>
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className={`w-full p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                    >
-                      {statusOptions.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {reportType === "inventory" && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Lab</label>
-                    <select
-                      value={filterLab}
-                      onChange={(e) => setFilterLab(e.target.value)}
-                      className={`w-full p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                    >
-                      {labOptions.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={generateReport}
-                  disabled={isGenerating}
-                  className={`px-4 py-2 rounded text-white ${isGenerating ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'}`}
-                >
-                  {isGenerating ? 'Generating...' : 'Generate Report'}
-                </button>
-                <button
-                  onClick={exportToCSV}
-                  disabled={reportData.length === 0}
-                  className={`px-4 py-2 rounded text-white ${reportData.length === 0 ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'}`}
-                >
-                  Export to CSV
-                </button>
-                <button
-                  onClick={saveReport}
-                  disabled={reportData.length === 0}
-                  className={`px-4 py-2 rounded text-white ${reportData.length === 0 ? 'bg-gray-400' : 'bg-purple-500 hover:bg-purple-600'}`}
-                >
-                  Save Report
-                </button>
-              </div>
-            </div>
+              {/* Report Data Display */}
+              {reportData.length > 0 && (
+                <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                  }`}>
+                  <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Report Data</h2>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full" role="table" aria-label="Report data">
+                      <thead>
+                        <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          {Object.keys(reportData[0]).map(key => (
+                            <th key={key} className="px-4 py-2 text-left">{key}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.map((row, index) => (
+                          <tr key={index} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
+                            {Object.values(row).map((value, i) => (
+                              <td key={i} className="px-4 py-2">{String(value)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
-            {/* Report Preview */}
-            {reportData.length > 0 && (
-              <div className={`p-6 rounded-lg shadow mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <h2 className="text-xl font-semibold mb-4">Report Preview</h2>
+              {/* Saved Reports */}
+              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                }`}>
+                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Saved Reports</h2>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full">
+                  <table className="min-w-full" role="table" aria-label="Saved reports">
                     <thead>
                       <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        {Object.keys(reportData[0]).map(key => (
-                          <th key={key} className="p-2 text-left">{key}</th>
-                        ))}
+                        <th className="px-4 py-2 text-left">Type</th>
+                        <th className="px-4 py-2 text-left">Generated By</th>
+                        <th className="px-4 py-2 text-left">Date</th>
+                        <th className="px-4 py-2 text-left">Records</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {reportData.slice(0, 5).map((row, index) => (
-                        <tr key={index} className={`${index % 2 === 0 ? (isDarkMode ? 'bg-gray-700' : 'bg-white') : (isDarkMode ? 'bg-gray-800' : 'bg-gray-50')}`}>
-                          {Object.values(row).map((value, i) => (
-                            <td key={i} className="p-2">{value?.toString() || ''}</td>
-                          ))}
+                      {availableReports.map(report => (
+                        <tr key={report.id} className={`${isDarkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
+                          <td className="px-4 py-2">{report.type}</td>
+                          <td className="px-4 py-2">{report.generatedBy}</td>
+                          <td className="px-4 py-2">
+                            {report.generatedAt?.toDate().toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2">{report.data.length}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {reportData.length > 5 && (
-                    <p className="text-sm text-gray-500 mt-2">
-                      Showing first 5 of {reportData.length} records
-                    </p>
-                  )}
                 </div>
               </div>
-            )}
-
-            {/* Saved Reports */}
-            <div className={`p-6 rounded-lg shadow ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h2 className="text-xl font-semibold mb-4">Saved Reports</h2>
-              {loading ? (
-                <p>Loading saved reports...</p>
-              ) : availableReports.length === 0 ? (
-                <p>No saved reports available</p>
-              ) : (
-                <div className="space-y-4">
-                  {availableReports.map(report => (
-                    <div key={report.id} className={`p-4 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="font-medium">{reportTypes.find(t => t.value === report.type)?.label}</h3>
-                          <p className="text-sm text-gray-500">
-                            Generated on: {new Date(report.generatedAt?.toDate()).toLocaleString()}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setReportData(report.data);
-                            setReportType(report.type);
-                            setDateRange(report.filters?.dateRange || { start: "", end: "" });
-                            setFilterStatus(report.filters?.status || "all");
-                            setFilterLab(report.filters?.lab || "all");
-                          }}
-                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                        >
-                          Load
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-          </div>
-        </BaseDashboard>
+          </BaseDashboard>
+        )}
       </div>
     </ErrorBoundary>
   );
