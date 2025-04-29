@@ -1,68 +1,155 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { collection, doc, updateDoc, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db, logAudit } from "../../firebase";
+import { useTheme } from "../../context/ThemeContext";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import ErrorBoundary from "../../components/ErrorBoundary";
+import { toast } from "react-toastify";
 
+/**
+ * ManageUsers component - Allows superadmin to manage user roles
+ * @component
+ * @returns {JSX.Element} The rendered ManageUsers component
+ */
 function ManageUsers() {
+  const { isDarkMode } = useTheme();
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
+  // Fetch users
   useEffect(() => {
-    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      setUsers(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    });
+    let unsubscribe = null;
+    setLoading(true);
 
-    return () => unsubscribe();
+    const fetchUsers = () => {
+      const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+      unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          setUsers(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching users:", error);
+          toast.error("Failed to fetch users");
+          setLoading(false);
+        }
+      );
+    };
+
+    fetchUsers();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
-  const updateUserRole = async (userId, newRole, email) => {
+  // Update user role
+  const updateUserRole = useCallback(async (userId, newRole, email) => {
+    if (!window.confirm(`Are you sure you want to change ${email}'s role to ${newRole}?`)) {
+      return;
+    }
+
+    setUpdating(true);
     try {
       const userRef = doc(db, "users", userId);
       await updateDoc(userRef, { role: newRole });
       await logAudit(email, `Role changed to ${newRole} by SuperAdmin`);
+      toast.success(`Successfully updated ${email}'s role to ${newRole}`);
     } catch (error) {
       console.error("Error updating user role:", error);
+      toast.error(`Failed to update ${email}'s role`);
+    } finally {
+      setUpdating(false);
     }
-  };
+  }, []);
+
+  // Memoize role options
+  const roleOptions = useMemo(() => [
+    { value: "admin", label: "Admin", color: "blue" },
+    { value: "user", label: "User", color: "red" },
+  ], []);
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Manage Users</h2>
-      <table className="w-full border-collapse border border-gray-300">
-        <thead>
-          <tr className="bg-blue-500 text-white">
-            <th className="p-2 border border-gray-300">Email</th>
-            <th className="p-2 border border-gray-300">Role</th>
-            <th className="p-2 border border-gray-300">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td className="p-2 border border-gray-300">{user.email}</td>
-              <td className="p-2 border border-gray-300">{user.role}</td>
-              <td className="p-2 border border-gray-300">
-                {user.role !== "superadmin" && (
-                  <>
-                    <button
-                      className="mr-2 bg-blue-500 text-white px-3 py-1 rounded"
-                      onClick={() => updateUserRole(user.id, "admin", user.email)}
-                    >
-                      Promote to Admin
-                    </button>
-                    <button
-                      className="bg-red-500 text-white px-3 py-1 rounded"
-                      onClick={() => updateUserRole(user.id, "user", user.email)}
-                    >
-                      Demote to User
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ErrorBoundary>
+      <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        <h2 className="text-xl font-semibold mb-6" role="heading" aria-level="2">
+          Manage Users
+        </h2>
+
+        {loading ? (
+          <LoadingSpinner />
+        ) : users.length === 0 ? (
+          <p className="text-gray-500">No users found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table
+              className={`w-full border-collapse ${isDarkMode ? "border-gray-700" : "border-gray-300"
+                }`}
+              role="table"
+              aria-label="List of users"
+            >
+              <thead>
+                <tr className={isDarkMode ? "bg-gray-800" : "bg-blue-500 text-white"}>
+                  <th className="p-2 border">Email</th>
+                  <th className="p-2 border">Role</th>
+                  <th className="p-2 border">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr
+                    key={user.id}
+                    className={`text-center ${isDarkMode ? "hover:bg-gray-800" : "hover:bg-gray-50"
+                      }`}
+                  >
+                    <td className="p-2 border">{user.email}</td>
+                    <td className="p-2 border">
+                      <span
+                        className={`px-2 py-1 rounded text-white ${user.role === "superadmin"
+                          ? "bg-purple-500"
+                          : user.role === "admin"
+                            ? "bg-blue-500"
+                            : "bg-gray-500"
+                          }`}
+                      >
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="p-2 border">
+                      {user.role !== "superadmin" && (
+                        <div className="flex justify-center space-x-2">
+                          {roleOptions.map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => updateUserRole(user.id, option.value, user.email)}
+                              disabled={updating || user.role === option.value}
+                              className={`px-3 py-1 rounded transition-colors duration-200 ${isDarkMode
+                                ? `bg-${option.color}-600 hover:bg-${option.color}-700 text-white`
+                                : `bg-${option.color}-500 hover:bg-${option.color}-600 text-white`
+                                } ${updating ? "opacity-50 cursor-not-allowed" : ""}`}
+                              aria-label={`Change ${user.email}'s role to ${option.label}`}
+                            >
+                              {updating ? (
+                                <LoadingSpinner size="small" />
+                              ) : (
+                                `${user.role === option.value ? "Current" : option.label}`
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
 
