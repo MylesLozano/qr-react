@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, updateDoc, where } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, updateDoc, where, writeBatch, serverTimestamp } from "firebase/firestore";
 import { db, logAudit, auth } from "../firebase";
-import { serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
 import Papa from "papaparse";
 import QRCodeManager from '../components/QRCodeManager';
@@ -51,6 +50,18 @@ const saveSearchHistory = (search) => {
   }
 };
 
+// Validation functions
+const validateItem = (item) => {
+  const errors = [];
+  if (!item.name?.trim()) errors.push('Name is required');
+  if (!item.category?.trim()) errors.push('Category is required');
+  if (isNaN(item.quantity) || item.quantity < 0) errors.push('Quantity must be a positive number');
+  if (item.name?.length > 100) errors.push('Name is too long');
+  if (item.brand?.length > 100) errors.push('Brand is too long');
+  if (item.serialNumber?.length > 50) errors.push('Serial number is too long');
+  return errors;
+};
+
 function Inventory() {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
@@ -83,6 +94,7 @@ function Inventory() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState([]);
 
   // Advanced search state
   const [advancedSearch, setAdvancedSearch] = useState({
@@ -132,7 +144,7 @@ function Inventory() {
   const canDelete = useMemo(() => canPerformAction(role, 'delete_inventory'), [role]);
   const canGenerateQr = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
 
-  // Enhanced search functionality
+  // Enhanced search functionality with memoization
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return items.filter(item => {
@@ -196,7 +208,7 @@ function Inventory() {
     }
   };
 
-  // Data fetching
+  // Data fetching with error handling
   useEffect(() => {
     if (!user) return;
 
@@ -220,6 +232,7 @@ function Inventory() {
     return () => inventoryUnsubscribe();
   }, [user]);
 
+  // QR stats calculation
   useEffect(() => {
     const stats = items.reduce((acc, item) => {
       if (item.uniqueQR) {
@@ -232,15 +245,25 @@ function Inventory() {
     setQrStats(stats);
   }, [items]);
 
-  // Add item with permission check
+  // Add item with validation and permission check
   const addItem = async () => {
     if (!canEdit) {
       toast.error("You don't have permission to add items");
       return;
     }
 
+    const errors = validateItem(formData);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      toast.error(errors.join(', '));
+      return;
+    }
+
     try {
       setIsLoading(true);
+      setError(null);
+      setValidationErrors([]);
+
       const sanitizedData = {
         ...formData,
         name: sanitizeInput(formData.name),
@@ -255,7 +278,10 @@ function Inventory() {
       };
 
       const docRef = await addDoc(collection(db, "inventory"), sanitizedData);
-      await logAudit(user.email, `Added item: ${sanitizedData.name}`);
+      await logAudit(user.uid, 'add_item', {
+        itemId: docRef.id,
+        itemName: sanitizedData.name
+      });
 
       toast.success("Item added successfully");
       setFormData({
@@ -274,13 +300,14 @@ function Inventory() {
       });
     } catch (error) {
       console.error("Error adding item:", error);
-      toast.error("Failed to add item");
+      setError(error.message);
+      toast.error(`Failed to add item: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Edit item with permission check
+  // Edit item with validation and permission check
   const handleEdit = (item) => {
     if (!canEdit) {
       toast.error("You don't have permission to edit items");
@@ -289,17 +316,28 @@ function Inventory() {
     setEditingItem(item);
     setFormData(item);
     setIsEditing(true);
+    setValidationErrors([]);
   };
 
-  // Save edit with permission check
+  // Save edit with validation and permission check
   const handleSaveEdit = async () => {
     if (!canEdit) {
       toast.error("You don't have permission to edit items");
       return;
     }
 
+    const errors = validateItem(formData);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      toast.error(errors.join(', '));
+      return;
+    }
+
     try {
       setIsLoading(true);
+      setError(null);
+      setValidationErrors([]);
+
       const sanitizedData = {
         ...formData,
         name: sanitizeInput(formData.name),
@@ -312,7 +350,10 @@ function Inventory() {
       };
 
       await updateDoc(doc(db, "inventory", editingItem.id), sanitizedData);
-      await logAudit(user.email, `Updated item: ${sanitizedData.name}`);
+      await logAudit(user.uid, 'update_item', {
+        itemId: editingItem.id,
+        itemName: sanitizedData.name
+      });
 
       toast.success("Item updated successfully");
       setIsEditing(false);
@@ -333,31 +374,39 @@ function Inventory() {
       });
     } catch (error) {
       console.error("Error updating item:", error);
-      toast.error("Failed to update item");
+      setError(error.message);
+      toast.error(`Failed to update item: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Delete item with permission check
+  // Delete item with permission check and confirmation
   const deleteItem = async (id, name) => {
     if (!canDelete) {
       toast.error("You don't have permission to delete items");
       return;
     }
 
-    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
-      try {
-        setIsLoading(true);
-        await deleteDoc(doc(db, "inventory", id));
-        await logAudit(user.email, `Deleted item: ${name}`);
-        toast.success("Item deleted successfully");
-      } catch (error) {
-        console.error("Error deleting item:", error);
-        toast.error("Failed to delete item");
-      } finally {
-        setIsLoading(false);
-      }
+    if (!window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      await deleteDoc(doc(db, "inventory", id));
+      await logAudit(user.uid, 'delete_item', {
+        itemId: id,
+        itemName: name
+      });
+      toast.success("Item deleted successfully");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      setError(error.message);
+      toast.error(`Failed to delete item: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
