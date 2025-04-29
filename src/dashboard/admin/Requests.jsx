@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   collection,
   onSnapshot,
@@ -24,6 +24,11 @@ import { canPerformAction } from "../../utils/roleUtils";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 
+/**
+ * Requests component - Manages inventory requests
+ * @component
+ * @returns {JSX.Element} The rendered Requests component
+ */
 function Requests() {
   usePageTitle("QCheckCITE - Manage Requests");
   const { isDarkMode } = useTheme();
@@ -38,11 +43,20 @@ function Requests() {
   const [selectedRequests, setSelectedRequests] = useState(new Set());
   const [showDetails, setShowDetails] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
 
   // Permission checks
   const canManageRequests = useMemo(() => canPerformAction(role, 'manage_requests'), [role]);
   const canExportRequests = useMemo(() => canPerformAction(role, 'export_requests'), [role]);
+
+  // Status options
+  const statusOptions = useMemo(() => [
+    { value: "all", label: "All Statuses" },
+    { value: "pending", label: "Pending" },
+    { value: "approved", label: "Approved" },
+    { value: "rejected", label: "Rejected" }
+  ], []);
 
   // Memoize filtered requests
   const filteredRequests = useMemo(() => {
@@ -76,42 +90,63 @@ function Requests() {
     return result;
   }, [requests, filter, searchTerm, dateRange]);
 
-  // Fetch requests
+  // Fetch requests with real-time updates
   useEffect(() => {
     if (!user) return;
 
-    setLoading(true);
-    const requestsRef = collection(db, "requests");
-    const requestsQuery = query(requestsRef, orderBy("createdAt", "desc"));
-
-    const unsubscribe = onSnapshot(requestsQuery,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setRequests(data);
+    let unsubscribe;
+    const setupListener = async () => {
+      try {
+        setLoading(true);
         setError(null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching requests:", error);
-        setError("Failed to load requests");
-        toast.error("Failed to load requests");
+        const requestsRef = collection(db, "requests");
+        const requestsQuery = query(requestsRef, orderBy("createdAt", "desc"));
+        unsubscribe = onSnapshot(requestsQuery,
+          (snapshot) => {
+            const data = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setRequests(data);
+          },
+          (error) => {
+            console.error("Error in requests listener:", error);
+            setError("Failed to load requests");
+            toast.error("Failed to load requests");
+          }
+        );
+      } catch (error) {
+        console.error("Error setting up requests listener:", error);
+        setError("Failed to initialize requests");
+        toast.error("Failed to initialize requests");
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    setupListener();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [user]);
 
-  // Update request status
-  const updateRequestStatus = async (id, status) => {
+  // Validate date range
+  const validateDateRange = useCallback(() => {
+    if (dateRange.start && dateRange.end && new Date(dateRange.start) > new Date(dateRange.end)) {
+      toast.error("End date must be after start date");
+      return false;
+    }
+    return true;
+  }, [dateRange]);
+
+  // Update request status with error handling
+  const updateRequestStatus = useCallback(async (id, status) => {
     if (!canManageRequests) {
       toast.error("You don't have permission to manage requests");
       return;
     }
 
+    setIsUpdating(true);
     try {
       await updateDoc(doc(db, "requests", id), {
         status,
@@ -122,12 +157,15 @@ function Requests() {
       toast.success(`Request ${status}.`);
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("Failed to update status.");
+      setError("Failed to update status");
+      toast.error("Failed to update status");
+    } finally {
+      setIsUpdating(false);
     }
-  };
+  }, [canManageRequests, user?.email]);
 
-  // Bulk update status
-  const bulkUpdateStatus = async (status) => {
+  // Bulk update status with error handling
+  const bulkUpdateStatus = useCallback(async (status) => {
     if (!canManageRequests) {
       toast.error("You don't have permission to manage requests");
       return;
@@ -138,6 +176,7 @@ function Requests() {
       return;
     }
 
+    setIsUpdating(true);
     try {
       const batch = writeBatch(db);
       selectedRequests.forEach(id => {
@@ -154,12 +193,15 @@ function Requests() {
       toast.success(`Successfully ${status} ${selectedRequests.size} request(s)`);
     } catch (error) {
       console.error("Error bulk updating:", error);
+      setError("Failed to update requests");
       toast.error("Failed to update requests");
+    } finally {
+      setIsUpdating(false);
     }
-  };
+  }, [canManageRequests, selectedRequests, user?.email]);
 
-  // Export to CSV
-  const exportToCSV = async () => {
+  // Export to CSV with error handling
+  const exportToCSV = useCallback(async () => {
     if (!canExportRequests) {
       toast.error("You don't have permission to export requests");
       return;
@@ -190,21 +232,25 @@ function Requests() {
       toast.success("Requests exported successfully!");
     } catch (error) {
       console.error("Error exporting:", error);
+      setError("Failed to export requests");
       toast.error("Failed to export requests");
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [canExportRequests, filteredRequests, user?.email]);
 
   // Row component for virtual list
-  const Row = ({ index, style }) => {
+  const Row = useCallback(({ index, style }) => {
     const request = filteredRequests[index];
     const isSelected = selectedRequests.has(request.id);
 
     return (
       <div
         style={style}
-        className={`border-b p-4 ${isSelected ? (isDarkMode ? 'bg-gray-700' : 'bg-blue-50') : ''}`}
+        className={`border-b p-4 transition-colors duration-200 ${isSelected ? (isDarkMode ? 'bg-gray-700' : 'bg-blue-50') : ''
+          }`}
+        role="row"
+        aria-selected={isSelected}
       >
         <div className="grid grid-cols-5 gap-4 items-center">
           <div className="flex items-center">
@@ -221,10 +267,13 @@ function Requests() {
                 setSelectedRequests(newSelected);
               }}
               className="mr-2"
+              aria-label={`Select request for ${request.itemName}`}
             />
             <div>
               <div className="font-medium">{request.itemName}</div>
-              <div className="text-sm text-gray-600">Requested by: {request.userEmail}</div>
+              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Requested by: {request.userEmail}
+              </div>
             </div>
           </div>
           <div>
@@ -237,7 +286,9 @@ function Requests() {
             </div>
             <button
               onClick={() => setShowDetails(request)}
-              className="text-blue-600 hover:text-blue-800 text-sm"
+              className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
+                }`}
+              aria-label={`View details for ${request.itemName}`}
             >
               View Details
             </button>
@@ -250,187 +301,168 @@ function Requests() {
               {request.status}
             </span>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <button
               onClick={() => updateRequestStatus(request.id, 'approved')}
-              className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-              disabled={request.status === 'approved'}
+              disabled={isUpdating || request.status === 'approved'}
+              className={`px-3 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                } text-white ${(isUpdating || request.status === 'approved') ? 'opacity-50 cursor-not-allowed' : ''}`}
+              aria-label={`Approve request for ${request.itemName}`}
             >
-              Approve
+              {isUpdating ? <LoadingSpinner size="small" /> : 'Approve'}
             </button>
             <button
               onClick={() => updateRequestStatus(request.id, 'rejected')}
-              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-              disabled={request.status === 'rejected'}
+              disabled={isUpdating || request.status === 'rejected'}
+              className={`px-3 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+                } text-white ${(isUpdating || request.status === 'rejected') ? 'opacity-50 cursor-not-allowed' : ''}`}
+              aria-label={`Reject request for ${request.itemName}`}
             >
-              Reject
+              {isUpdating ? <LoadingSpinner size="small" /> : 'Reject'}
             </button>
           </div>
         </div>
       </div>
     );
-  };
+  }, [filteredRequests, selectedRequests, isDarkMode, isUpdating, updateRequestStatus]);
 
   return (
     <ErrorBoundary>
-      <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        {loading && <LoadingSpinner />}
+      <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+        <h1 className="text-2xl font-bold mb-6" role="heading" aria-level="1">Manage Requests</h1>
+
         {error && (
-          <div className="text-red-500 text-center mb-4">
+          <div className={`p-4 mb-6 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
+            }`} role="alert">
             {error}
           </div>
         )}
-        <BaseDashboard role="admin">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6">Manage Requests</h1>
 
-            {/* Filters and Actions */}
-            <div className={`p-4 rounded-lg shadow mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Status</label>
-                  <select
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    className={`w-full p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                  >
-                    <option value="all">All Requests</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Search</label>
-                  <input
-                    type="text"
-                    placeholder="Search requests..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Date Range</label>
-                  <div className="flex gap-2">
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          <BaseDashboard role="admin">
+            <div className="space-y-6">
+              {/* Filters */}
+              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                }`}>
+                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Filters</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label htmlFor="statusFilter" className="block text-sm font-medium mb-2">
+                      Status
+                    </label>
+                    <select
+                      id="statusFilter"
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="Filter by status"
+                    >
+                      {statusOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="searchTerm" className="block text-sm font-medium mb-2">
+                      Search
+                    </label>
                     <input
-                      type="date"
-                      value={dateRange.start}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                      className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                    <input
-                      type="date"
-                      value={dateRange.end}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                      className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      type="text"
+                      id="searchTerm"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by item, user, or lab"
+                      className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                        }`}
+                      aria-label="Search requests"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Date Range</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={dateRange.start}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                          }`}
+                        aria-label="Start date"
+                      />
+                      <input
+                        type="date"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                        className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                          }`}
+                        aria-label="End date"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-end space-x-2">
+              </div>
+
+              {/* Actions */}
+              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                }`}>
+                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Actions</h2>
+                <div className="flex gap-4">
                   <button
                     onClick={() => bulkUpdateStatus('approved')}
-                    disabled={selectedRequests.size === 0}
-                    className={`px-4 py-2 rounded text-white ${selectedRequests.size === 0 ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'}`}
+                    disabled={isUpdating || selectedRequests.size === 0}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                      } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label="Approve selected requests"
                   >
-                    Bulk Approve
+                    {isUpdating ? <LoadingSpinner size="small" /> : 'Approve Selected'}
                   </button>
                   <button
                     onClick={() => bulkUpdateStatus('rejected')}
-                    disabled={selectedRequests.size === 0}
-                    className={`px-4 py-2 rounded text-white ${selectedRequests.size === 0 ? 'bg-gray-400' : 'bg-red-500 hover:bg-red-600'}`}
+                    disabled={isUpdating || selectedRequests.size === 0}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+                      } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label="Reject selected requests"
                   >
-                    Bulk Reject
+                    {isUpdating ? <LoadingSpinner size="small" /> : 'Reject Selected'}
                   </button>
                   <button
                     onClick={exportToCSV}
                     disabled={isExporting || filteredRequests.length === 0}
-                    className={`px-4 py-2 rounded text-white ${isExporting || filteredRequests.length === 0 ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'}`}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                      } text-white ${(isExporting || filteredRequests.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label="Export requests to CSV"
                   >
-                    {isExporting ? 'Exporting...' : 'Export CSV'}
+                    {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
                   </button>
                 </div>
               </div>
-            </div>
 
-            {/* Virtualized List */}
-            <div className={`rounded-lg shadow ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`} style={{ height: '600px' }}>
-              {loading ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="text-lg">Loading requests...</div>
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="text-lg text-gray-500">No requests found</div>
-                </div>
-              ) : (
-                <AutoSizer>
-                  {({ height, width }) => (
-                    <List
-                      height={height}
-                      itemCount={filteredRequests.length}
-                      itemSize={100}
-                      width={width}
-                    >
-                      {Row}
-                    </List>
-                  )}
-                </AutoSizer>
-              )}
-            </div>
-
-            {/* Request Details Modal */}
-            {showDetails && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-                <div className={`p-6 rounded-lg w-full max-w-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                  <h2 className="text-xl font-semibold mb-4">Request Details</h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-medium">Item Name</p>
-                      <p>{showDetails.itemName}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Quantity</p>
-                      <p>{showDetails.quantity}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Lab</p>
-                      <p>{showDetails.lab}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Status</p>
-                      <p>{showDetails.status}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Requested By</p>
-                      <p>{showDetails.userEmail}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Request Date</p>
-                      <p>{new Date(showDetails.createdAt?.toDate()).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Last Updated</p>
-                      <p>{new Date(showDetails.updatedAt).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Updated By</p>
-                      <p>{showDetails.updatedBy}</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-6">
-                    <button
-                      onClick={() => setShowDetails(null)}
-                      className={`px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-500 hover:bg-gray-600'}`}
-                    >
-                      Close
-                    </button>
-                  </div>
+              {/* Request List */}
+              <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                }`}>
+                <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Requests</h2>
+                <div className="h-[600px]">
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <List
+                        height={height}
+                        itemCount={filteredRequests.length}
+                        itemSize={100}
+                        width={width}
+                      >
+                        {Row}
+                      </List>
+                    )}
+                  </AutoSizer>
                 </div>
               </div>
-            )}
-          </div>
-        </BaseDashboard>
+            </div>
+          </BaseDashboard>
+        )}
       </div>
     </ErrorBoundary>
   );
