@@ -1,228 +1,210 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { collection, query, orderBy, onSnapshot, where, Timestamp } from "firebase/firestore";
-import { db, auth, getUserRole } from "../../firebase"; // Adjust import path
-import BaseDashboard from "../BaseDashboard";
-import usePageTitle from "../../hooks/usePageTitle";
-import { FixedSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import React, { useState, useEffect } from 'react';
+import { collection, query, orderBy, limit, startAfter, getDocs, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { toast } from 'react-toastify';
+import Papa from 'papaparse';
+import { saveAs } from 'file-saver';
+import { useTheme } from '../../context/ThemeContext';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
-function AuditLogs() {
-  usePageTitle("QCheckCITE - Audit Logs");
+const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
-  const [role, setRole] = useState(null);
+  const [lastDoc, setLastDoc] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [filters, setFilters] = useState({
+    action: '',
+    entityType: '',
+    dateRange: { start: '', end: '' }
+  });
+  const { isDarkMode } = useTheme();
 
-  // Fetch user role
   useEffect(() => {
-    const fetchRole = async () => {
-      if (auth.currentUser) {
-        const userRole = await getUserRole(auth.currentUser.uid);
-        setRole(userRole);
-      }
-    };
-    fetchRole();
-  }, []);
+    fetchLogs();
+  }, [filters]);
 
-  // Memoize filtered logs
-  const filteredLogs = useMemo(() => {
-    let result = logs;
-
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(log =>
-        log.userEmail.toLowerCase().includes(term) ||
-        log.action.toLowerCase().includes(term) ||
-        log.details?.toLowerCase().includes(term)
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      let q = query(
+        collection(db, 'auditLogs'),
+        orderBy('timestamp', 'desc'),
+        limit(20)
       );
-    }
 
-    // Apply type filter
-    if (filter !== 'all') {
-      result = result.filter(log => log.type === filter);
-    }
-
-    // Apply date range filter
-    if (dateRange.start && dateRange.end) {
-      const startDate = new Date(dateRange.start);
-      const endDate = new Date(dateRange.end);
-      endDate.setHours(23, 59, 59, 999); // End of day
-
-      result = result.filter(log => {
-        const logDate = log.timestamp?.toDate();
-        return logDate >= startDate && logDate <= endDate;
-      });
-    }
-
-    return result;
-  }, [logs, searchTerm, filter, dateRange]);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    const q = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
-        const fetchedLogs = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setLogs(fetchedLogs);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Error fetching audit logs:", err);
-        setError("Failed to load audit logs. Please try again later.");
-        setLoading(false);
-        toast.error("Failed to load audit logs");
+      // Apply filters
+      if (filters.action) {
+        q = query(q, where('action', '==', filters.action));
       }
-    );
+      if (filters.entityType) {
+        q = query(q, where('entityType', '==', filters.entityType));
+      }
+      if (filters.dateRange.start) {
+        q = query(q, where('timestamp', '>=', new Date(filters.dateRange.start)));
+      }
+      if (filters.dateRange.end) {
+        q = query(q, where('timestamp', '<=', new Date(filters.dateRange.end)));
+      }
 
-    return () => unsubscribe();
-  }, []);
+      const snapshot = await getDocs(q);
+      const newLogs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate().toLocaleString()
+      }));
 
-  // Restrict access to non-SuperAdmins
-  if (role !== "superadmin") {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-red-500 text-xl">⚠️ Access Denied: You do not have permission to view audit logs.</p>
-      </div>
-    );
-  }
+      setLogs(newLogs);
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === 20);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      toast.error('Failed to fetch audit logs');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Row component for virtual list
-  const Row = ({ index, style }) => {
-    const log = filteredLogs[index];
-    return (
-      <div style={style} className="border-b p-4">
-        <div className="grid grid-cols-4 gap-4 items-center">
-          <div>
-            <div className="font-medium">{log.userEmail}</div>
-            <div className="text-sm text-gray-600">
-              {log.timestamp?.toDate().toLocaleString() || 'N/A'}
-            </div>
-          </div>
-          <div>
-            <span className={`px-2 py-1 rounded text-white ${log.type === 'create' ? 'bg-green-500' :
-              log.type === 'update' ? 'bg-blue-500' :
-                log.type === 'delete' ? 'bg-red-500' :
-                  'bg-gray-500'
-              }`}>
-              {log.type}
-            </span>
-          </div>
-          <div className="text-sm">
-            {log.action}
-          </div>
-          <div className="text-sm text-gray-600">
-            {log.details || 'No additional details'}
-          </div>
-        </div>
-      </div>
-    );
+  const loadMore = async () => {
+    if (!lastDoc || !hasMore) return;
+
+    try {
+      setLoading(true);
+      let q = query(
+        collection(db, 'auditLogs'),
+        orderBy('timestamp', 'desc'),
+        startAfter(lastDoc),
+        limit(20)
+      );
+
+      const snapshot = await getDocs(q);
+      const newLogs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate().toLocaleString()
+      }));
+
+      setLogs(prev => [...prev, ...newLogs]);
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === 20);
+    } catch (error) {
+      console.error('Error loading more logs:', error);
+      toast.error('Failed to load more logs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    const csv = Papa.unparse(logs);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `audit_logs_${new Date().toISOString()}.csv`);
   };
 
   return (
-    <BaseDashboard role="superadmin">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Audit Logs</h1>
+    <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Audit Logs</h1>
+        <button
+          onClick={exportToCSV}
+          className={`px-4 py-2 rounded ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+            } text-white`}
+        >
+          Export to CSV
+        </button>
+      </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <input
-            type="text"
-            placeholder="Search logs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border p-2 rounded"
-          />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="border p-2 rounded"
-          >
-            <option value="all">All Types</option>
-            <option value="create">Create</option>
-            <option value="update">Update</option>
-            <option value="delete">Delete</option>
-          </select>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <select
+          value={filters.action}
+          onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+            }`}
+        >
+          <option value="">All Actions</option>
+          <option value="create">Create</option>
+          <option value="update">Update</option>
+          <option value="delete">Delete</option>
+          <option value="login">Login</option>
+          <option value="logout">Logout</option>
+        </select>
+
+        <select
+          value={filters.entityType}
+          onChange={(e) => setFilters({ ...filters, entityType: e.target.value })}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+            }`}
+        >
+          <option value="">All Entities</option>
+          <option value="user">User</option>
+          <option value="inventory">Inventory</option>
+          <option value="request">Request</option>
+          <option value="report">Report</option>
+        </select>
+
+        <div className="flex gap-2">
           <input
             type="date"
-            value={dateRange.start || ''}
-            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-            className="border p-2 rounded"
-            placeholder="Start Date"
+            value={filters.dateRange.start}
+            onChange={(e) => setFilters({ ...filters, dateRange: { ...filters.dateRange, start: e.target.value } })}
+            className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+              }`}
           />
           <input
             type="date"
-            value={dateRange.end || ''}
-            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-            className="border p-2 rounded"
-            placeholder="End Date"
+            value={filters.dateRange.end}
+            onChange={(e) => setFilters({ ...filters, dateRange: { ...filters.dateRange, end: e.target.value } })}
+            className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+              }`}
           />
-        </div>
-
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Total Logs</div>
-            <div className="text-2xl font-bold">{filteredLogs.length}</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Create Actions</div>
-            <div className="text-2xl font-bold text-green-500">
-              {filteredLogs.filter(log => log.type === 'create').length}
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Update Actions</div>
-            <div className="text-2xl font-bold text-blue-500">
-              {filteredLogs.filter(log => log.type === 'update').length}
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Delete Actions</div>
-            <div className="text-2xl font-bold text-red-500">
-              {filteredLogs.filter(log => log.type === 'delete').length}
-            </div>
-          </div>
-        </div>
-
-        {/* Virtualized List */}
-        <div className="bg-white rounded-lg shadow" style={{ height: '600px' }}>
-          {loading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="text-lg">Loading audit logs...</div>
-            </div>
-          ) : error ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="text-red-500">{error}</div>
-            </div>
-          ) : (
-            <AutoSizer>
-              {({ height, width }) => (
-                <List
-                  height={height}
-                  itemCount={filteredLogs.length}
-                  itemSize={100}
-                  width={width}
-                >
-                  {Row}
-                </List>
-              )}
-            </AutoSizer>
-          )}
         </div>
       </div>
-    </BaseDashboard>
+
+      <div className={`overflow-x-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+        <table className="min-w-full">
+          <thead className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'
+            }`}>
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Action</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Entity</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Details</th>
+            </tr>
+          </thead>
+          <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700 bg-gray-900' : 'divide-gray-200 bg-white'
+            }`}>
+            {logs.map((log) => (
+              <tr key={log.id}>
+                <td className="px-6 py-4 whitespace-nowrap">{log.timestamp}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{log.action}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{log.entityType}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{log.userEmail}</td>
+                <td className="px-6 py-4">
+                  <pre className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                    }`}>
+                    {JSON.stringify(log.details, null, 2)}
+                  </pre>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {loading && <LoadingSpinner />}
+
+      {hasMore && !loading && (
+        <button
+          onClick={loadMore}
+          className={`mt-4 px-4 py-2 rounded ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+            } text-white`}
+        >
+          Load More
+        </button>
+      )}
+    </div>
   );
-}
+};
 
 export default AuditLogs;

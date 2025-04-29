@@ -34,11 +34,11 @@ function MyRequests() {
           setRequests(userRequests);
         });
 
-        return () => unsubscribeSnapshot(); // Clean up snapshot listener
+        return () => unsubscribeSnapshot();
       }
     });
 
-    return () => unsubscribe(); // Clean up auth listener
+    return () => unsubscribe();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -56,7 +56,7 @@ function MyRequests() {
         reason,
         usageLocation,
         status: "pending",
-        createdAt: serverTimestamp(), // ✅ Timestamp added here
+        createdAt: serverTimestamp(),
       });
 
       alert("Request submitted!");

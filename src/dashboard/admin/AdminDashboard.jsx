@@ -5,6 +5,7 @@ import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, getCountFromServer } from "firebase/firestore";
 import { db } from "../../firebase";
+import { Link } from 'react-router-dom';
 
 function AdminDashboard() {
   usePageTitle("QCheckCITE - Admin");
@@ -140,6 +141,14 @@ function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+        <div className="mt-6">
+          <Link to="reports" className="nav-link">
+            <i className="fas fa-chart-bar"></i> Reports
+          </Link>
+          <Link to="templates" className="nav-link">
+            <i className="fas fa-file-alt"></i> Report Templates
+          </Link>
         </div>
       </div>
     </BaseDashboard>

@@ -29,6 +29,8 @@ const MyRequests = lazy(() => import("./dashboard/user/MyRequests"));
 const Requests = lazy(() => import("./dashboard/admin/Requests"));
 const Reports = lazy(() => import("./dashboard/admin/Reports"));
 const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
+const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCategories'));
+const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -80,9 +82,14 @@ function App() {
             <Route path="/superadmin-dashboard/audit-logs" element={<ProtectedRoute isAuthenticated={role === "superadmin"}><AuditLogs /></ProtectedRoute>} />
 
             {/* Admin Routes */}
-            <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={role === "admin"}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin-dashboard/requests" element={<ProtectedRoute isAuthenticated={role === "admin"}><Requests /></ProtectedRoute>} />
-            <Route path="/admin-dashboard/reports" element={<ProtectedRoute isAuthenticated={role === "admin"}><Reports /></ProtectedRoute>} />
+            <Route path="/admin-dashboard" element={<ProtectedRoute isAuthenticated={role === "admin"}><AdminDashboard /></ProtectedRoute>}>
+              <Route index element={<Navigate to="inventory" replace />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="requests" element={<Requests />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="categories" element={<InventoryCategories />} />
+              <Route path="templates" element={<ReportTemplates />} />
+            </Route>
             <Route path="/admin-dashboard/users" element={<ProtectedRoute isAuthenticated={role === "admin"}><UserManagement /></ProtectedRoute>} />
 
             {/* Shared Routes */}
