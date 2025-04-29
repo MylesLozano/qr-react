@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, onSnapshot, getCountFromServer } from "firebase/firestore";
 import { db, auth } from "../../firebase";
+import { toast } from "react-toastify";
+import { useTheme } from "../../context/ThemeContext";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import ErrorBoundary from "../../components/ErrorBoundary";
 
+/**
+ * UserDashboard component - Main dashboard for regular users
+ * @component
+ * @returns {JSX.Element} The rendered UserDashboard component
+ */
 function UserDashboard() {
-  usePageTitle("QCheckCITE - User");
+  usePageTitle("QCheckCITE - User Dashboard");
+  const { isDarkMode } = useTheme();
   const [scanResult, setScanResult] = useState(null);
   const [paused, setPaused] = useState(false);
+  const [error, setError] = useState(null);
 
   // State for dynamic counts
   const [inventoryCount, setInventoryCount] = useState(0);
@@ -16,107 +27,198 @@ function UserDashboard() {
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
 
-  useEffect(() => {
-    setLoadingCounts(true);
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setLoadingCounts(false);
-      return; // Should not happen if protected route works, but good practice
+  // Memoize the current user
+  const currentUser = useMemo(() => auth.currentUser, []);
+
+  // Handle QR scan result
+  const handleScanResult = useCallback((result) => {
+    try {
+      setScanResult(result);
+      setPaused(true);
+      toast.success("QR code scanned successfully!");
+    } catch (error) {
+      console.error("Error processing scan result:", error);
+      toast.error("Failed to process QR code");
     }
+  }, []);
 
-    const inventoryCol = collection(db, "inventory");
-    const myRequestsCol = collection(db, "requests");
+  // Handle QR scan error
+  const handleScanError = useCallback((error) => {
+    console.error("QR Scan Error:", error);
+    setError(error.message);
+    toast.error("Failed to scan QR code");
+  }, []);
 
-    // --- Fetch Inventory Count (Example using getCountFromServer for one-time fetch) ---
-    const fetchInventoryCount = async () => {
+  // Reset scanner
+  const resetScanner = useCallback(() => {
+    setPaused(false);
+    setScanResult(null);
+    setError(null);
+  }, []);
+
+  // Fetch counts
+  useEffect(() => {
+    let unsubscribe = null;
+    setLoadingCounts(true);
+
+    const fetchCounts = async () => {
+      if (!currentUser) {
+        setLoadingCounts(false);
+        return;
+      }
+
       try {
+        // Fetch inventory count
+        const inventoryCol = collection(db, "inventory");
         const snapshot = await getCountFromServer(inventoryCol);
         setInventoryCount(snapshot.data().count);
+
+        // Set up real-time request counts
+        const myRequestsCol = collection(db, "requests");
+        const myRequestsQuery = query(
+          myRequestsCol,
+          where("userId", "==", currentUser.uid)
+        );
+
+        unsubscribe = onSnapshot(
+          myRequestsQuery,
+          (snapshot) => {
+            let total = 0;
+            let approved = 0;
+            snapshot.forEach((doc) => {
+              total++;
+              if (doc.data().status === "approved") {
+                approved++;
+              }
+            });
+            setMyRequestsCount(total);
+            setApprovedRequestsCount(approved);
+            setLoadingCounts(false);
+          },
+          (error) => {
+            console.error("Error fetching request counts:", error);
+            toast.error("Failed to fetch request counts");
+            setLoadingCounts(false);
+          }
+        );
       } catch (error) {
-        console.error("Error fetching inventory count:", error);
+        console.error("Error in fetchCounts:", error);
+        toast.error("Failed to fetch dashboard data");
+        setLoadingCounts(false);
       }
     };
 
-    fetchInventoryCount(); // Call the async function
+    fetchCounts();
 
-    // --- Fetch User Request Counts (Example using onSnapshot for real-time) ---
-    const myRequestsQuery = query(myRequestsCol, where("userId", "==", currentUser.uid));
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [currentUser]);
 
-    const unsubscribe = onSnapshot(myRequestsQuery, (snapshot) => {
-      let total = 0;
-      let approved = 0;
-      snapshot.forEach(doc => {
-        total++;
-        if (doc.data().status === 'approved') {
-          approved++;
-        }
-      });
-      setMyRequestsCount(total);
-      setApprovedRequestsCount(approved);
-      setLoadingCounts(false); // Set loading false after counts are updated
-    }, (error) => {
-      console.error("Error fetching request counts:", error);
-      setLoadingCounts(false);
-    });
-
-    // Cleanup listener
-    return () => unsubscribe();
-
-  }, []); // Runs once on mount
+  // Memoize summary cards data
+  const summaryCards = useMemo(() => [
+    {
+      title: "Available Inventory",
+      count: inventoryCount,
+      description: "Total items available in inventory",
+    },
+    {
+      title: "My Requests",
+      count: myRequestsCount,
+      description: "Total requests made by you",
+    },
+    {
+      title: "Approved Requests",
+      count: approvedRequestsCount,
+      description: "Total approved requests",
+    },
+  ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
 
   return (
-    <BaseDashboard role="user">
-      <h1 className="text-3xl font-bold mb-4">User Dashboard</h1>
+    <ErrorBoundary>
+      <BaseDashboard role="user">
+        <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+          <h1 className="text-3xl font-bold mb-4" role="heading" aria-level="1">
+            User Dashboard
+          </h1>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-5 bg-white shadow rounded-lg text-center">
-          <h2 className="text-xl font-bold">Available Inventory</h2>
-          <p className="text-2xl mt-2">
-            {loadingCounts ? "..." : inventoryCount}
-          </p>
-        </div>
-        <div className="p-5 bg-white shadow rounded-lg text-center">
-          <h2 className="text-xl font-bold">My Requests</h2>
-          <p className="text-2xl mt-2">
-            {loadingCounts ? "..." : myRequestsCount}
-          </p>
-        </div>
-        <div className="p-5 bg-white shadow rounded-lg text-center">
-          <h2 className="text-xl font-bold">Approved Requests</h2>
-          <p className="text-2xl mt-2">
-            {loadingCounts ? "..." : approvedRequestsCount}
-          </p>
-        </div>
-      </div>
-
-      {/* QR Scanner Section */}
-      <div className="mt-8 bg-white shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Scan QR Code</h2>
-        <Scanner
-          onScan={(result) => {
-            setScanResult(result);
-            setPaused(true);
-          }}
-          onError={(error) => console.error("QR Scan Error:", error)}
-          formats={["qr_code", "code_128"]}
-          paused={paused}
-          classNames={{ container: "w-full h-auto" }}
-        />
-        {scanResult && (
-          <div className="mt-3 p-3 bg-gray-100 rounded">
-            <h3 className="font-semibold">Scanned Code:</h3>
-            <p>{scanResult}</p>
-            <button
-              onClick={() => setPaused(false)}
-              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
-            >
-              Scan Again
-            </button>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {summaryCards.map((card, index) => (
+              <div
+                key={index}
+                className={`p-5 rounded-lg shadow transition-colors duration-200 ${isDarkMode
+                    ? "bg-gray-800 hover:bg-gray-700"
+                    : "bg-white hover:bg-gray-50"
+                  }`}
+                role="region"
+                aria-label={card.title}
+              >
+                <h2 className="text-xl font-bold mb-2">{card.title}</h2>
+                <p className="text-2xl" aria-live="polite">
+                  {loadingCounts ? (
+                    <LoadingSpinner size="small" />
+                  ) : (
+                    card.count
+                  )}
+                </p>
+                <p className="text-sm mt-2 opacity-75">{card.description}</p>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
-    </BaseDashboard>
+
+          {/* QR Scanner Section */}
+          <div
+            className={`rounded-lg shadow p-6 transition-colors duration-200 ${isDarkMode ? "bg-gray-800" : "bg-white"
+              }`}
+            role="region"
+            aria-label="QR Code Scanner"
+          >
+            <h2 className="text-xl font-semibold mb-4">Scan QR Code</h2>
+            <Scanner
+              onScan={handleScanResult}
+              onError={handleScanError}
+              formats={["qr_code", "code_128"]}
+              paused={paused}
+              classNames={{
+                container: "w-full h-auto",
+                video: isDarkMode ? "invert" : "",
+              }}
+            />
+            {(scanResult || error) && (
+              <div
+                className={`mt-3 p-3 rounded transition-colors duration-200 ${isDarkMode ? "bg-gray-700" : "bg-gray-100"
+                  }`}
+              >
+                {scanResult && (
+                  <>
+                    <h3 className="font-semibold mb-2">Scanned Code:</h3>
+                    <p className="break-all">{scanResult}</p>
+                  </>
+                )}
+                {error && (
+                  <p className="text-red-500 mb-2" role="alert">
+                    {error}
+                  </p>
+                )}
+                <button
+                  onClick={resetScanner}
+                  className={`mt-2 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode
+                      ? "bg-blue-600 hover:bg-blue-700 text-white"
+                      : "bg-blue-500 hover:bg-blue-600 text-white"
+                    }`}
+                  aria-label="Scan again"
+                >
+                  Scan Again
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </BaseDashboard>
+    </ErrorBoundary>
   );
 }
 
