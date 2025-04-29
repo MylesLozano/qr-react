@@ -9,6 +9,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { ThemeProvider } from "./context/ThemeContext";
 import { canPerformAction } from './utils/roleUtils';
+import SplashScreen from "./components/SplashScreen";
+import SessionTimeout from "./components/SessionTimeout";
 
 const getDashboardPath = (role) => {
   switch (role) {
@@ -38,6 +40,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
   const location = useLocation();
 
   // Track page views
@@ -50,20 +53,31 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      if (currentUser && currentUser.email.endsWith("@jmc.edu.ph")) {
-        setUser(currentUser);
-        const userRole = await getUserRole(currentUser.uid);
-        setRole(userRole);
-      } else {
-        setUser(null);
-        setRole(null);
+      try {
+        if (currentUser && currentUser.email.endsWith("@jmc.edu.ph")) {
+          setUser(currentUser);
+          const userRole = await getUserRole(currentUser.uid);
+          setRole(userRole);
+        } else {
+          setUser(null);
+          setRole(null);
+        }
+      } catch (error) {
+        console.error("Error in auth state change:", error);
+      } finally {
+        setLoading(false);
+        // Add a small delay to show the splash screen
+        setTimeout(() => setIsInitializing(false), 1000);
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
   const isAuthenticated = useMemo(() => user !== null, [user]);
+
+  if (isInitializing) {
+    return <SplashScreen />;
+  }
 
   if (loading) {
     return <LoadingSpinner fullScreen />;
@@ -73,6 +87,7 @@ function App() {
     <ThemeProvider>
       <ErrorBoundary>
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
+        {isAuthenticated && <SessionTimeout timeoutMinutes={30} warningMinutes={5} />}
         <Suspense fallback={<LoadingSpinner fullScreen />}>
           <Routes>
             {/* Login Route */}
