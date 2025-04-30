@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
@@ -14,6 +14,8 @@ const RATE_LIMIT_MS = 5000; // 5 seconds
 const MAX_QR_SIZE = 256;
 const MIN_QR_SIZE = 128;
 const MAX_NAME_LENGTH = 100;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
 
 function QRCodeManager({
     item,
@@ -29,26 +31,27 @@ function QRCodeManager({
     const [isDownloading, setIsDownloading] = useState(false);
     const [error, setError] = useState(null);
     const [lastGenerationTime, setLastGenerationTime] = useState(null);
-    const [qrElement, setQrElement] = useState(null);
+    const qrElementRef = useRef(null);
+    const retryTimeoutRef = useRef(null);
 
-    // Validate QR data
+    // Validate QR data with improved error messages
     const validateQRData = useCallback((data) => {
         if (!data) {
-            throw new Error('No data provided for QR code');
+            throw new Error('No data provided for QR code generation');
         }
         if (!data.id || !data.name) {
-            throw new Error('Item ID and name are required');
+            throw new Error('Item ID and name are required for QR code generation');
         }
         if (data.name.length > MAX_NAME_LENGTH) {
-            throw new Error(`Name must be less than ${MAX_NAME_LENGTH} characters`);
+            throw new Error(`Item name must be less than ${MAX_NAME_LENGTH} characters`);
         }
         return true;
     }, []);
 
-    // Generate QR data with validation
+    // Generate QR data with improved validation and error handling
     const generateQRData = useCallback(() => {
         if (!item) {
-            throw new Error('No item selected');
+            throw new Error('No item selected for QR code generation');
         }
 
         const data = {
@@ -64,7 +67,7 @@ function QRCodeManager({
         return data;
     }, [item, validateQRData]);
 
-    // Handle QR code generation with rate limiting and error handling
+    // Handle QR code generation with improved rate limiting and error handling
     const handleGenerate = async () => {
         try {
             if (lastGenerationTime && Date.now() - lastGenerationTime < RATE_LIMIT_MS) {
@@ -81,12 +84,17 @@ function QRCodeManager({
             setQrData(data);
             setLastGenerationTime(Date.now());
 
-            // Log audit
-            await logAudit(user.uid, 'generate_qr', {
-                itemId: item.id,
-                itemName: item.name,
-                timestamp: new Date().toISOString()
-            });
+            // Log audit with improved error handling
+            try {
+                await logAudit(user.uid, 'generate_qr', {
+                    itemId: item.id,
+                    itemName: item.name,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (auditError) {
+                console.error('Error logging audit:', auditError);
+                // Continue with QR generation even if audit fails
+            }
 
             toast.success('QR code generated successfully');
         } catch (error) {
@@ -96,7 +104,7 @@ function QRCodeManager({
         }
     };
 
-    // Handle QR code preview with error handling
+    // Handle QR code preview with improved error handling
     const handlePreview = useCallback(() => {
         try {
             setError(null);
@@ -112,7 +120,7 @@ function QRCodeManager({
         }
     }, [item, onPreview, generateQRData]);
 
-    // Handle QR code download with error handling and retry logic
+    // Handle QR code download with improved retry logic and error handling
     const handleDownload = async () => {
         if (!qrData) {
             toast.warning('Please generate a QR code first');
@@ -122,11 +130,10 @@ function QRCodeManager({
         setIsDownloading(true);
         setError(null);
         let retryCount = 0;
-        const maxRetries = 3;
 
-        while (retryCount < maxRetries) {
+        const attemptDownload = async () => {
             try {
-                const qrElement = document.getElementById('qr-code');
+                const qrElement = qrElementRef.current;
                 if (!qrElement) {
                     throw new Error('QR code element not found');
                 }
@@ -138,38 +145,46 @@ function QRCodeManager({
                     useCORS: true
                 });
 
-                // Convert to blob and save
                 canvas.toBlob((blob) => {
                     if (!blob) {
                         throw new Error('Failed to create image blob');
                     }
                     saveAs(blob, `qr-code-${item.unitNumber || item.id}.png`);
 
-                    // Log audit
-                    logAudit(user.uid, 'download_qr', {
-                        itemId: item.id,
-                        itemName: item.name,
-                        timestamp: new Date().toISOString()
-                    });
+                    // Log audit with improved error handling
+                    try {
+                        logAudit(user.uid, 'download_qr', {
+                            itemId: item.id,
+                            itemName: item.name,
+                            timestamp: new Date().toISOString()
+                        });
+                    } catch (auditError) {
+                        console.error('Error logging audit:', auditError);
+                        // Continue with download even if audit fails
+                    }
 
                     toast.success('QR code downloaded successfully');
                 });
-                break;
             } catch (error) {
                 retryCount++;
-                if (retryCount === maxRetries) {
+                if (retryCount < MAX_RETRIES) {
+                    retryTimeoutRef.current = setTimeout(attemptDownload, RETRY_DELAY_MS);
+                } else {
                     console.error('Error downloading QR code:', error);
                     setError(error.message);
                     toast.error(`Failed to download QR code: ${error.message}`);
-                } else {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            } finally {
+                if (retryCount >= MAX_RETRIES) {
+                    setIsDownloading(false);
                 }
             }
-        }
-        setIsDownloading(false);
+        };
+
+        await attemptDownload();
     };
 
-    // Get QR code size based on content with memoization
+    // Get QR code size with improved memoization
     const getQRSize = useMemo(() => {
         if (!qrData) return size;
         const dataLength = JSON.stringify(qrData).length;
@@ -179,6 +194,9 @@ function QRCodeManager({
     // Cleanup on unmount
     useEffect(() => {
         return () => {
+            if (retryTimeoutRef.current) {
+                clearTimeout(retryTimeoutRef.current);
+            }
             setQrData(null);
             setError(null);
         };
@@ -200,6 +218,7 @@ function QRCodeManager({
                                 : 'bg-red-100 text-red-700 border-red-400'
                                 } border`}
                             role="alert"
+                            aria-live="assertive"
                         >
                             {error}
                         </div>
@@ -210,7 +229,7 @@ function QRCodeManager({
                         id="qr-code"
                         className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}
                         aria-label="QR Code Display"
-                        ref={setQrElement}
+                        ref={qrElementRef}
                     >
                         {qrData ? (
                             <QRCodeSVG
@@ -222,8 +241,10 @@ function QRCodeManager({
                                 className="transition-opacity duration-300"
                             />
                         ) : (
-                            <div className={`w-64 h-64 flex items-center justify-center rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                                }`}>
+                            <div
+                                className={`w-64 h-64 flex items-center justify-center rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+                                aria-label="No QR code generated"
+                            >
                                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
                                     No QR code generated
                                 </p>
@@ -254,10 +275,11 @@ function QRCodeManager({
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${isGenerating
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-blue-600 hover:bg-blue-700'
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-700'
                                     }`}
                                 aria-label="Generate QR Code"
+                                aria-busy={isGenerating}
                             >
                                 {isGenerating ? <LoadingSpinner size="small" /> : 'Generate QR'}
                             </button>
@@ -265,8 +287,8 @@ function QRCodeManager({
                                 onClick={handlePreview}
                                 disabled={!qrData}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-green-600 hover:bg-green-700'
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-green-600 hover:bg-green-700'
                                     }`}
                                 aria-label="Preview QR Code"
                             >
@@ -276,10 +298,11 @@ function QRCodeManager({
                                 onClick={handleDownload}
                                 disabled={!qrData || isDownloading}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData || isDownloading
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-purple-600 hover:bg-purple-700'
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-purple-600 hover:bg-purple-700'
                                     }`}
                                 aria-label="Download QR Code"
+                                aria-busy={isDownloading}
                             >
                                 {isDownloading ? <LoadingSpinner size="small" /> : 'Download'}
                             </button>
