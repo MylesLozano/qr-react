@@ -13,104 +13,62 @@ import ErrorBoundary from '../components/ErrorBoundary';
 const MOBILE_BREAKPOINT = 640;
 const DEBOUNCE_WAIT = 100;
 
-// Navigation items configuration
-const NAVIGATION_ITEMS = {
-  common: [
-    {
-      path: '/inventory',
-      label: 'Inventory',
-      icon: '📦',
-      action: 'view_inventory',
-      description: 'View and manage inventory items'
-    },
-  ],
-  admin: [
-    {
-      path: '/admin-dashboard/requests',
-      label: 'Requests',
-      icon: '📥',
-      action: 'manage_requests',
-      description: 'Manage user requests'
-    },
-    {
-      path: '/admin-dashboard/reports',
-      label: 'Reports',
-      icon: '📊',
-      action: 'generate_reports',
-      description: 'Generate and view reports'
-    },
-  ],
-  superadmin: [
-    {
-      path: '/superadmin-dashboard/inventory',
-      label: 'Inventory',
-      icon: '📦',
-      action: 'view_inventory',
-      description: 'View and manage inventory items'
-    },
-    {
-      path: '/superadmin-dashboard/requests',
-      label: 'Requests',
-      icon: '📥',
-      action: 'manage_requests',
-      description: 'Manage user requests'
-    },
-    {
-      path: '/superadmin-dashboard/reports',
-      label: 'Reports',
-      icon: '📊',
-      action: 'generate_reports',
-      description: 'Generate and view reports'
-    },
-    {
-      path: '/superadmin-dashboard/audit-logs',
-      label: 'Audit Logs',
-      icon: '📝',
-      action: 'view_audit_logs',
-      description: 'View system audit logs'
-    },
-    {
-      path: '/superadmin-dashboard/user-management',
-      label: 'User Management',
-      icon: '👥',
-      action: 'manage_users',
-      description: 'Manage user accounts and permissions'
-    },
-  ],
-  user: [
-    {
-      path: '/user-dashboard/my-requests',
-      label: 'My Requests',
-      icon: '📄',
-      action: 'view_requests',
-      description: 'View and manage your requests'
-    },
-  ]
-};
-
-// Memoized navigation items based on role and permissions
-const getNavItems = (role) => {
-  const items = [];
-
-  // Add common items
-  items.push(...NAVIGATION_ITEMS.common.filter(item => canPerformAction(role, item.action)));
-
-  // Add role-specific items
-  if (role === 'superadmin') {
-    items.push(...NAVIGATION_ITEMS.superadmin.filter(item => canPerformAction(role, item.action)));
-  } else if (role === 'admin') {
-    items.push(...NAVIGATION_ITEMS.admin.filter(item => canPerformAction(role, item.action)));
-  } else if (role === 'user') {
-    items.push(...NAVIGATION_ITEMS.user.filter(item => canPerformAction(role, item.action)));
+// Navigation items configuration - organized by permissions rather than roles
+const NAV_CONFIG = [
+  {
+    path: '/inventory',
+    label: 'Inventory',
+    icon: '📦',
+    action: 'view_inventory',
+    description: 'View and manage inventory items',
+    roles: ['user', 'admin', 'superadmin']
+  },
+  {
+    path: '/user-dashboard/my-requests',
+    label: 'My Requests',
+    icon: '📄',
+    action: 'view_requests',
+    description: 'View and manage your requests',
+    roles: ['user', 'admin', 'superadmin']
+  },
+  {
+    path: '/admin-dashboard/requests',
+    label: 'Requests',
+    icon: '📥',
+    action: 'manage_requests',
+    description: 'Manage user requests',
+    roles: ['admin', 'superadmin']
+  },
+  {
+    path: '/admin-dashboard/reports',
+    label: 'Reports',
+    icon: '📊',
+    action: 'generate_reports',
+    description: 'Generate and view reports',
+    roles: ['admin', 'superadmin']
+  },
+  {
+    path: '/superadmin-dashboard/audit-logs',
+    label: 'Audit Logs',
+    icon: '📝',
+    action: 'view_audit_logs',
+    description: 'View system audit logs',
+    roles: ['superadmin']
+  },
+  {
+    path: '/superadmin-dashboard/user-management',
+    label: 'User Management',
+    icon: '👥',
+    action: 'manage_users',
+    description: 'Manage user accounts and permissions',
+    roles: ['superadmin']
   }
-
-  return items;
-};
+];
 
 function BaseDashboard({ children }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= MOBILE_BREAKPOINT);
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -118,32 +76,44 @@ function BaseDashboard({ children }) {
   const menuButtonRef = useRef(null);
   const firstNavItemRef = useRef(null);
 
+  // Theme-based styling utility functions
+  const themeStyles = {
+    container: isDarkMode ? 'bg-gray-900' : 'bg-gray-100',
+    nav: isDarkMode ? 'bg-gray-800' : 'bg-white',
+    heading: isDarkMode ? 'text-white' : 'text-gray-900',
+    activeLink: isDarkMode ? 'border-blue-500 text-blue-500' : 'border-blue-600 text-blue-600',
+    activeLinkBg: isDarkMode ? 'bg-gray-800' : 'bg-white',
+    inactiveLink: isDarkMode ? 'border-transparent text-gray-300 hover:text-gray-100 hover:border-gray-300' : 
+                              'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+    mobileActiveLink: isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900',
+    mobileInactiveLink: isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 
+                                     'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+    themeButton: isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+    logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
+  };
+
   // Handle window resize with optimized debounce
   const handleResize = useCallback(
     debounce(() => {
-      setWindowWidth(window.innerWidth);
-      if (window.innerWidth > MOBILE_BREAKPOINT) {
+      const mobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      setIsMobile(mobile);
+      if (!mobile && isMenuOpen) {
         setIsMenuOpen(false);
       }
     }, DEBOUNCE_WAIT),
-    []
+    [isMenuOpen]
   );
 
   useEffect(() => {
     window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [handleResize]);
 
-    if (windowWidth > MOBILE_BREAKPOINT && isMenuOpen) {
-      setIsMenuOpen(false);
-    }
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      handleResize();
-    };
-  }, [handleResize, windowWidth, isMenuOpen]);
-
-  // Memoize navigation items based on role and permissions
-  const navItems = useMemo(() => getNavItems(role), [role]);
+  // Memoize navigation items based on role
+  const navItems = useMemo(() => 
+    NAV_CONFIG.filter(item => 
+      item.roles.includes(role) && canPerformAction(role, item.action)
+    ), [role]);
 
   // Handle logout with loading state
   const handleLogout = async () => {
@@ -180,6 +150,29 @@ function BaseDashboard({ children }) {
     }
   }, [isMenuOpen]);
 
+  // Link component to avoid duplication
+  const NavLink = ({ item, index, isMobile }) => {
+    const isActive = location.pathname === item.path || location.pathname.includes(item.path);
+    const className = isMobile
+      ? `${isActive ? themeStyles.mobileActiveLink : themeStyles.mobileInactiveLink} block px-3 py-2 rounded-md text-base font-medium`
+      : `${isActive ? `${themeStyles.activeLink} ${themeStyles.activeLinkBg}` : themeStyles.inactiveLink} inline-flex items-center px-4 pt-1 border-b-2 text-sm font-medium transition-all duration-200`;
+    
+    return (
+      <Link
+        to={item.path}
+        className={className}
+        ref={isMobile && index === 0 ? firstNavItemRef : null}
+        aria-current={isActive ? 'page' : undefined}
+        title={item.description}
+      >
+        <span className="mr-2" aria-hidden="true">
+          {isMobile && window.innerWidth < 500 ? '📋' : item.icon}
+        </span>
+        {item.label}
+      </Link>
+    );
+  };
+
   if (!user) {
     return <LoadingSpinner fullScreen />;
   }
@@ -187,7 +180,7 @@ function BaseDashboard({ children }) {
   return (
     <ErrorBoundary>
       <div
-        className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}
+        className={`min-h-screen ${themeStyles.container}`}
         role="application"
         aria-label="Dashboard"
       >
@@ -200,7 +193,7 @@ function BaseDashboard({ children }) {
 
         {/* Navigation */}
         <nav
-          className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+          className={`${themeStyles.nav} shadow-lg`}
           role="navigation"
           aria-label="Main navigation"
         >
@@ -209,7 +202,7 @@ function BaseDashboard({ children }) {
               <div className="flex">
                 <div className="flex-shrink-0 flex items-center">
                   <span
-                    className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-xl font-bold ${themeStyles.heading}`}
                     role="heading"
                     aria-level="1"
                   >
@@ -219,47 +212,28 @@ function BaseDashboard({ children }) {
                 {/* Desktop Navigation */}
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                   {navItems.map((item, index) => (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      className={`${(location.pathname === item.path || location.pathname.includes(item.path))
-                        ? `${isDarkMode
-                          ? 'border-blue-500 text-blue-500 bg-gray-800'
-                          : 'border-blue-600 text-blue-600 bg-white'
-                        }`
-                        : `${isDarkMode
-                          ? 'border-transparent text-gray-300 hover:text-gray-100 hover:border-gray-300'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`
-                        } inline-flex items-center px-4 pt-1 border-b-2 text-sm font-medium transition-all duration-200`}
-                      aria-current={location.pathname === item.path ? 'page' : undefined}
-                      title={item.description}
-                    >
-                      <span className="mr-2" aria-hidden="true">{item.icon}</span>
-                      {item.label}
-                    </Link>
+                    <NavLink key={item.path} item={item} index={index} isMobile={false} />
                   ))}
                 </div>
               </div>
               <div className="flex items-center">
                 {/* Mobile menu button */}
-                <button
-                  ref={menuButtonRef}
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-                  aria-expanded={isMenuOpen}
-                  aria-controls="mobile-menu"
-                  aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-                >
-                  <span className="sr-only">{isMenuOpen ? 'Close menu' : 'Open menu'}</span>
-                  {isMenuOpen ? '✕' : '☰'}
-                </button>
+                {isMobile && (
+                  <button
+                    ref={menuButtonRef}
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                    aria-expanded={isMenuOpen}
+                    aria-controls="mobile-menu"
+                    aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+                  >
+                    <span className="sr-only">{isMenuOpen ? 'Close menu' : 'Open menu'}</span>
+                    {isMenuOpen ? '✕' : '☰'}
+                  </button>
+                )}
                 <button
                   onClick={toggleTheme}
-                  className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md transition-colors duration-200 ${isDarkMode
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                    }`}
+                  className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md transition-colors duration-200 ${themeStyles.themeButton}`}
                   aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
                 >
                   {isDarkMode ? 'Switch to Light Mode 🌞' : 'Switch to Dark Mode 🌙'}
@@ -267,10 +241,7 @@ function BaseDashboard({ children }) {
                 <button
                   onClick={handleLogout}
                   disabled={isLoading}
-                  className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors duration-200 ${isDarkMode
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-red-500 hover:bg-red-600'
-                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors duration-200 ${themeStyles.logoutButton} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Logout"
                 >
                   {isLoading ? <LoadingSpinner size="small" /> : 'Logout'}
@@ -283,30 +254,9 @@ function BaseDashboard({ children }) {
         {/* Mobile menu */}
         {isMenuOpen && (
           <div className="sm:hidden" id="mobile-menu">
-            <div className={`pt-2 pb-3 space-y-1 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className={`pt-2 pb-3 space-y-1 ${themeStyles.nav}`}>
               {navItems.map((item, index) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  ref={index === 0 ? firstNavItemRef : null}
-                  className={`${(location.pathname === item.path || location.pathname.includes(item.path))
-                    ? `${isDarkMode
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                    }`
-                    : `${isDarkMode
-                      ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`
-                    } block px-3 py-2 rounded-md text-base font-medium`}
-                  aria-current={location.pathname === item.path ? 'page' : undefined}
-                  title={item.description}
-                >
-                  <span className="mr-2" aria-hidden="true">
-                    {windowWidth < 500 ? '📋' : item.icon}
-                  </span>
-                  {item.label}
-                </Link>
+                <NavLink key={item.path} item={item} index={index} isMobile={true} />
               ))}
             </div>
           </div>
