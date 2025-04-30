@@ -24,6 +24,7 @@ const ReportGenerator = () => {
     const [loading, setLoading] = useState(true);
     const [reportData, setReportData] = useState([]);
     const [error, setError] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
     const [isGenerating, setIsGenerating] = useState(false);
     const [filters, setFilters] = useState({
         dateRange: { start: '', end: '' },
@@ -115,14 +116,18 @@ const ReportGenerator = () => {
 
     // Validate report configuration
     const validateReportConfig = useCallback(() => {
+        setFieldErrors({}); // Reset
+
         if (!selectedTemplate) {
-            toast.error('Please select a template');
-            return false;
+          toast.error('Please select a template');
+          return false;
         }
+
         if (filters.dateRange.start && filters.dateRange.end &&
-            new Date(filters.dateRange.start) > new Date(filters.dateRange.end)) {
-            toast.error('End date must be after start date');
-            return false;
+          new Date(filters.dateRange.start) > new Date(filters.dateRange.end)) {
+          setFieldErrors({ endDate: 'End date must be after start date' });      
+          toast.error('End date must be after start date');
+          return false;
         }
         return true;
     }, [selectedTemplate, filters]);
@@ -212,7 +217,11 @@ const ReportGenerator = () => {
                         }`}>
                         <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Report Configuration</h2>
 
-                        <div className="space-y-4">
+                        <fieldset className="space-y-4 border-t border-gray-300 pt-4">
+                            <legend className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                Report Filters
+                            </legend>
+                            {/* Template select */}
                             <div>
                                 <label htmlFor="templateSelect" className="block text-sm font-medium mb-1">
                                     Select Template
@@ -224,8 +233,9 @@ const ReportGenerator = () => {
                                         const template = templates.find(t => t.id === e.target.value);
                                         setSelectedTemplate(template);
                                     }}
-                                    className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                                        }`}
+                                    className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
+                                      ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
+                                      : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Select report template"
                                 >
                                     <option value="">Select a template</option>
@@ -236,7 +246,7 @@ const ReportGenerator = () => {
                                     ))}
                                 </select>
                             </div>
-
+                            {/* Start/End date */}          
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label htmlFor="startDate" className="block text-sm font-medium mb-1">
@@ -265,9 +275,12 @@ const ReportGenerator = () => {
                                             }`}
                                         aria-label="End date"
                                     />
+                                    {fieldErrors.endDate && (
+                                      <p className="text-sm text-red-500 mt-1">{fieldErrors.endDate}</p>
+                                    )}
                                 </div>
                             </div>
-
+                            {/* Status select */}
                             <div>
                                 <label htmlFor="statusSelect" className="block text-sm font-medium mb-1">
                                     Status
@@ -276,8 +289,9 @@ const ReportGenerator = () => {
                                     id="statusSelect"
                                     value={filters.status}
                                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                    className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                                        }`}
+                                    className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
+                                      ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
+                                      : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Filter by status"
                                 >
                                     <option value="">All Statuses</option>
@@ -286,7 +300,7 @@ const ReportGenerator = () => {
                                     <option value="maintenance">Maintenance</option>
                                 </select>
                             </div>
-
+                            {/* Category select */}        
                             <div>
                                 <label htmlFor="categorySelect" className="block text-sm font-medium mb-1">
                                     Category
@@ -295,8 +309,9 @@ const ReportGenerator = () => {
                                     id="categorySelect"
                                     value={filters.category}
                                     onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                                    className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                                        }`}
+                                    className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
+                                      ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
+                                      : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Filter by category"
                                 >
                                     <option value="">All Categories</option>
@@ -306,16 +321,19 @@ const ReportGenerator = () => {
                                 </select>
                             </div>
 
-                            <button
+                            <div>
+                              <button
                                 onClick={generateReport}
                                 disabled={!selectedTemplate || loading || isGenerating}
-                                className={`w-full px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                                className={`w-full px-4 py-2 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
                                     } text-white ${(!selectedTemplate || loading || isGenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 aria-label="Generate report"
-                            >
-                                {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
-                            </button>
-                        </div>
+                                >
+                                    {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
+                              </button>
+                            </div>
+                            
+                        </fieldset>
                     </div>
 
                     {/* Preview Section */}
@@ -333,7 +351,7 @@ const ReportGenerator = () => {
                                     <thead>
                                         <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                                             {selectedTemplate.fields.map(field => (
-                                                <th key={field.name} className="px-4 py-2 text-left">
+                                                <th key={field.name} scope="col" className="px-4 py-2 text-left">
                                                     {field.name}
                                                 </th>
                                             ))}
