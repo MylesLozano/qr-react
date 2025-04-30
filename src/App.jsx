@@ -1,25 +1,16 @@
-import React, { useState, useEffect, lazy, Suspense, useMemo } from "react";
+import React, { lazy, Suspense, useMemo } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./Login";
 import ProtectedRoute from "./ProtectedRoute";
-import { auth, getUserRole } from "./firebase";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { ThemeProvider } from "./context/ThemeContext";
-import { canPerformAction } from './utils/roleUtils';
+import { canPerformAction, getDashboardPath } from './utils/roleUtils';
 import SplashScreen from "./components/SplashScreen";
 import SessionTimeout from "./components/SessionTimeout";
-
-const getDashboardPath = (role) => {
-  switch (role) {
-    case "superadmin": return "/superadmin-dashboard";
-    case "admin": return "/admin-dashboard";
-    case "user": return "/user-dashboard";
-    default: return "/login";
-  }
-};
+import { useAuth } from "./context/AuthContext";
 
 // Lazy load dashboards
 const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
@@ -37,10 +28,7 @@ const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
 const ReportGenerator = lazy(() => import('./dashboard/admin/ReportGenerator'));
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { user, role, loading } = useAuth();
   const location = useLocation();
 
   // Track page views
@@ -51,33 +39,7 @@ function App() {
     }
   }, [location.pathname, user]);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      try {
-        if (currentUser && currentUser.email.endsWith("@jmc.edu.ph")) {
-          setUser(currentUser);
-          const userRole = await getUserRole(currentUser.uid);
-          setRole(userRole);
-        } else {
-          setUser(null);
-          setRole(null);
-        }
-      } catch (error) {
-        console.error("Error in auth state change:", error);
-      } finally {
-        setLoading(false);
-        // Add a small delay to show the splash screen
-        setTimeout(() => setIsInitializing(false), 1000);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
   const isAuthenticated = useMemo(() => user !== null, [user]);
-
-  if (isInitializing) {
-    return <SplashScreen />;
-  }
 
   if (loading) {
     return <LoadingSpinner fullScreen />;

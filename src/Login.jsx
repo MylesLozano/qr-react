@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import logo from './assets/QCheckCITE_Logo.png';
 import { useNavigate } from "react-router-dom";
-import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth, db, getUserRole, logAudit } from "./firebase";
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { auth, db, logAudit } from "./firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import usePageTitle from "./hooks/usePageTitle";
 import { toast } from "react-toastify";
@@ -10,6 +10,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { useTheme } from "./context/ThemeContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { useAuth } from "./context/AuthContext";
+import { getDashboardPath } from "./utils/roleUtils";
 
 /**
  * Login component - Handles user authentication
@@ -20,36 +22,16 @@ function Login() {
   usePageTitle("QCheckCITE - Login");
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
+  const { user, role, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && user.email.endsWith("@jmc.edu.ph")) {
-        try {
-          setIsLoading(true);
-          const role = await getUserRole(user.uid);
-          console.log(`✅ User role fetched: ${role}`);
-
-          if (role === "superadmin") {
-            navigate("/superadmin-dashboard");
-          } else if (role === "admin") {
-            navigate("/admin-dashboard");
-          } else {
-            navigate("/user-dashboard");
-          }
-        } catch (error) {
-          console.error("🚨 Error fetching user role:", error);
-          setError("Failed to fetch user role");
-          toast.error("Failed to fetch user role");
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    if (user && role) {
+      const dashboardPath = getDashboardPath(role);
+      navigate(dashboardPath);
+    }
+  }, [user, role, navigate]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -89,14 +71,7 @@ function Login() {
       await logAudit(user.email, "Signed in");
       toast.success(`Login successful! Welcome, ${role}! 🎉`);
 
-      // Redirect after Firestore operations complete
-      if (role === "superadmin") {
-        navigate("/superadmin-dashboard");
-      } else if (role === "admin") {
-        navigate("/admin-dashboard");
-      } else {
-        navigate("/user-dashboard");
-      }
+      // The navigation will be handled by the useEffect above
     } catch (error) {
       console.error("🚨 Error signing in with Google:", error);
       setError("Login failed. Please try again.");
@@ -106,6 +81,10 @@ function Login() {
       setIsLoading(false);
     }
   };
+
+  if (authLoading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
   return (
     <ErrorBoundary>
@@ -142,8 +121,8 @@ function Login() {
             onClick={handleGoogleSignIn}
             disabled={isLoading}
             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
               } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             aria-label="Sign in with your JMC Account"
           >

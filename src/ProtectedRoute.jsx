@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import { hasPermission, canPerformAction } from './utils/roleUtils';
+import { hasPermission, canPerformAction, getDashboardPath } from './utils/roleUtils';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -30,14 +30,5 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
 
   return children;
 }
-
-const getDashboardPath = (role) => {
-  switch (role) {
-    case "superadmin": return "/superadmin-dashboard";
-    case "admin": return "/admin-dashboard";
-    case "user": return "/user-dashboard";
-    default: return "/login";
-  }
-};
 
 export default ProtectedRoute;
