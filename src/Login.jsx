@@ -79,13 +79,23 @@ function Login() {
       toast.success(`Login successful! Welcome, ${userRole}! 🎉`);
     } catch (error) {
       console.error("🚨 Error signing in with Google:", error);
-      const errorMessage = error.code === 'auth/popup-closed-by-user'
-        ? 'Sign in was cancelled'
-        : 'Login failed. Please try again.';
+    
+      let errorMessage = 'Login failed. Please try again.';
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign in was cancelled.';
+        toast.info(errorMessage);
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.';
+        toast.error(errorMessage);
+      } else {
+        errorMessage = `Login failed: ${error.message}`;
+        toast.error(errorMessage);
+      }
+    
       setError(errorMessage);
-      toast.error(errorMessage);
       await signOut(auth);
-    } finally {
+    }
+     finally {
       setIsLoading(false);
     }
   }, []);
