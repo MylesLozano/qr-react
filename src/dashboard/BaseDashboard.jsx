@@ -186,6 +186,13 @@ function BaseDashboard({ children }) {
         role="application"
         aria-label="Dashboard"
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-500 text-white p-2 rounded"
+        >
+          Skip to main content
+        </a>
+
         {/* Navigation */}
         <nav
           className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
@@ -250,7 +257,7 @@ function BaseDashboard({ children }) {
                     }`}
                   aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
                 >
-                  {isDarkMode ? '🌞 Light' : '🌙 Dark'}
+                  {isDarkMode ? 'Switch to Light Mode 🌞' : 'Switch to Dark Mode 🌙'}
                 </button>
                 <button
                   onClick={handleLogout}
@@ -299,7 +306,7 @@ function BaseDashboard({ children }) {
         )}
 
         {/* Main content */}
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <main id="main-content" className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
