@@ -56,6 +56,26 @@ function Login() {
         await signOut(auth);
         return;
       }
+
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      let userRole = DEFAULT_ROLE;
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          email: user.email,
+          role: DEFAULT_ROLE,
+          createdAt: serverTimestamp(),
+        });
+
+        console.log(`✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`);
+        await logAudit(user.email, `Assigned role: ${DEFAULT_ROLE} (new user)`);
+      } else {
+        userRole = userSnap.data().role;
+        console.log(`ℹ️ Existing user logged in with role: ${userRole}`);
+      }
+
+      await logAudit(user.email, "Signed in");
       toast.success(`Login successful! Welcome, ${userRole}! 🎉`);
     } catch (error) {
       console.error("🚨 Error signing in with Google:", error);
