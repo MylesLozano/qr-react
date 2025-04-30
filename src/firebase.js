@@ -1,5 +1,5 @@
 // Import Firebase SDKs
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   collection,
@@ -32,17 +32,21 @@ const firebaseConfig = {
 // Validate Firebase configuration
 const validateFirebaseConfig = (config) => {
   const requiredFields = [
-    'apiKey',
-    'authDomain',
-    'projectId',
-    'storageBucket',
-    'messagingSenderId',
-    'appId'
+    "apiKey",
+    "authDomain",
+    "projectId",
+    "storageBucket",
+    "messagingSenderId",
+    "appId",
   ];
 
-  const missingFields = requiredFields.filter(field => !config[field]);
+  const missingFields = requiredFields.filter((field) => !config[field]);
   if (missingFields.length > 0) {
-    throw new Error(`Missing required Firebase configuration fields: ${missingFields.join(', ')}`);
+    throw new Error(
+      `Missing required Firebase configuration fields: ${missingFields.join(
+        ", "
+      )}`
+    );
   }
 };
 
@@ -51,9 +55,11 @@ let auth, db, logAudit, getUserRole;
 
 try {
   validateFirebaseConfig(firebaseConfig);
-  const app = initializeApp(firebaseConfig);
+  const app =
+    getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   auth = getAuth(app);
-  
+  const firebaseApp = app;
+
   // Initialize Firestore with persistent cache
   db = initializeFirestore(app, {
     localCache: persistentLocalCache(),
@@ -81,15 +87,21 @@ try {
           role: DEFAULT_ROLE,
           lastLogin: serverTimestamp(),
         });
-        console.log(`✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`);
+        console.log(
+          `✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`
+        );
         await logAudit(user.email, `Assigned role: ${DEFAULT_ROLE} (new user)`);
       } else {
         const userData = userSnap.data();
         console.log(`ℹ️ User ${user.email} exists with role: ${userData.role}`);
         await logAudit(user.email, `Role verified: ${userData.role}`);
-        
+
         // Update last login timestamp
-        await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+        await setDoc(
+          userRef,
+          { lastLogin: serverTimestamp() },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error("🚨 Error assigning user role:", error);
@@ -117,7 +129,9 @@ try {
         console.log(`✅ Role fetched for UID ${uid}: ${role}`);
         return role;
       } else {
-        console.warn(`⚠️ No role found for UID ${uid}, defaulting to "${DEFAULT_ROLE}"`);
+        console.warn(
+          `⚠️ No role found for UID ${uid}, defaulting to "${DEFAULT_ROLE}"`
+        );
         return DEFAULT_ROLE;
       }
     } catch (error) {
@@ -143,10 +157,14 @@ try {
         email,
         action,
         timestamp: serverTimestamp(),
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
+        userAgent:
+          typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+        platform:
+          typeof navigator !== "undefined" ? navigator.platform : "unknown",
       });
-      console.log(`✅ Audit log added: ${email} - ${action} (ID: ${auditRef.id})`);
+      console.log(
+        `✅ Audit log added: ${email} - ${action} (ID: ${auditRef.id})`
+      );
     } catch (error) {
       console.error("🚨 Error logging audit event:", error);
       throw error;
@@ -168,4 +186,4 @@ try {
   throw error;
 }
 
-export { auth, db, logAudit, getUserRole };
+export { auth, db, logAudit, getUserRole, firebaseApp };
