@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, getUserRole } from '../firebase';
+import { auth, getUserRole, checkAndAssignUserRole } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { toast } from 'react-toastify';
 
@@ -15,13 +15,12 @@ export function AuthProvider({ children }) {
         let isMounted = true;
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             try {
-                if (currentUser && currentUser.email.endsWith('@jmc.edu.ph')) {
-                    if (isMounted) {
-                        setUser(currentUser);
-                        const userRole = await getUserRole(currentUser.uid);
-                        setRole(userRole);
-                        setError(null);
-                    }
+                if (currentUser?.email.endsWith('@jmc.edu.ph')) {
+                    await checkAndAssignUserRole(currentUser); // ✅ Assign + audit
+                    setUser(currentUser);
+                    const userRole = await getUserRole(currentUser.uid);
+                    setRole(userRole);
+                    setError(null);
                 } else {
                     if (isMounted) {
                         setUser(null);
