@@ -14,7 +14,15 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     if (error) {
       toast.error('Authentication error: ' + error.message);
     }
-  }, [error]);
+
+    if (!user) {
+    toast.error('Please log in to access this page');
+    } else if (requiredRole && !hasPermission(role, requiredRole)) {
+      toast.error('You do not have permission to access this page');
+    } else if (requiredAction && !canPerformAction(role, requiredAction)) {
+      toast.error('You do not have permission to perform this action');
+    }
+  }, [error, user, role, requiredRole, requiredAction]);
 
   if (loading) {
     return (
@@ -25,17 +33,14 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
   }
 
   if (!user) {
-    toast.error('Please log in to access this page');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-
+  
   if (requiredRole && !hasPermission(role, requiredRole)) {
-    toast.error('You do not have permission to access this page');
     return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
   }
-
+  
   if (requiredAction && !canPerformAction(role, requiredAction)) {
-    toast.error('You do not have permission to perform this action');
     return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
   }
 

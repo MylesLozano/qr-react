@@ -71,7 +71,7 @@ const InventoryCategories = () => {
         if (editingCategory && editingCategory.id === formData.parentCategory) {
             toast.error('A category cannot be its own parent');
             return false;
-        }        
+        }
         if (formData.description.length > 200) {
             toast.error('Description must be less than 200 characters');
             return false;
