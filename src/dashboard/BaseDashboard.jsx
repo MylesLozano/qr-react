@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { debounce } from '../utils/inventoryUtils';
+import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
 
@@ -137,7 +138,7 @@ function BaseDashboard({ children }) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      handleResize.cancel(); // Cleanup debounced function
+      handleResize();
     };
   }, [handleResize, windowWidth, isMenuOpen]);
 

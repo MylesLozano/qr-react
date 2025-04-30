@@ -636,11 +636,7 @@ function Inventory() {
                   {({ height, width }) => (
                     <List
                       height={height}
-                      itemCount={filteredItems.length === 0 ? (
-                        <p className="text-center text-gray-500">No items found. Try adjusting your search or filters.</p>
-                      ) : (
-                        <AutoSizer>...</AutoSizer>
-                      )}
+                      itemCount={filteredItems.length}
                       itemSize={80}
                       width={width}
                     >
