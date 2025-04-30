@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { hasPermission, canPerformAction, getDashboardPath } from './utils/roleUtils';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './components/LoadingSpinner';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function ProtectedRoute({ children, requiredRole, requiredAction }) {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, error } = useAuth();
   const location = useLocation();
 
+  useEffect(() => {
+    if (error) {
+      toast.error('Authentication error: ' + error.message);
+    }
+  }, [error]);
+
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
+        <LoadingSpinner fullScreen />
+      </div>
+    );
   }
 
   if (!user) {
@@ -28,7 +39,11 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
   }
 
-  return children;
+  return (
+    <ErrorBoundary>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 export default ProtectedRoute;
