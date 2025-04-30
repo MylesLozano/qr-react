@@ -30,6 +30,9 @@ const ReportGenerator = () => {
         status: '',
         category: ''
     });
+    const buildReportRows = (data, fields) => {
+        return data.map(item => fields.map(field => item[field.name] || ''));
+      };      
 
     // Memoize filtered data
     const filteredData = useMemo(() => {
@@ -129,10 +132,7 @@ const ReportGenerator = () => {
         try {
             const doc = new jsPDF();
             const tableColumn = selectedTemplate.fields.map(field => field.name);
-            const tableRows = filteredData.map(item =>
-                selectedTemplate.fields.map(field => item[field.name] || '')
-            );
-
+            const tableRows = buildReportRows(filteredData, selectedTemplate.fields);
             doc.text(`${selectedTemplate.name} Report`, 14, 15);
             doc.autoTable({
                 head: [tableColumn],
@@ -157,14 +157,10 @@ const ReportGenerator = () => {
     // Generate CSV report
     const generateCSV = useCallback(() => {
         try {
-            const csvData = filteredData.map(item => {
-                const row = {};
-                selectedTemplate.fields.forEach(field => {
-                    row[field.name] = item[field.name] || '';
-                });
-                return row;
-            });
-
+            const fields = selectedTemplate.fields;
+            const csvData = filteredData.map(item =>
+            Object.fromEntries(fields.map(field => [field.name, item[field.name] || '']))
+            );
             const csv = Papa.unparse(csvData);
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             saveAs(blob, `${selectedTemplate.name}_${new Date().toISOString()}.csv`);
