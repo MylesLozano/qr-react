@@ -11,7 +11,11 @@ import { toast } from 'react-toastify';
  * @param {number} warningMinutes - Number of minutes before showing warning
  * @returns {JSX.Element} The rendered SessionTimeout component
  */
-function SessionTimeout({ timeoutMinutes = 30, warningMinutes = 5 }) {
+
+const DEFAULT_TIMEOUT_MINUTES = 30;
+const DEFAULT_WARNING_MINUTES = 5;
+
+function SessionTimeout({ timeoutMinutes = DEFAULT_TIMEOUT_MINUTES, warningMinutes = DEFAULT_WARNING_MINUTES }) {
     const navigate = useNavigate();
     const { isDarkMode } = useTheme();
     const [showWarning, setShowWarning] = useState(false);

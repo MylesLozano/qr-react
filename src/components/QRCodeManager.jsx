@@ -168,6 +168,7 @@ function QRCodeManager({
             } catch (error) {
                 retryCount++;
                 if (retryCount < MAX_RETRIES) {
+                    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
                     retryTimeoutRef.current = setTimeout(attemptDownload, RETRY_DELAY_MS);
                 } else {
                     console.error('Error downloading QR code:', error);
