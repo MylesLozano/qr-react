@@ -4,7 +4,6 @@ import { auth } from '../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { canPerformAction } from '../utils/roleUtils';
 import { debounce } from '../utils/inventoryUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -90,16 +89,21 @@ const NAVIGATION_ITEMS = {
 
 // Memoized navigation items based on role and permissions
 const getNavItems = (role) => {
+  const items = [];
+
+  // Add common items
+  items.push(...NAVIGATION_ITEMS.common.filter(item => canPerformAction(role, item.action)));
+
+  // Add role-specific items
   if (role === 'superadmin') {
-    return NAVIGATION_ITEMS.superadmin;
+    items.push(...NAVIGATION_ITEMS.superadmin.filter(item => canPerformAction(role, item.action)));
+  } else if (role === 'admin') {
+    items.push(...NAVIGATION_ITEMS.admin.filter(item => canPerformAction(role, item.action)));
+  } else if (role === 'user') {
+    items.push(...NAVIGATION_ITEMS.user.filter(item => canPerformAction(role, item.action)));
   }
-  if (role === 'admin') {
-    return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.admin];
-  }
-  if (role === 'user') {
-    return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.user];
-  }
-  return [];
+
+  return items;
 };
 
 function BaseDashboard({ children }) {
