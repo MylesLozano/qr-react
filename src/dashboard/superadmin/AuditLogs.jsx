@@ -16,6 +16,13 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 const AuditLogs = () => {
   const { isDarkMode } = useTheme();
   const [logs, setLogs] = useState([]);
+  const formattedLogs = useMemo(() =>
+    logs.map(log => ({
+      ...log,
+      timestamp: log.timestamp instanceof Date
+        ? log.timestamp.toLocaleString()
+        : log.timestamp
+    })), [logs]);  
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [lastDoc, setLastDoc] = useState(null);
@@ -48,29 +55,26 @@ const AuditLogs = () => {
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      let q = query(
-        collection(db, 'auditLogs'),
-        orderBy('timestamp', 'desc'),
-        limit(20)
-      );
+      const constraints = [orderBy('timestamp', 'desc'), limit(20)];
 
-      // Apply filters
       if (filters.action) {
-        q = query(q, where('action', '==', filters.action));
+        constraints.push(where('action', '==', filters.action));
       }
       if (filters.entityType) {
-        q = query(q, where('entityType', '==', filters.entityType));
+        constraints.push(where('entityType', '==', filters.entityType));
       }
       if (filters.dateRange.start) {
         const startDate = new Date(filters.dateRange.start);
         startDate.setHours(0, 0, 0, 0);
-        q = query(q, where('timestamp', '>=', startDate));
+        constraints.push(where('timestamp', '>=', startDate));
       }
       if (filters.dateRange.end) {
         const endDate = new Date(filters.dateRange.end);
         endDate.setHours(23, 59, 59, 999);
-        q = query(q, where('timestamp', '<=', endDate));
+        constraints.push(where('timestamp', '<=', endDate));
       }
+
+      const q = query(collection(db, 'auditLogs'), ...constraints);
 
       const snapshot = await getDocs(q);
       const newLogs = snapshot.docs.map(doc => ({
@@ -224,7 +228,7 @@ const AuditLogs = () => {
             </thead>
             <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700 bg-gray-900' : 'divide-gray-200 bg-white'
               }`}>
-              {logs.map((log) => (
+              {formattedLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                   <td className="px-6 py-4 whitespace-nowrap">{log.timestamp}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -249,7 +253,11 @@ const AuditLogs = () => {
             </tbody>
           </table>
         </div>
-
+        {!loading && logs.length === 0 && (
+          <p className="text-center text-gray-500 mt-4">
+            No logs found for the selected filters.
+          </p>
+        )}
         {loading && <LoadingSpinner />}
 
         {hasMore && !loading && (
