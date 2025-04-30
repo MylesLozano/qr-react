@@ -51,14 +51,14 @@ const validateFirebaseConfig = (config) => {
 };
 
 // Initialize Firebase
-let auth, db, logAudit, getUserRole;
+let auth, db, logAudit, getUserRole, firebaseApp;
 
 try {
   validateFirebaseConfig(firebaseConfig);
   const app =
     getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   auth = getAuth(app);
-  const firebaseApp = app;
+  firebaseApp = app;
 
   // Initialize Firestore with persistent cache
   db = initializeFirestore(app, {
