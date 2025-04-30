@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import logo from './assets/QCheckCITE_Logo.png';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 import { auth, db, logAudit } from "./firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
@@ -13,6 +13,10 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuth } from "./context/AuthContext";
 import { getDashboardPath } from "./utils/roleUtils";
 
+// Constants
+const EMAIL_DOMAIN = "@jmc.edu.ph";
+const DEFAULT_ROLE = "user";
+
 /**
  * Login component - Handles user authentication
  * @component
@@ -21,19 +25,21 @@ import { getDashboardPath } from "./utils/roleUtils";
 function Login() {
   usePageTitle("QCheckCITE - Login");
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode } = useTheme();
   const { user, role, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Handle navigation after successful login
   useEffect(() => {
     if (user && role) {
-      const dashboardPath = getDashboardPath(role);
-      navigate(dashboardPath);
+      const from = location.state?.from?.pathname || getDashboardPath(role);
+      navigate(from, { replace: true });
     }
-  }, [user, role, navigate]);
+  }, [user, role, navigate, location]);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     const provider = new GoogleAuthProvider();
@@ -43,61 +49,75 @@ function Login() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      if (!user.email.endsWith("@jmc.edu.ph")) {
-        setError("Only @jmc.edu.ph accounts are allowed");
-        toast.error("Only @jmc.edu.ph accounts are allowed.");
+      if (!user.email.endsWith(EMAIL_DOMAIN)) {
+        const errorMessage = `Only ${EMAIL_DOMAIN} accounts are allowed`;
+        setError(errorMessage);
+        toast.error(errorMessage);
         await signOut(auth);
         return;
       }
 
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
-      let role = "user";
+      let userRole = DEFAULT_ROLE;
 
       if (!userSnap.exists()) {
         await setDoc(userRef, {
           email: user.email,
-          role: "user",
+          role: DEFAULT_ROLE,
           createdAt: serverTimestamp(),
         });
 
-        console.log(`✅ Assigned default role 'user' to ${user.email}`);
-        await logAudit(user.email, "Assigned role: user (new user)");
+        console.log(`✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`);
+        await logAudit(user.email, `Assigned role: ${DEFAULT_ROLE} (new user)`);
       } else {
-        role = userSnap.data().role;
-        console.log(`ℹ️ Existing user logged in with role: ${role}`);
+        userRole = userSnap.data().role;
+        console.log(`ℹ️ Existing user logged in with role: ${userRole}`);
       }
 
       await logAudit(user.email, "Signed in");
-      toast.success(`Login successful! Welcome, ${role}! 🎉`);
-
-      // The navigation will be handled by the useEffect above
+      toast.success(`Login successful! Welcome, ${userRole}! 🎉`);
     } catch (error) {
       console.error("🚨 Error signing in with Google:", error);
-      setError("Login failed. Please try again.");
-      toast.error("Login failed. Please try again.");
+      const errorMessage = error.code === 'auth/popup-closed-by-user'
+        ? 'Sign in was cancelled'
+        : 'Login failed. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
       await signOut(auth);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   if (authLoading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
+        <LoadingSpinner fullScreen />
+      </div>
+    );
   }
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
-        }`}>
-        <div className={`w-full max-w-md p-8 rounded-xl shadow-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          } border`}>
+      <div
+        className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+          }`}
+        role="main"
+        aria-label="Login page"
+      >
+        <div
+          className={`w-full max-w-md p-8 rounded-xl shadow-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            } border`}
+        >
           {/* Logo Container */}
           <div className="flex justify-center mb-8">
             <img
               src={logo}
               alt="QCheckCITE Logo"
               className="w-48 h-auto transition-transform duration-200 hover:scale-105"
+              role="img"
+              aria-label="QCheckCITE Logo"
             />
           </div>
 
@@ -111,8 +131,12 @@ function Login() {
           </div>
 
           {error && (
-            <div className={`mb-4 p-4 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
-              }`} role="alert">
+            <div
+              className={`mb-4 p-4 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
+                }`}
+              role="alert"
+              aria-live="assertive"
+            >
               {error}
             </div>
           )}
@@ -121,10 +145,11 @@ function Login() {
             onClick={handleGoogleSignIn}
             disabled={isLoading}
             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
               } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             aria-label="Sign in with your JMC Account"
+            aria-busy={isLoading}
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
@@ -133,7 +158,7 @@ function Login() {
               </div>
             ) : (
               <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     fill="currentColor"
                     d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
@@ -144,9 +169,11 @@ function Login() {
             )}
           </button>
 
-          <div className={`mt-6 text-center text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-            <p>Only @jmc.edu.ph email addresses are allowed</p>
+          <div
+            className={`mt-6 text-center text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}
+          >
+            <p>Only {EMAIL_DOMAIN} email addresses are allowed</p>
           </div>
         </div>
       </div>
