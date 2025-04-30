@@ -41,7 +41,21 @@ function Inventory() {
     uniqueQR: false,
     itemCondition: "New"
   });
-
+  const defaultFormData = {
+    unitNumber: "",
+    name: "",
+    brand: "",
+    serialNumber: "",
+    dateAcquired: "",
+    quantity: 1,
+    remarks: "",
+    category: "",
+    description: "",
+    lab: "",
+    uniqueQR: false,
+    itemCondition: "New"
+  };
+  
   // State management
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,10 +123,8 @@ function Inventory() {
     if (!searchTerm) return items;
     const term = searchTerm.toLowerCase();
     return items.filter(item =>
-      item.name.toLowerCase().includes(term) ||
-      item.description.toLowerCase().includes(term) ||
-      item.category.toLowerCase().includes(term)
-    );
+      item[searchField]?.toLowerCase().includes(term)
+    );    
   }, [items, searchTerm]);
 
   // Memoize category grouping calculation
@@ -194,20 +206,7 @@ function Inventory() {
       const docRef = await addDoc(collection(db, "inventory"), itemData);
       await logAudit(user.email, `Added item: ${formData.name}`);
       toast.success("Item added successfully");
-      setFormData({
-        unitNumber: "",
-        name: "",
-        brand: "",
-        serialNumber: "",
-        dateAcquired: "",
-        quantity: 1,
-        remarks: "",
-        category: "",
-        description: "",
-        lab: "",
-        uniqueQR: false,
-        itemCondition: "New"
-      });
+      setFormData(defaultFormData);
     } catch (error) {
       console.error("Error adding item:", error);
       setError("Failed to add item");
@@ -268,20 +267,7 @@ function Inventory() {
       toast.success("Item updated successfully");
       setIsEditing(false);
       setEditingItem(null);
-      setFormData({
-        unitNumber: "",
-        name: "",
-        brand: "",
-        serialNumber: "",
-        dateAcquired: "",
-        quantity: 1,
-        remarks: "",
-        category: "",
-        description: "",
-        lab: "",
-        uniqueQR: false,
-        itemCondition: "New"
-      });
+      setFormData(defaultFormData);
     } catch (error) {
       console.error("Error updating item:", error);
       setError(error.message);
@@ -574,6 +560,7 @@ function Inventory() {
               <div className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                 <h2 className="text-xl font-semibold mb-4">Bulk Upload</h2>
                 <div className="flex items-center gap-4">
+                  <label htmlFor="csvUpload" className="sr-only">Upload CSV</label>
                   <input
                     type="file"
                     accept=".csv"
@@ -649,7 +636,11 @@ function Inventory() {
                   {({ height, width }) => (
                     <List
                       height={height}
-                      itemCount={filteredItems.length}
+                      itemCount={filteredItems.length === 0 ? (
+                        <p className="text-center text-gray-500">No items found. Try adjusting your search or filters.</p>
+                      ) : (
+                        <AutoSizer>...</AutoSizer>
+                      )}
                       itemSize={80}
                       width={width}
                     >
@@ -745,20 +736,7 @@ function Inventory() {
                       onClick={() => {
                         setIsEditing(false);
                         setEditingItem(null);
-                        setFormData({
-                          unitNumber: "",
-                          name: "",
-                          brand: "",
-                          serialNumber: "",
-                          dateAcquired: "",
-                          quantity: 1,
-                          remarks: "",
-                          category: "",
-                          description: "",
-                          lab: "",
-                          uniqueQR: false,
-                          itemCondition: "New"
-                        });
+                        setFormData(defaultFormData);
                       }}
                       className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
                     >
