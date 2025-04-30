@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useMemo } from "react";
+import React, { lazy, Suspense, useMemo, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./Login";
 import ProtectedRoute from "./ProtectedRoute";
@@ -12,7 +12,12 @@ import SplashScreen from "./components/SplashScreen";
 import SessionTimeout from "./components/SessionTimeout";
 import { useAuth } from "./context/AuthContext";
 
-// Lazy load dashboards
+// Constants
+const SESSION_TIMEOUT_MINUTES = 30;
+const SESSION_WARNING_MINUTES = 5;
+const TOAST_AUTO_CLOSE = 3000;
+
+// Lazy load dashboards with preload hints
 const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
 const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
 const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
@@ -27,11 +32,52 @@ const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCatego
 const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
 const ReportGenerator = lazy(() => import('./dashboard/admin/ReportGenerator'));
 
+// Route configurations
+const ROUTE_CONFIG = {
+  superadmin: {
+    path: "/superadmin-dashboard/*",
+    element: <ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>,
+    children: [
+      { path: "", element: <Navigate to="user-management" replace /> },
+      { path: "inventory", element: <Inventory /> },
+      { path: "requests", element: <Requests /> },
+      { path: "reports", element: <Reports /> },
+      { path: "audit-logs", element: <AuditLogs /> },
+      { path: "user-management", element: <ManageUsers /> }
+    ]
+  },
+  admin: {
+    path: "/admin-dashboard",
+    element: <ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>,
+    children: [
+      { path: "", element: <Navigate to="inventory" replace /> },
+      { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
+      { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
+      { path: "reports", element: <ProtectedRoute requiredAction="generate_reports"><Reports /></ProtectedRoute> },
+      { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> },
+      { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
+      { path: "generate-report", element: <ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute> }
+    ]
+  },
+  user: {
+    path: "/user-dashboard",
+    element: <ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>,
+    children: [
+      { path: "my-requests", element: <MyRequests /> }
+    ]
+  }
+};
+
+/**
+ * App component - Main application router and layout
+ * @component
+ * @returns {JSX.Element} The rendered App component
+ */
 function App() {
   const { user, role, loading } = useAuth();
   const location = useLocation();
 
-  // Track page views
+  // Track page views and analytics
   useEffect(() => {
     if (user) {
       // Here you would typically send analytics data
@@ -41,99 +87,117 @@ function App() {
 
   const isAuthenticated = useMemo(() => user !== null, [user]);
 
+  // Preload dashboard components based on user role
+  useEffect(() => {
+    if (role) {
+      const preloadComponents = async () => {
+        switch (role) {
+          case 'superadmin':
+            await Promise.all([
+              import("./dashboard/superadmin/SuperAdminDashboard"),
+              import("./dashboard/superadmin/AuditLogs"),
+              import("./dashboard/superadmin/ManageUsers")
+            ]);
+            break;
+          case 'admin':
+            await Promise.all([
+              import("./dashboard/admin/AdminDashboard"),
+              import("./dashboard/admin/Requests"),
+              import("./dashboard/admin/Reports")
+            ]);
+            break;
+          case 'user':
+            await import("./dashboard/user/UserDashboard");
+            break;
+        }
+      };
+      preloadComponents();
+    }
+  }, [role]);
+
   if (loading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading application">
+        <LoadingSpinner fullScreen />
+      </div>
+    );
   }
 
   return (
     <ThemeProvider>
       <ErrorBoundary>
-        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
-        {isAuthenticated && <SessionTimeout timeoutMinutes={30} warningMinutes={5} />}
+        <ToastContainer
+          position="top-right"
+          autoClose={TOAST_AUTO_CLOSE}
+          hideProgressBar={false}
+          theme="colored"
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+        {isAuthenticated && (
+          <SessionTimeout
+            timeoutMinutes={SESSION_TIMEOUT_MINUTES}
+            warningMinutes={SESSION_WARNING_MINUTES}
+          />
+        )}
         <Suspense fallback={<LoadingSpinner fullScreen />}>
           <Routes>
             {/* Login Route */}
-            <Route path="/login" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />} />
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />}
+            />
 
             {/* SuperAdmin Routes */}
-            <Route path="/superadmin-dashboard/*" element={
-              <ProtectedRoute requiredRole="superadmin">
-                <SuperAdminDashboard />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="user-management" replace />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="requests" element={<Requests />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="audit-logs" element={<AuditLogs />} />
-              <Route path="user-management" element={<ManageUsers />} />
+            <Route {...ROUTE_CONFIG.superadmin}>
+              {ROUTE_CONFIG.superadmin.children.map((route, index) => (
+                <Route key={index} {...route} />
+              ))}
             </Route>
 
             {/* Admin Routes */}
-            <Route path="/admin-dashboard" element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="inventory" replace />} />
-              <Route path="inventory" element={
+            <Route {...ROUTE_CONFIG.admin}>
+              {ROUTE_CONFIG.admin.children.map((route, index) => (
+                <Route key={index} {...route} />
+              ))}
+            </Route>
+            <Route
+              path="/admin-dashboard/users"
+              element={
+                <ProtectedRoute requiredAction="manage_users">
+                  <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Shared Routes */}
+            <Route
+              path="/inventory"
+              element={
                 <ProtectedRoute requiredAction="view_inventory">
                   <Inventory />
                 </ProtectedRoute>
-              } />
-              <Route path="requests" element={
-                <ProtectedRoute requiredAction="manage_requests">
-                  <Requests />
-                </ProtectedRoute>
-              } />
-              <Route path="reports" element={
-                <ProtectedRoute requiredAction="generate_reports">
-                  <Reports />
-                </ProtectedRoute>
-              } />
-              <Route path="categories" element={
-                <ProtectedRoute requiredAction="manage_categories">
-                  <InventoryCategories />
-                </ProtectedRoute>
-              } />
-              <Route path="templates" element={
-                <ProtectedRoute requiredAction="manage_templates">
-                  <ReportTemplates />
-                </ProtectedRoute>
-              } />
-              <Route path="generate-report" element={
-                <ProtectedRoute requiredAction="generate_reports">
-                  <ReportGenerator />
-                </ProtectedRoute>
-              } />
-            </Route>
-            <Route path="/admin-dashboard/users" element={
-              <ProtectedRoute requiredAction="manage_users">
-                <UserManagement />
-              </ProtectedRoute>
-            } />
-
-            {/* Shared Routes */}
-            <Route path="/inventory" element={
-              <ProtectedRoute requiredAction="view_inventory">
-                <Inventory />
-              </ProtectedRoute>
-            } />
+              }
+            />
 
             {/* User Routes */}
-            <Route path="/user-dashboard" element={
-              <ProtectedRoute requiredRole="user">
-                <UserDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/user-dashboard/my-requests" element={
-              <ProtectedRoute requiredRole="user">
-                <MyRequests />
-              </ProtectedRoute>
-            } />
+            <Route {...ROUTE_CONFIG.user}>
+              {ROUTE_CONFIG.user.children.map((route, index) => (
+                <Route key={index} {...route} />
+              ))}
+            </Route>
 
             {/* Catch-All Redirect */}
-            <Route path="*" element={<Navigate to={isAuthenticated ? getDashboardPath(role) : "/login"} />} />
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to={isAuthenticated ? getDashboardPath(role) : "/login"}
+                  replace
+                />
+              }
+            />
           </Routes>
         </Suspense>
       </ErrorBoundary>
