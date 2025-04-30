@@ -1,32 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  /* Light theme variables */
-  --bg-primary: #f4f4f4;
-  --bg-secondary: #ffffff;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --border-color: #cccccc;
-  --button-bg: #0056b3;
-  --button-hover: #003f88;
-  --toast-success: #28a745;
-  --toast-error: #dc3545;
-  --toast-info: #17a2b8;
-  --toast-warning: #ffc107;
+  --primary-color: #5e17eb;
+  --primary-hover: #4f003b;
+  --accent-color: #ffc53b;
+  --accent-hover: #ff66c4;
+  --highlight-color: #ff66c4;
 }
 
 .dark {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2d2d2d;
-  --text-primary: #ffffff;
-  --text-secondary: #cccccc;
-  --border-color: #404040;
-  --button-bg: #0069d9;
-  --button-hover: #0056b3;
-  --toast-success: #218838;
-  --toast-error: #c82333;
-  --toast-info: #138496;
-  --toast-warning: #e0a800;
+  --primary-color: #4f003b;
+  --primary-hover: #5e17eb;
+  --accent-color: #ffc53b;
+  --accent-hover: #ff66c4;
+  --highlight-color: #ffc53b;
 }
 
 body {
@@ -72,7 +59,7 @@ input {
 button {
   margin-top: 1.2rem;
   padding: 0.8rem 1.6rem;
-  background-color: var(--button-bg);
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 6px;
@@ -82,7 +69,19 @@ button {
 }
 
 button:hover {
-  background-color: var(--button-hover);
+  background-color: var(--primary-hover);
+}
+
+a {
+  color: var(--accent-color);
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+.badge,
+.tag {
+  background-color: var(--highlight-color);
 }
 
 /* Toastify Overrides */
@@ -124,5 +123,6 @@ button:hover {
 
 /* Dark mode transitions */
 * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
 }
