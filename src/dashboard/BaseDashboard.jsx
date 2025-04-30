@@ -7,9 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { debounce } from 'lodash';
 
 // Constants
 const MOBILE_BREAKPOINT = 640;
+
+// Navigation items configuration
 const NAVIGATION_ITEMS = {
   common: [
     {
@@ -84,6 +87,20 @@ const NAVIGATION_ITEMS = {
   ]
 };
 
+// Memoized navigation items based on role and permissions
+const getNavItems = (role) => {
+  if (role === 'superadmin') {
+    return NAVIGATION_ITEMS.superadmin;
+  }
+  if (role === 'admin') {
+    return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.admin];
+  }
+  if (role === 'user') {
+    return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.user];
+  }
+  return [];
+};
+
 function BaseDashboard({ children }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,32 +112,24 @@ function BaseDashboard({ children }) {
   const menuButtonRef = useRef(null);
   const firstNavItemRef = useRef(null);
 
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
+  // Handle window resize with debounce
+  const handleResize = useCallback(
+    debounce(() => {
       setWindowWidth(window.innerWidth);
       if (window.innerWidth > MOBILE_BREAKPOINT) {
         setIsMenuOpen(false);
       }
-    };
+    }, 100),
+    []
+  );
 
+  useEffect(() => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleResize]);
 
   // Memoize navigation items based on role and permissions
-  const navItems = useMemo(() => {
-    if (role === 'superadmin') {
-      return NAVIGATION_ITEMS.superadmin;
-    }
-    if (role === 'admin') {
-      return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.admin];
-    }
-    if (role === 'user') {
-      return [...NAVIGATION_ITEMS.common, ...NAVIGATION_ITEMS.user];
-    }
-    return [];
-  }, [role]);
+  const navItems = useMemo(() => getNavItems(role), [role]);
 
   // Handle logout with loading state
   const handleLogout = async () => {
@@ -248,45 +257,43 @@ function BaseDashboard({ children }) {
               </div>
             </div>
           </div>
-          {/* Mobile Navigation */}
-          {isMenuOpen && (
-            <div
-              id="mobile-menu"
-              className="sm:hidden"
-              role="menu"
-              aria-orientation="vertical"
-              aria-labelledby="mobile-menu-button"
-            >
-              <div className="pt-2 pb-3 space-y-1">
-                {navItems.map((item, index) => (
-                  <Link
-                    key={item.path}
-                    ref={index === 0 ? firstNavItemRef : null}
-                    to={item.path}
-                    className={`${location.pathname === item.path
-                      ? `${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`
-                      : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`
-                      } block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200`}
-                    onClick={() => setIsMenuOpen(false)}
-                    role="menuitem"
-                    aria-current={location.pathname === item.path ? 'page' : undefined}
-                    title={item.description}
-                  >
-                    <span className="mr-2" aria-hidden="true">{item.icon}</span>
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
         </nav>
 
-        {/* Main Content */}
-        <main
-          className={`max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}
-          role="main"
-        >
-          {children}
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="sm:hidden" id="mobile-menu">
+            <div className={`pt-2 pb-3 space-y-1 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              {navItems.map((item, index) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  ref={index === 0 ? firstNavItemRef : null}
+                  className={`${(location.pathname === item.path || location.pathname.includes(item.path))
+                    ? `${isDarkMode
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-900'
+                    }`
+                    : `${isDarkMode
+                      ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                    } block px-3 py-2 rounded-md text-base font-medium`}
+                  aria-current={location.pathname === item.path ? 'page' : undefined}
+                  title={item.description}
+                >
+                  <span className="mr-2" aria-hidden="true">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Main content */}
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
     </ErrorBoundary>

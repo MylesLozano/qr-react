@@ -10,61 +10,17 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 import { canPerformAction } from '../utils/roleUtils';
+import {
+  sanitizeInput,
+  sanitizeNumber,
+  debounce,
+  saveSearchHistory,
+  validateItem,
+  calculateQrStats,
+  groupByCategory
+} from '../utils/inventoryUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
-
-// Utility functions
-const sanitizeInput = (input) => {
-  return input.trim().replace(/[<>]/g, '');
-};
-
-const sanitizeNumber = (number) => {
-  return Math.max(0, Math.floor(Number(number)));
-};
-
-const debounce = (func, wait) => {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-};
-
-const saveSearchHistory = (search) => {
-  let history;
-  try {
-    history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
-    if (!Array.isArray(history)) history = [];
-  } catch {
-    history = [];
-  }
-  if (!history.includes(search)) {
-    history.unshift(search);
-    localStorage.setItem('searchHistory', JSON.stringify(history.slice(0, 10)));
-  }
-};
-
-// Validation functions
-const validateItem = (item) => {
-  const errors = {};
-  if (!item.name || item.name.length < 2) {
-    errors.name = 'Name must be at least 2 characters long';
-  }
-  if (!item.description || item.description.length < 5) {
-    errors.description = 'Description must be at least 5 characters long';
-  }
-  if (item.quantity < 0) {
-    errors.quantity = 'Quantity cannot be negative';
-  }
-  if (item.price < 0) {
-    errors.price = 'Price cannot be negative';
-  }
-  return errors;
-};
 
 function Inventory() {
   const { isDarkMode } = useTheme();
@@ -160,21 +116,7 @@ function Inventory() {
   }, [items, searchTerm]);
 
   // Memoize category grouping calculation
-  const categoryGroups = useMemo(() => {
-    const groups = {};
-    filteredItems.forEach(item => {
-      const category = item.category || "Uncategorized";
-      if (!groups[category]) {
-        groups[category] = {
-          items: [],
-          totalQuantity: 0
-        };
-      }
-      groups[category].items.push(item);
-      groups[category].totalQuantity += (parseInt(item.quantity) || 0);
-    });
-    return groups;
-  }, [filteredItems]);
+  const categoryGroups = useMemo(() => groupByCategory(filteredItems), [filteredItems]);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -219,15 +161,7 @@ function Inventory() {
 
   // QR stats calculation
   useEffect(() => {
-    const stats = items.reduce((acc, item) => {
-      if (item.uniqueQR) {
-        acc.totalWithQr++;
-      } else {
-        acc.totalWithoutQr++;
-      }
-      return acc;
-    }, { totalWithQr: 0, totalWithoutQr: 0 });
-    setQrStats(stats);
+    setQrStats(calculateQrStats(items));
   }, [items]);
 
   // Add item with validation and permission check
@@ -249,25 +183,16 @@ function Inventory() {
       setError(null);
       setValidationErrors({});
 
-      const sanitizedData = {
+      const itemData = {
         ...formData,
-        name: sanitizeInput(formData.name),
-        brand: sanitizeInput(formData.brand),
-        serialNumber: sanitizeInput(formData.serialNumber),
-        remarks: sanitizeInput(formData.remarks),
-        quantity: sanitizeNumber(formData.quantity),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        createdBy: user.uid,
-        updatedBy: user.uid
+        createdBy: user.email,
+        updatedBy: user.email
       };
 
-      const docRef = await addDoc(collection(db, "inventory"), sanitizedData);
-      await logAudit(user.uid, 'add_item', {
-        itemId: docRef.id,
-        itemName: sanitizedData.name
-      });
-
+      const docRef = await addDoc(collection(db, "inventory"), itemData);
+      await logAudit(user.email, `Added item: ${formData.name}`);
       toast.success("Item added successfully");
       setFormData({
         unitNumber: "",
@@ -285,8 +210,8 @@ function Inventory() {
       });
     } catch (error) {
       console.error("Error adding item:", error);
-      setError(error.message);
-      toast.error(`Failed to add item: ${error.message}`);
+      setError("Failed to add item");
+      toast.error("Failed to add item");
     } finally {
       setIsLoading(false);
     }
