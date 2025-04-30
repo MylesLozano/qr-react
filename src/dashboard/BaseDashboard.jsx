@@ -116,7 +116,6 @@ function BaseDashboard({ children }) {
   const { user, role } = useAuth();
   const menuButtonRef = useRef(null);
   const firstNavItemRef = useRef(null);
-  const resizeTimeoutRef = useRef(null);
 
   // Handle window resize with optimized debounce
   const handleResize = useCallback(
@@ -131,11 +130,16 @@ function BaseDashboard({ children }) {
 
   useEffect(() => {
     window.addEventListener('resize', handleResize);
+
+    if (windowWidth > MOBILE_BREAKPOINT && isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+
     return () => {
       window.removeEventListener('resize', handleResize);
       handleResize.cancel(); // Cleanup debounced function
     };
-  }, [handleResize]);
+  }, [handleResize, windowWidth, isMenuOpen]);
 
   // Memoize navigation items based on role and permissions
   const navItems = useMemo(() => getNavItems(role), [role]);
@@ -297,7 +301,9 @@ function BaseDashboard({ children }) {
                   aria-current={location.pathname === item.path ? 'page' : undefined}
                   title={item.description}
                 >
-                  <span className="mr-2" aria-hidden="true">{item.icon}</span>
+                  <span className="mr-2" aria-hidden="true">
+                    {windowWidth < 500 ? '📋' : item.icon}
+                  </span>
                   {item.label}
                 </Link>
               ))}
