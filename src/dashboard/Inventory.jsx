@@ -578,14 +578,27 @@ function Inventory() {
                     type="file"
                     accept=".csv"
                     onChange={handleCsvUpload}
-                    className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                    className={`
+                    block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100
+                    ${isDarkMode ? 'file:bg-blue-900 file:text-white hover:file:bg-blue-800' : ''}
+                  `}
                   />
                   <button
                     onClick={bulkUpload}
                     disabled={isUploading || csvData.length === 0}
-                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+                    className={`
+                      inline-flex items-center justify-center px-4 py-2
+                      text-sm font-medium rounded-full
+                      bg-green-500 text-white hover:bg-green-600
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    `}
                   >
-                    {isUploading ? 'Uploading...' : 'Upload CSV'}
+                    {isUploading ? 'Uploading…' : 'Upload CSV'}
                   </button>
                 </div>
                 {csvData.length > 0 && (
