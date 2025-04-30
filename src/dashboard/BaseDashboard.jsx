@@ -5,12 +5,13 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { canPerformAction } from '../utils/roleUtils';
+import { debounce } from '../utils/inventoryUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { debounce } from 'lodash';
 
 // Constants
 const MOBILE_BREAKPOINT = 640;
+const DEBOUNCE_WAIT = 100;
 
 // Navigation items configuration
 const NAVIGATION_ITEMS = {
@@ -111,21 +112,25 @@ function BaseDashboard({ children }) {
   const { user, role } = useAuth();
   const menuButtonRef = useRef(null);
   const firstNavItemRef = useRef(null);
+  const resizeTimeoutRef = useRef(null);
 
-  // Handle window resize with debounce
+  // Handle window resize with optimized debounce
   const handleResize = useCallback(
     debounce(() => {
       setWindowWidth(window.innerWidth);
       if (window.innerWidth > MOBILE_BREAKPOINT) {
         setIsMenuOpen(false);
       }
-    }, 100),
+    }, DEBOUNCE_WAIT),
     []
   );
 
   useEffect(() => {
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      handleResize.cancel(); // Cleanup debounced function
+    };
   }, [handleResize]);
 
   // Memoize navigation items based on role and permissions
