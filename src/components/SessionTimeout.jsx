@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-toastify';
-import { Button } from '../components/Button';
+import Button from '../components/Button';
 
 /**
  * SessionTimeout component - Handles session expiration and provides user feedback
