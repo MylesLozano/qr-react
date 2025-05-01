@@ -10,6 +10,7 @@ import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import usePageTitle from '../../hooks/usePageTitle';
+import Button from '../../components/Button';
 
 /**
  * ReportGenerator component - Generates reports based on templates and filters
@@ -33,7 +34,7 @@ const ReportGenerator = () => {
     });
     const buildReportRows = (data, fields) => {
         return data.map(item => fields.map(field => item[field.name] || ''));
-      };      
+    };
 
     // Memoize filtered data
     const filteredData = useMemo(() => {
@@ -119,15 +120,15 @@ const ReportGenerator = () => {
         setFieldErrors({}); // Reset
 
         if (!selectedTemplate) {
-          toast.error('Please select a template');
-          return false;
+            toast.error('Please select a template');
+            return false;
         }
 
         if (filters.dateRange.start && filters.dateRange.end &&
-          new Date(filters.dateRange.start) > new Date(filters.dateRange.end)) {
-          setFieldErrors({ endDate: 'End date must be after start date' });      
-          toast.error('End date must be after start date');
-          return false;
+            new Date(filters.dateRange.start) > new Date(filters.dateRange.end)) {
+            setFieldErrors({ endDate: 'End date must be after start date' });
+            toast.error('End date must be after start date');
+            return false;
         }
         return true;
     }, [selectedTemplate, filters]);
@@ -164,7 +165,7 @@ const ReportGenerator = () => {
         try {
             const fields = selectedTemplate.fields;
             const csvData = filteredData.map(item =>
-            Object.fromEntries(fields.map(field => [field.name, item[field.name] || '']))
+                Object.fromEntries(fields.map(field => [field.name, item[field.name] || '']))
             );
             const csv = Papa.unparse(csvData);
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -234,8 +235,8 @@ const ReportGenerator = () => {
                                         setSelectedTemplate(template);
                                     }}
                                     className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
-                                      ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
-                                      : 'bg-white border-gray-300 focus:ring-offset-white'}`}
+                                        ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
+                                        : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Select report template"
                                 >
                                     <option value="">Select a template</option>
@@ -246,7 +247,7 @@ const ReportGenerator = () => {
                                     ))}
                                 </select>
                             </div>
-                            {/* Start/End date */}          
+                            {/* Start/End date */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label htmlFor="startDate" className="block text-sm font-medium mb-1">
@@ -276,7 +277,7 @@ const ReportGenerator = () => {
                                         aria-label="End date"
                                     />
                                     {fieldErrors.endDate && (
-                                      <p className="text-sm text-red-500 mt-1">{fieldErrors.endDate}</p>
+                                        <p className="text-sm text-red-500 mt-1">{fieldErrors.endDate}</p>
                                     )}
                                 </div>
                             </div>
@@ -290,8 +291,8 @@ const ReportGenerator = () => {
                                     value={filters.status}
                                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                                     className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
-                                      ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
-                                      : 'bg-white border-gray-300 focus:ring-offset-white'}`}
+                                        ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
+                                        : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Filter by status"
                                 >
                                     <option value="">All Statuses</option>
@@ -300,7 +301,7 @@ const ReportGenerator = () => {
                                     <option value="maintenance">Maintenance</option>
                                 </select>
                             </div>
-                            {/* Category select */}        
+                            {/* Category select */}
                             <div>
                                 <label htmlFor="categorySelect" className="block text-sm font-medium mb-1">
                                     Category
@@ -310,8 +311,8 @@ const ReportGenerator = () => {
                                     value={filters.category}
                                     onChange={(e) => setFilters({ ...filters, category: e.target.value })}
                                     className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
-                                      ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
-                                      : 'bg-white border-gray-300 focus:ring-offset-white'}`}
+                                        ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
+                                        : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Filter by category"
                                 >
                                     <option value="">All Categories</option>
@@ -322,17 +323,17 @@ const ReportGenerator = () => {
                             </div>
 
                             <div>
-                              <button
-                                onClick={generateReport}
-                                disabled={!selectedTemplate || loading || isGenerating}
-                                className={`w-full px-4 py-2 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                                    } text-white ${(!selectedTemplate || loading || isGenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                aria-label="Generate report"
+                                <Button
+                                    onClick={generateReport}
+                                    disabled={!selectedTemplate || loading || isGenerating}
+                                    className={`w-full px-4 py-2 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                                        } text-white ${(!selectedTemplate || loading || isGenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    aria-label="Generate report"
                                 >
                                     {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
-                              </button>
+                                </Button>
                             </div>
-                            
+
                         </fieldset>
                     </div>
 

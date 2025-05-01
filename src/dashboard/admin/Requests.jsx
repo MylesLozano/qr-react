@@ -22,6 +22,7 @@ import { useAuth } from "../../context/AuthContext";
 import { canPerformAction } from "../../utils/roleUtils";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import Button from "../../components/Button";
 
 /**
  * Requests component - Manages inventory requests
@@ -283,14 +284,14 @@ function Requests() {
             <div className="text-sm">
               Date: {new Date(request.createdAt?.toDate()).toLocaleDateString()}
             </div>
-            <button
+            <Button
               onClick={() => setShowDetails(request)}
               className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
                 }`}
               aria-label={`View details for ${request.itemName}`}
             >
               View Details
-            </button>
+            </Button>
           </div>
           <div>
             <span className={`px-2 py-1 rounded text-white ${request.status === 'pending' ? 'bg-yellow-500' :
@@ -301,24 +302,24 @@ function Requests() {
             </span>
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={() => updateRequestStatus(request.id, 'approved')}
               disabled={isUpdating || request.status === 'approved'}
-              className={`px-3 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
-                } text-white ${(isUpdating || request.status === 'approved') ? 'opacity-50 cursor-not-allowed' : ''}`}
+              color="green"
+              className={`px-3 ${isUpdating || request.status === 'approved' ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label={`Approve request for ${request.itemName}`}
             >
               {isUpdating ? <LoadingSpinner size="small" /> : 'Approve'}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => updateRequestStatus(request.id, 'rejected')}
               disabled={isUpdating || request.status === 'rejected'}
-              className={`px-3 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
-                } text-white ${(isUpdating || request.status === 'rejected') ? 'opacity-50 cursor-not-allowed' : ''}`}
+              color="red"
+              className={`px-3 ${isUpdating || request.status === 'rejected' ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label={`Reject request for ${request.itemName}`}
             >
               {isUpdating ? <LoadingSpinner size="small" /> : 'Reject'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -408,33 +409,33 @@ function Requests() {
               }`}>
               <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Actions</h2>
               <div className="flex gap-4">
-                <button
+                <Button
                   onClick={() => bulkUpdateStatus('approved')}
                   disabled={isUpdating || selectedRequests.size === 0}
-                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
-                    } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  color="green"
+                  className={`px-4 ${isUpdating || selectedRequests.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Approve selected requests"
                 >
                   {isUpdating ? <LoadingSpinner size="small" /> : 'Approve Selected'}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => bulkUpdateStatus('rejected')}
                   disabled={isUpdating || selectedRequests.size === 0}
-                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
-                    } text-white ${(isUpdating || selectedRequests.size === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  color="red"
+                  className={`px-4 ${isUpdating || selectedRequests.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Reject selected requests"
                 >
                   {isUpdating ? <LoadingSpinner size="small" /> : 'Reject Selected'}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={exportToCSV}
                   disabled={isExporting || filteredRequests.length === 0}
-                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                    } text-white ${(isExporting || filteredRequests.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  color="blue"
+                  className={`px-4 ${isExporting || filteredRequests.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Export requests to CSV"
                 >
                   {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
-                </button>
+                </Button>
               </div>
             </div>
 

@@ -7,6 +7,7 @@ import { saveAs } from 'file-saver';
 import { useTheme } from '../../context/ThemeContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import Button from '../../components/Button';
 
 /**
  * AuditLogs component - Displays and manages audit logs for superadmin
@@ -22,7 +23,7 @@ const AuditLogs = () => {
       timestamp: log.timestamp instanceof Date
         ? log.timestamp.toLocaleString()
         : log.timestamp
-    })), [logs]);  
+    })), [logs]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [lastDoc, setLastDoc] = useState(null);
@@ -154,15 +155,14 @@ const AuditLogs = () => {
       <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold" role="heading" aria-level="1">Audit Logs</h1>
-          <button
+          <Button
             onClick={exportToCSV}
             disabled={exporting || logs.length === 0}
-            className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-              } text-white ${(exporting || logs.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-4 py-2 rounded transition-colors duration-200`}
             aria-label="Export audit logs to CSV"
           >
             {exporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -261,14 +261,13 @@ const AuditLogs = () => {
         {loading && <LoadingSpinner />}
 
         {hasMore && !loading && (
-          <button
+          <Button
             onClick={loadMore}
-            className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-              } text-white`}
+            className={`mt-4`}
             aria-label="Load more audit logs"
           >
             Load More
-          </button>
+          </Button>
         )}
       </div>
     </ErrorBoundary>

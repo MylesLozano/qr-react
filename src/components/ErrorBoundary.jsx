@@ -25,17 +25,16 @@ class ErrorBoundary extends React.Component {
                         <p className="text-gray-600 mb-4">
                             We're sorry, but something went wrong. Please try refreshing the page or contact support if the problem persists.
                         </p>
-                        <button
+                        <Button
                             onClick={() => window.location.reload()}
                             className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             Refresh Page
-                        </button>
+                        </Button>
                     </div>
                 </div>
             );
         }
-
         return this.props.children;
     }
 }

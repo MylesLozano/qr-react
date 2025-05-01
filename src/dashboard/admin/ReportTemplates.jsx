@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { canPerformAction } from '../../utils/roleUtils';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import usePageTitle from '../../hooks/usePageTitle';
+import Button from '../../components/Button';
 
 /**
  * ReportTemplates component - Manages report templates for generating reports
@@ -421,15 +422,14 @@ const ReportTemplates = () => {
                                         </div>
                                     </div>
 
-                                    <button
+                                    <Button
                                         type="submit"
                                         disabled={isSubmitting}
-                                        className={`w-full px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
-                                            } text-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        className={`w-full px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'} text-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         aria-label={editingTemplate ? 'Update template' : 'Create template'}
                                     >
                                         {isSubmitting ? <LoadingSpinner size="small" /> : (editingTemplate ? 'Update Template' : 'Create Template')}
-                                    </button>
+                                    </Button>
                                 </form>
                             </div>
                         )}
@@ -458,22 +458,20 @@ const ReportTemplates = () => {
                                                 <td className="px-4 py-2">
                                                     {canManageTemplates && (
                                                         <div className="flex space-x-2">
-                                                            <button
+                                                            <Button
                                                                 onClick={() => handleEdit(template)}
-                                                                className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                                                                    } text-white`}
+                                                                className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
                                                                 aria-label={`Edit template ${template.name}`}
                                                             >
                                                                 Edit
-                                                            </button>
-                                                            <button
+                                                            </Button>
+                                                            <Button
                                                                 onClick={() => handleDelete(template.id)}
-                                                                className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
-                                                                    } text-white`}
+                                                                className={`px-2 py-1 rounded transition-colors duration-200 ${isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'} text-white`}
                                                                 aria-label={`Delete template ${template.name}`}
                                                             >
                                                                 Delete
-                                                            </button>
+                                                            </Button>
                                                         </div>
                                                     )}
                                                 </td>

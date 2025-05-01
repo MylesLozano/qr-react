@@ -21,6 +21,7 @@ import {
 } from '../utils/inventoryUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Button from "../components/Button";
 
 function Inventory() {
   const { isDarkMode } = useTheme();
@@ -55,7 +56,7 @@ function Inventory() {
     uniqueQR: false,
     itemCondition: "New"
   };
-  
+
   // State management
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,7 +125,7 @@ function Inventory() {
     const term = searchTerm.toLowerCase();
     return items.filter(item =>
       item[searchField]?.toLowerCase().includes(term)
-    );    
+    );
   }, [items, searchTerm]);
 
   // Memoize category grouping calculation
@@ -416,42 +417,49 @@ function Inventory() {
   };
 
   const Row = ({ index, style }) => {
+    const { isDarkMode } = useTheme();
     const item = filteredItems[index];
+    if (!item) return null;
+
     return (
-      <div style={style} className={`p-4 ${index % 2 === 0 ? (isDarkMode ? 'bg-gray-800' : 'bg-white') : (isDarkMode ? 'bg-gray-700' : 'bg-gray-50')}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
-            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-              Category: {item.category} | Serial: {item.serialNumber} | Brand: {item.brand}
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
-              Qty: {item.quantity}
-            </span>
-            {(role === 'admin' || role === 'superadmin') && (
-              <>
-                <button
-                  onClick={() => handleEdit(item)}
-                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => deleteItem(item.id, item.name)}
-                  className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => previewQrCode(item)}
-                  className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-                >
-                  QR
-                </button>
-              </>
-            )}
+      <div style={style} className="px-2">
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold">{item.name}</h3>
+              <p className="text-sm">Brand: {item.brand}</p>
+              <p className="text-sm">Serial: {item.serialNumber}</p>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
+                Qty: {item.quantity}
+              </span>
+              {(role === 'admin' || role === 'superadmin') && (
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    onClick={() => handleEdit(item)}
+                    color="blue"
+                    size="sm"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => deleteItem(item.id, item.name)}
+                    color="red"
+                    size="sm"
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    onClick={() => previewQrCode(item)}
+                    color="green"
+                    size="sm"
+                  >
+                    QR
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -468,12 +476,13 @@ function Inventory() {
         <div className={`p-6 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">{selectedCategory}</h2>
-            <button
+            <Button
               onClick={() => setShowCategoryDetails(false)}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              color="red"
+              size="md"
             >
               Close
-            </button>
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categoryItems.map((item) => (
@@ -506,12 +515,14 @@ function Inventory() {
         <div className={`max-w-7xl mx-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
           <div className="mb-8">
             {/* Back Button */}
-            <button
+            <Button
               onClick={() => navigate(-1)}
-              className={`mb-4 px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium flex items-center ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : ''}`}
+              color="gray"
+              size="md"
+              className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
             >
               <span className="mr-2">←</span> Back
-            </button>
+            </Button>
             <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
 
             {/* Search Bar */}
@@ -575,18 +586,15 @@ function Inventory() {
                     ${isDarkMode ? 'file:bg-blue-900 file:text-white hover:file:bg-blue-800' : ''}
                   `}
                   />
-                  <button
+                  <Button
                     onClick={bulkUpload}
                     disabled={isUploading || csvData.length === 0}
-                    className={`
-                      inline-flex items-center justify-center px-4 py-2
-                      text-sm font-medium rounded-full
-                      bg-green-500 text-white hover:bg-green-600
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
+                    color="green"
+                    size="md"
+                    className="inline-flex items-center justify-center"
                   >
                     {isUploading ? 'Uploading…' : 'Upload CSV'}
-                  </button>
+                  </Button>
                 </div>
                 {csvData.length > 0 && (
                   <p className="mt-2 text-sm text-gray-500">
@@ -728,24 +736,27 @@ function Inventory() {
                 </div>
                 <div className="mt-4 flex justify-end space-x-4">
                   {isEditing && (
-                    <button
+                    <Button
                       onClick={() => {
                         setIsEditing(false);
                         setEditingItem(null);
                         setFormData(defaultFormData);
                       }}
-                      className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                      color="gray"
+                      size="md"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    onClick={isEditing ? handleSaveEdit : addItem}
+                  <Button
+                    onClick={handleSaveEdit}
                     disabled={isLoading}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                    color="blue"
+                    size="md"
+                    loading={isLoading}
                   >
                     {isLoading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add Item')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

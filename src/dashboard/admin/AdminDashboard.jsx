@@ -82,12 +82,12 @@ const AdminDashboard = () => {
     let unsubscribeRequests = null;
     setLoadingCounts(true);
     setError(null); // Clear previous errors
-    
+
     const fetchCounts = async () => {
       try {
         const usersCol = collection(db, "users");
         const requestsCol = collection(db, "requests");
-        
+
         // Fetch total users
         const userSnapshot = await getCountFromServer(usersCol);
         setUserCount(userSnapshot.data().count);
@@ -147,32 +147,27 @@ const AdminDashboard = () => {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${
-              isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-            }`}>
-              <h2 className="text-xl font-semibold mb-2">Total Users</h2>
-              <p className={`text-3xl font-bold ${
-                isDarkMode ? 'text-blue-400' : 'text-blue-600'
+            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
               }`}>
+              <h2 className="text-xl font-semibold mb-2">Total Users</h2>
+              <p className={`text-3xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                }`}>
                 {loadingCounts ? <LoadingSpinner size="small" /> : userCount}
               </p>
             </div>
-            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${
-              isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-            }`}>
-              <h2 className="text-xl font-semibold mb-2">Pending Requests</h2>
-              <p className={`text-3xl font-bold ${
-                isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
+            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
               }`}>
+              <h2 className="text-xl font-semibold mb-2">Pending Requests</h2>
+              <p className={`text-3xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
+                }`}>
                 {loadingCounts ? <LoadingSpinner size="small" /> : pendingRequestsCount}
               </p>
             </div>
           </div>
 
           {/* QR Code Generator Section */}
-          <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
+          <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
             <h2 className="text-xl font-semibold mb-4">QR Code Generator</h2>
 
             <QRCodeManager
@@ -185,9 +180,8 @@ const AdminDashboard = () => {
             {/* QR Preview Modal */}
             {qrPreview && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-                <div className={`p-6 rounded-lg shadow-lg transition-colors duration-200 ${
-                  isDarkMode ? 'bg-gray-800' : 'bg-white'
-                }`}>
+                <div className={`p-6 rounded-lg shadow-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+                  }`}>
                   <h3 className="text-xl font-semibold mb-4">QR Code Preview</h3>
                   <QRCodeManager
                     item={qrPreview.item}
@@ -195,15 +189,14 @@ const AdminDashboard = () => {
                     isGenerating={isGenerating}
                     showActions={false}
                   />
-                  <button
+                  <Button
                     onClick={() => setQrPreview(null)}
-                    className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${
-                      isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-500 hover:bg-gray-600'
-                    } text-white`}
+                    className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-500 hover:bg-gray-600'
+                      } text-white`}
                     aria-label="Close QR preview"
                   >
                     Close
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -215,9 +208,8 @@ const AdminDashboard = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`p-4 rounded-lg shadow transition-colors duration-200 ${
-                  isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-                }`}
+                className={`p-4 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
+                  }`}
                 aria-label={item.label}
               >
                 <i className={`${item.icon} mr-2`} aria-hidden="true"></i>

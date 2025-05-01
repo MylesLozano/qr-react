@@ -10,6 +10,7 @@ import { useAuth } from "../../context/AuthContext";
 import { canPerformAction } from "../../utils/roleUtils";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import Button from "../../components/Button";
 
 /**
  * Reports component - Manages report generation, export, and storage
@@ -354,35 +355,32 @@ function Reports() {
               </div>
 
               <div className="mt-6 flex gap-4">
-                <button
+                <Button
                   onClick={generateReport}
                   disabled={isGenerating}
-                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                    } text-white ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Generate report"
                 >
                   {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
-                </button>
+                </Button>
 
-                <button
+                <Button
                   onClick={exportToCSV}
                   disabled={isExporting || reportData.length === 0}
-                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
-                    } text-white ${(isExporting || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'} text-white ${(isExporting || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Export report to CSV"
                 >
                   {isExporting ? <LoadingSpinner size="small" /> : 'Export to CSV'}
-                </button>
+                </Button>
 
-                <button
+                <Button
                   onClick={saveReport}
                   disabled={isSaving || reportData.length === 0}
-                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
-                    } text-white ${(isSaving || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'} text-white ${(isSaving || reportData.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Save report"
                 >
                   {isSaving ? <LoadingSpinner size="small" /> : 'Save Report'}
-                </button>
+                </Button>
               </div>
             </div>
 

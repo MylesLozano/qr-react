@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-toastify';
+import { Button } from '../components/Button';
 
 /**
  * SessionTimeout component - Handles session expiration and provides user feedback
@@ -109,30 +110,30 @@ function SessionTimeout({ timeoutMinutes = DEFAULT_TIMEOUT_MINUTES, warningMinut
                     Would you like to extend your session?
                 </p>
                 <div className="flex justify-end space-x-4">
-                    <button
+                    <Button
                         onClick={() => {
                             setShowWarning(false);
                             toast.success('Session extended');
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-                                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
                             }`}
                     >
                         Extend Session
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={() => {
                             auth.signOut();
                             navigate('/login');
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-                                ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                                : 'bg-gray-500 hover:bg-gray-600 text-white'
+                            ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                            : 'bg-gray-500 hover:bg-gray-600 text-white'
                             }`}
                     >
                         Log Out
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

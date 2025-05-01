@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import Button from "../../components/Button";
 
 /**
  * UserDashboard component - Main dashboard for regular users
@@ -194,16 +195,14 @@ function UserDashboard() {
             {scanResult ? (
               <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
                 <p>Scanned Result: {scanResult}</p>
-                <button
+                <Button
                   onClick={resetScanner}
-                  className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "bg-blue-500 hover:bg-blue-600 text-white"
-                    }`}
+                  color="blue"
+                  className="mt-4"
                   aria-label="Scan another QR code"
                 >
                   Scan Another
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="relative">

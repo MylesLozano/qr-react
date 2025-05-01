@@ -5,6 +5,7 @@ import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { toast } from "react-toastify";
+import Button from "../../components/Button";
 
 /**
  * ManageUsers component - Allows superadmin to manage user roles
@@ -122,14 +123,12 @@ function ManageUsers() {
                       {user.role !== "superadmin" && (
                         <div className="flex justify-center space-x-2">
                           {roleOptions.map((option) => (
-                            <button
+                            <Button
                               key={option.value}
                               onClick={() => updateUserRole(user.id, option.value, user.email)}
                               disabled={updating || user.role === option.value}
-                              className={`px-3 py-1 rounded transition-colors duration-200 ${isDarkMode
-                                ? `bg-${option.color}-600 hover:bg-${option.color}-700 text-white`
-                                : `bg-${option.color}-500 hover:bg-${option.color}-600 text-white`
-                                } ${updating ? "opacity-50 cursor-not-allowed" : ""}`}
+                              color={option.color}
+                              className={`px-3 py-1 rounded transition-colors duration-200 ${updating ? "opacity-50 cursor-not-allowed" : ""}`}
                               aria-label={`Change ${user.email}'s role to ${option.label}`}
                             >
                               {updating ? (
@@ -137,7 +136,7 @@ function ManageUsers() {
                               ) : (
                                 `${user.role === option.value ? "Current" : option.label}`
                               )}
-                            </button>
+                            </Button>
                           ))}
                         </div>
                       )}

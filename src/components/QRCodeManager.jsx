@@ -8,6 +8,7 @@ import { logAudit } from '../firebase';
 import ErrorBoundary from './ErrorBoundary';
 import LoadingSpinner from './LoadingSpinner';
 import { useTheme } from '../context/ThemeContext';
+import Button from './Button';
 
 // Constants
 const RATE_LIMIT_MS = 5000; // 5 seconds
@@ -272,41 +273,41 @@ function QRCodeManager({
                     {/* Action Buttons */}
                     {showActions && (
                         <div className="flex space-x-4">
-                            <button
+                            <Button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${isGenerating
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700'
                                     }`}
                                 aria-label="Generate QR Code"
                                 aria-busy={isGenerating}
                             >
                                 {isGenerating ? <LoadingSpinner size="small" /> : 'Generate QR'}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={handlePreview}
                                 disabled={!qrData}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-green-600 hover:bg-green-700'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-green-600 hover:bg-green-700'
                                     }`}
                                 aria-label="Preview QR Code"
                             >
                                 Preview
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={handleDownload}
                                 disabled={!qrData || isDownloading}
                                 className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData || isDownloading
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-purple-600 hover:bg-purple-700'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-purple-600 hover:bg-purple-700'
                                     }`}
                                 aria-label="Download QR Code"
                                 aria-busy={isDownloading}
                             >
                                 {isDownloading ? <LoadingSpinner size="small" /> : 'Download'}
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </div>

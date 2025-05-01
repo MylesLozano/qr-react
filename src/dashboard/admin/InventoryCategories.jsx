@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../context/ThemeContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import Button from '../../components/Button';
 
 /**
  * InventoryCategories component - Manages inventory categories for admin users
@@ -203,7 +204,7 @@ const InventoryCategories = () => {
                                 </select>
                             </div>
                             <div className="flex gap-2">
-                                <button
+                                <Button
                                     type="submit"
                                     disabled={isSubmitting}
                                     className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
@@ -211,9 +212,9 @@ const InventoryCategories = () => {
                                     aria-label={editingCategory ? 'Update category' : 'Add category'}
                                 >
                                     {isSubmitting ? <LoadingSpinner size="small" /> : (editingCategory ? 'Update' : 'Add')} Category
-                                </button>
+                                </Button>
                                 {editingCategory && (
-                                    <button
+                                    <Button
                                         type="button"
                                         onClick={handleReset}
                                         className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-500 hover:bg-gray-600'
@@ -221,7 +222,7 @@ const InventoryCategories = () => {
                                         aria-label="Cancel editing"
                                     >
                                         Cancel
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </form>
@@ -258,22 +259,20 @@ const InventoryCategories = () => {
                                                 )}
                                             </div>
                                             <div className="flex gap-2">
-                                                <button
+                                                <Button
                                                     onClick={() => handleEdit(category)}
-                                                    className={`p-1 rounded transition-colors duration-200 ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'
-                                                        }`}
+                                                    className={`p-1 rounded transition-colors duration-200 ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'}`}
                                                     aria-label={`Edit ${category.name}`}
                                                 >
                                                     Edit
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
                                                     onClick={() => handleDelete(category.id)}
-                                                    className={`p-1 rounded transition-colors duration-200 ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-500'
-                                                        }`}
+                                                    className={`p-1 rounded transition-colors duration-200 ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-500'}`}
                                                     aria-label={`Delete ${category.name}`}
                                                 >
                                                     Delete
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>

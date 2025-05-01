@@ -8,6 +8,7 @@ import { debounce } from '../utils/inventoryUtils';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Button from '../components/Button';
 
 // Constants
 const MOBILE_BREAKPOINT = 640;
@@ -83,11 +84,11 @@ function BaseDashboard({ children }) {
     heading: isDarkMode ? 'text-white' : 'text-gray-900',
     activeLink: isDarkMode ? 'border-blue-500 text-blue-500' : 'border-blue-600 text-blue-600',
     activeLinkBg: isDarkMode ? 'bg-gray-800' : 'bg-white',
-    inactiveLink: isDarkMode ? 'border-transparent text-gray-300 hover:text-gray-100 hover:border-gray-300' : 
-                              'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+    inactiveLink: isDarkMode ? 'border-transparent text-gray-300 hover:text-gray-100 hover:border-gray-300' :
+      'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
     mobileActiveLink: isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900',
-    mobileInactiveLink: isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 
-                                     'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+    mobileInactiveLink: isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' :
+      'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
     themeButton: isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
     logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
   };
@@ -110,8 +111,8 @@ function BaseDashboard({ children }) {
   }, [handleResize]);
 
   // Memoize navigation items based on role
-  const navItems = useMemo(() => 
-    NAV_CONFIG.filter(item => 
+  const navItems = useMemo(() =>
+    NAV_CONFIG.filter(item =>
       item.roles.includes(role) && canPerformAction(role, item.action)
     ), [role]);
 
@@ -156,7 +157,7 @@ function BaseDashboard({ children }) {
     const className = isMobile
       ? `${isActive ? themeStyles.mobileActiveLink : themeStyles.mobileInactiveLink} block px-3 py-2 rounded-md text-base font-medium`
       : `${isActive ? `${themeStyles.activeLink} ${themeStyles.activeLinkBg}` : themeStyles.inactiveLink} inline-flex items-center px-4 pt-1 border-b-2 text-sm font-medium transition-all duration-200`;
-    
+
     return (
       <Link
         to={item.path}
@@ -238,14 +239,14 @@ function BaseDashboard({ children }) {
                 >
                   {isDarkMode ? 'Switch to Light Mode 🌞' : 'Switch to Dark Mode 🌙'}
                 </button>
-                <button
+                <Button
                   onClick={handleLogout}
                   disabled={isLoading}
                   className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors duration-200 ${themeStyles.logoutButton} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Logout"
                 >
                   {isLoading ? <LoadingSpinner size="small" /> : 'Logout'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

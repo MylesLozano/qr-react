@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../context/ThemeContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import Button from '../../components/Button';
 
 /**
  * UserManagement component - Manages user roles and information for admin users
@@ -162,22 +163,20 @@ const UserManagement = () => {
             Created: {user.createdAt?.toDate().toLocaleDateString() || 'N/A'}
           </div>
           <div className="flex space-x-2">
-            <button
+            <Button
               onClick={() => setEditingUser(user)}
-              className={`transition-colors duration-200 ${isDarkMode ? 'text-yellow-400 hover:text-yellow-300' : 'text-yellow-600 hover:text-yellow-800'
-                }`}
+              className={`transition-colors duration-200 ${isDarkMode ? 'text-yellow-400 hover:text-yellow-300' : 'text-yellow-600 hover:text-yellow-800'}`}
               aria-label={`Edit ${user.email}`}
             >
               Edit
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleDeleteUser(user.id, user.email)}
-              className={`transition-colors duration-200 ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-800'
-                }`}
+              className={`transition-colors duration-200 ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-800'}`}
               aria-label={`Delete ${user.email}`}
             >
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -291,28 +290,26 @@ const UserManagement = () => {
                   </div>
                 </div>
                 <div className="flex justify-end space-x-4 mt-6">
-                  <button
+                  <Button
                     onClick={() => setEditingUser(null)}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400 hover:bg-gray-500'
-                      } text-white`}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400 hover:bg-gray-500'} text-white`}
                     aria-label="Cancel editing"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => {
                       if (validateUserData(editingUser)) {
                         handleRoleChange(editingUser.id, editingUser.role);
                         setEditingUser(null);
                       }
                     }}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-                      } text-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     disabled={isSubmitting}
                     aria-label="Save changes"
                   >
                     {isSubmitting ? <LoadingSpinner size="small" /> : 'Save Changes'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
