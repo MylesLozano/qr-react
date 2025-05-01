@@ -20,7 +20,12 @@ function SuperAdminDashboard() {
   usePageTitle("QCheckCITE - SuperAdmin Dashboard");
   const { isDarkMode } = useTheme();
   const location = useLocation();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);  // Reintroduced and set to true initially
+  const [activePage, setActivePage] = useState(() => {
+    const initialPage = getActivePage();  // Compute initial active page
+    setLoading(false);  // Set loading to false after initial setup
+    return initialPage;
+  });
 
   // Determine active page based on URL path
   const getActivePage = useCallback(() => {
@@ -33,17 +38,15 @@ function SuperAdminDashboard() {
     return "userManagement"; // default view
   }, [location.pathname]);
 
-  // Set active page on component mount and when location changes
-  const [activePage, setActivePage] = useState(() => getActivePage());
-
   useEffect(() => {
     setActivePage(getActivePage());
+    // Optionally, you could add more logic here to set loading based on async operations
   }, [getActivePage]);
 
   // Render the appropriate component based on active page
   const renderActivePage = useCallback(() => {
     if (loading) {
-      return <LoadingSpinner />;
+      return <LoadingSpinner size="md" />;  // Utilize LoadingSpinner here
     }
 
     switch (activePage) {

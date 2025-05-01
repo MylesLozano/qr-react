@@ -7,8 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { logAudit } from '../firebase';
 import ErrorBoundary from './ErrorBoundary';
 import LoadingSpinner from './LoadingSpinner';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, getThemeClass } from '../context/ThemeContext';
 import Button from './Button';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 // Constants
 const RATE_LIMIT_MS = 5000; // 5 seconds
@@ -28,9 +29,9 @@ function QRCodeManager({
 }) {
     const { user } = useAuth();
     const { isDarkMode } = useTheme();
+    const { error, setError, handleError } = useErrorHandler();
     const [qrData, setQrData] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
-    const [error, setError] = useState(null);
     const [lastGenerationTime, setLastGenerationTime] = useState(null);
     const qrElementRef = useRef(null);
     const retryTimeoutRef = useRef(null);
@@ -99,9 +100,7 @@ function QRCodeManager({
 
             toast.success('QR code generated successfully');
         } catch (error) {
-            console.error('Error generating QR code:', error);
-            setError(error.message);
-            toast.error(`Failed to generate QR code: ${error.message}`);
+            handleError(error);
         }
     };
 
@@ -115,9 +114,7 @@ function QRCodeManager({
             const data = generateQRData();
             setQrData(data);
         } catch (error) {
-            console.error('Error previewing QR code:', error);
-            setError(error.message);
-            toast.error(`Failed to preview QR code: ${error.message}`);
+            handleError(error);
         }
     }, [item, onPreview, generateQRData]);
 
@@ -129,7 +126,6 @@ function QRCodeManager({
         }
 
         setIsDownloading(true);
-        setError(null);
         let retryCount = 0;
 
         const attemptDownload = async () => {
@@ -167,14 +163,11 @@ function QRCodeManager({
                     toast.success('QR code downloaded successfully');
                 });
             } catch (error) {
-                retryCount++;
                 if (retryCount < MAX_RETRIES) {
-                    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+                    retryCount++;
                     retryTimeoutRef.current = setTimeout(attemptDownload, RETRY_DELAY_MS);
                 } else {
-                    console.error('Error downloading QR code:', error);
-                    setError(error.message);
-                    toast.error(`Failed to download QR code: ${error.message}`);
+                    handleError(error);
                 }
             } finally {
                 if (retryCount >= MAX_RETRIES) {
@@ -207,7 +200,7 @@ function QRCodeManager({
     return (
         <ErrorBoundary>
             <div
-                className={`p-6 rounded-lg shadow ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
+                className={getThemeClass('p-6 rounded-lg shadow', 'bg-gray-800', 'bg-white')}
                 role="region"
                 aria-label="QR Code Manager"
             >
@@ -215,10 +208,7 @@ function QRCodeManager({
                     {/* Error Display */}
                     {error && (
                         <div
-                            className={`p-4 rounded mb-4 ${isDarkMode
-                                ? 'bg-red-900 text-red-100 border-red-700'
-                                : 'bg-red-100 text-red-700 border-red-400'
-                                } border`}
+                            className={getThemeClass('p-4 rounded mb-4', 'bg-red-900 text-red-100 border-red-700', 'bg-red-100 text-red-700 border-red-400 border')}
                             role="alert"
                             aria-live="assertive"
                         >
@@ -229,7 +219,7 @@ function QRCodeManager({
                     {/* QR Code Display */}
                     <div
                         id="qr-code"
-                        className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}
+                        className={getThemeClass('p-4 rounded-lg', 'bg-gray-700', 'bg-white')}
                         aria-label="QR Code Display"
                         ref={qrElementRef}
                     >
@@ -244,10 +234,10 @@ function QRCodeManager({
                             />
                         ) : (
                             <div
-                                className={`w-64 h-64 flex items-center justify-center rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+                                className={getThemeClass('w-64 h-64 flex items-center justify-center rounded-lg', 'bg-gray-700', 'bg-gray-100')}
                                 aria-label="No QR code generated"
                             >
-                                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
+                                <p className={getThemeClass('text-gray-400', 'text-gray-500')}>
                                     No QR code generated
                                 </p>
                             </div>
@@ -256,16 +246,16 @@ function QRCodeManager({
 
                     {/* Item Information */}
                     <div className="text-center">
-                        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <h3 className={getThemeClass('text-lg font-semibold', 'text-white', 'text-gray-900')}>
                             {item?.name || 'No item selected'}
                         </h3>
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <p className={getThemeClass('text-sm', 'text-gray-600')}>
                             {item?.unitNumber ? `Unit #${item.unitNumber}` : 'No unit number'}
                         </p>
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <p className={getThemeClass('text-sm', 'text-gray-600')}>
                             {item?.lab ? `Lab: ${item.lab}` : 'No lab assigned'}
                         </p>
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <p className={getThemeClass('text-sm', 'text-gray-600')}>
                             Condition: {item?.itemCondition || 'Unknown'}
                         </p>
                     </div>
@@ -276,10 +266,11 @@ function QRCodeManager({
                             <Button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${isGenerating
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-blue-600 hover:bg-blue-700'
-                                    }`}
+                                className={getThemeClass(
+                                    'px-4 py-2 rounded-md text-white transition-colors duration-200',
+                                    isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700',
+                                    isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                                )}
                                 aria-label="Generate QR Code"
                                 aria-busy={isGenerating}
                             >
@@ -288,10 +279,11 @@ function QRCodeManager({
                             <Button
                                 onClick={handlePreview}
                                 disabled={!qrData}
-                                className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-green-600 hover:bg-green-700'
-                                    }`}
+                                className={getThemeClass(
+                                    'px-4 py-2 rounded-md text-white transition-colors duration-200',
+                                    !qrData ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700',
+                                    !qrData ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                )}
                                 aria-label="Preview QR Code"
                             >
                                 Preview
@@ -299,10 +291,11 @@ function QRCodeManager({
                             <Button
                                 onClick={handleDownload}
                                 disabled={!qrData || isDownloading}
-                                className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${!qrData || isDownloading
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-purple-600 hover:bg-purple-700'
-                                    }`}
+                                className={getThemeClass(
+                                    'px-4 py-2 rounded-md text-white transition-colors duration-200',
+                                    !qrData || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700',
+                                    !qrData || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
+                                )}
                                 aria-label="Download QR Code"
                                 aria-busy={isDownloading}
                             >

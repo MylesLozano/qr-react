@@ -27,6 +27,20 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper function for role colors
+  const getRoleColor = useCallback((role) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-blue-500 hover:bg-blue-600';
+      case 'superadmin':
+        return 'bg-purple-500 hover:bg-purple-600';
+      case 'user':
+        return 'bg-green-500 hover:bg-green-600';
+      default:
+        return 'bg-gray-500 hover:bg-gray-600';
+    }
+  }, []);
+
   // Memoize filtered users
   const filteredUsers = useMemo(() => {
     let result = users;
@@ -147,10 +161,7 @@ const UserManagement = () => {
             <select
               value={user.role}
               onChange={(e) => handleRoleChange(user.id, e.target.value)}
-              className={`px-2 py-1 rounded text-white transition-colors duration-200 ${user.role === 'admin' ? 'bg-blue-500 hover:bg-blue-600' :
-                user.role === 'superadmin' ? 'bg-purple-500 hover:bg-purple-600' :
-                  'bg-green-500 hover:bg-green-600'
-                }`}
+              className={`px-2 py-1 rounded text-white transition-colors duration-200 ${getRoleColor(user.role)}`}
               aria-label={`Role for ${user.email}`}
             >
               <option value="user">User</option>

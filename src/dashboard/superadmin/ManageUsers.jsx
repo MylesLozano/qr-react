@@ -18,6 +18,20 @@ function ManageUsers() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
+  // Helper function for role colors
+  const getRoleColor = useCallback((role) => {
+    switch (role) {
+      case "superadmin":
+        return "bg-purple-500";
+      case "admin":
+        return "bg-blue-500";
+      case "user":
+        return "bg-gray-500";
+      default:
+        return "bg-gray-500";
+    }
+  }, []);
+
   // Fetch users
   useEffect(() => {
     let unsubscribe = null;
@@ -109,12 +123,7 @@ function ManageUsers() {
                     <td className="p-2 border">{user.email}</td>
                     <td className="p-2 border">
                       <span
-                        className={`px-2 py-1 rounded text-white ${user.role === "superadmin"
-                          ? "bg-purple-500"
-                          : user.role === "admin"
-                            ? "bg-blue-500"
-                            : "bg-gray-500"
-                          }`}
+                        className={`px-2 py-1 rounded text-white ${getRoleColor(user.role)}`}
                       >
                         {user.role}
                       </span>

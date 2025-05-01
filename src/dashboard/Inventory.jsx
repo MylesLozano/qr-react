@@ -27,21 +27,8 @@ function Inventory() {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
-  const [formData, setFormData] = useState({
-    unitNumber: "",
-    name: "",
-    brand: "",
-    serialNumber: "",
-    dateAcquired: "",
-    quantity: 1,
-    remarks: "",
-    category: "",
-    description: "",
-    lab: "",
-    uniqueQR: false,
-    itemCondition: "New"
-  });
+
+  // Move defaultFormData here to avoid duplication
   const defaultFormData = {
     unitNumber: "",
     name: "",
@@ -57,7 +44,8 @@ function Inventory() {
     itemCondition: "New"
   };
 
-  // State management
+  const [formData, setFormData] = useState(defaultFormData);
+  const [items, setItems] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCondition, setFilterCondition] = useState("");
@@ -177,24 +165,29 @@ function Inventory() {
     setQrStats(calculateQrStats(items));
   }, [items]);
 
-  // Add item with validation and permission check
+  // Add a shared helper for validation and error handling
+  const handleItemValidation = useCallback(() => {
+    const errors = validateItem(formData);
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      toast.error(Object.values(errors).join(', '));
+      return false;
+    }
+    setValidationErrors({});
+    return true;
+  }, [formData]);
+
   const addItem = async () => {
     if (!canEdit) {
       toast.error("You don't have permission to add items");
       return;
     }
 
-    const errors = validateItem(formData);
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      toast.error(Object.values(errors).join(', '));
-      return;
-    }
+    if (!handleItemValidation()) return;  // Use shared helper
 
     try {
       setIsLoading(true);
       setError(null);
-      setValidationErrors({});
 
       const itemData = {
         ...formData,
@@ -236,17 +229,11 @@ function Inventory() {
       return;
     }
 
-    const errors = validateItem(formData);
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      toast.error(Object.values(errors).join(', '));
-      return;
-    }
+    if (!handleItemValidation()) return;  // Use shared helper
 
     try {
       setIsLoading(true);
       setError(null);
-      setValidationErrors({});
 
       const sanitizedData = {
         ...formData,

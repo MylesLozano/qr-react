@@ -34,6 +34,24 @@ const AuditLogs = () => {
     dateRange: { start: '', end: '' }
   });
 
+  // Helper function for action colors
+  const getActionColor = useCallback((action) => {
+    switch (action) {
+      case 'create':
+        return 'bg-green-500';
+      case 'update':
+        return 'bg-blue-500';
+      case 'delete':
+        return 'bg-red-500';
+      case 'login':
+        return 'bg-yellow-500';
+      case 'logout':
+        return 'bg-gray-500';
+      default:
+        return 'bg-gray-500';
+    }
+  }, []);
+
   // Memoize filter options
   const actionOptions = useMemo(() => [
     { value: '', label: 'All Actions' },
@@ -232,11 +250,7 @@ const AuditLogs = () => {
                 <tr key={log.id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                   <td className="px-6 py-4 whitespace-nowrap">{log.timestamp}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-white ${log.action === 'create' ? 'bg-green-500' :
-                      log.action === 'update' ? 'bg-blue-500' :
-                        log.action === 'delete' ? 'bg-red-500' :
-                          'bg-gray-500'
-                      }`}>
+                    <span className={`px-2 py-1 rounded text-white ${getActionColor(log.action)}`}>
                       {log.action}
                     </span>
                   </td>

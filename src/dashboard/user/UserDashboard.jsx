@@ -22,39 +22,31 @@ function UserDashboard() {
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState(null);
   const [scanning, setScanning] = useState(false);
-
-  // State for dynamic counts
   const [inventoryCount, setInventoryCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
-
-  // Memoize the current user
   const currentUser = useMemo(() => auth.currentUser, []);
 
-  // Handle QR scan result
+  // Shared error handler for QR scanning
+  const handleScanErrorShared = useCallback((err) => {
+    console.error("QR Scan Error:", err);
+    setError(err.message);
+    setScanning(false);
+    toast.error("Failed to scan QR code");
+  }, []);
+
   const handleScanResult = useCallback((result) => {
     try {
       setScanning(false);
       setScanResult(result);
       setPaused(true);
       toast.success("QR code scanned successfully!");
-    } catch (error) {
-      console.error("Error processing scan result:", error);
-      setError(error.message);
-      toast.error("Failed to process QR code");
+    } catch (err) {
+      handleScanErrorShared(err);  // Use shared handler
     }
-  }, []);
+  }, [handleScanErrorShared]);
 
-  // Handle QR scan error
-  const handleScanError = useCallback((error) => {
-    console.error("QR Scan Error:", error);
-    setError(error.message);
-    setScanning(false);
-    toast.error("Failed to scan QR code");
-  }, []);
-
-  // Reset scanner
   const resetScanner = useCallback(() => {
     setPaused(false);
     setScanResult(null);
@@ -62,68 +54,55 @@ function UserDashboard() {
     setScanning(true);
   }, []);
 
-  // Fetch counts
+  // Consolidated effect for fetching counts
   useEffect(() => {
-    let unsubscribe = null;
-    setLoadingCounts(true);
+    if (!currentUser) {
+      setLoadingCounts(false);
+      return;
+    }
 
-    const fetchCounts = async () => {
-      if (!currentUser) {
-        setLoadingCounts(false);
-        return;
-      }
-
+    const fetchData = async () => {
       try {
-        // Fetch inventory count
         const inventoryCol = collection(db, "inventory");
         const snapshot = await getCountFromServer(inventoryCol);
         setInventoryCount(snapshot.data().count);
 
-        // Set up real-time request counts
-        const myRequestsCol = collection(db, "requests");
         const myRequestsQuery = query(
-          myRequestsCol,
+          collection(db, "requests"),
           where("userId", "==", currentUser.uid)
         );
-
-        unsubscribe = onSnapshot(
+        const unsubscribe = onSnapshot(
           myRequestsQuery,
           (snapshot) => {
             let total = 0;
             let approved = 0;
             snapshot.forEach((doc) => {
               total++;
-              if (doc.data().status === "approved") {
-                approved++;
-              }
+              if (doc.data().status === "approved") approved++;
             });
             setMyRequestsCount(total);
             setApprovedRequestsCount(approved);
             setLoadingCounts(false);
           },
-          (error) => {
-            console.error("Error fetching request counts:", error);
+          (err) => {
+            console.error("Error fetching request counts:", err);
             toast.error("Failed to fetch request counts");
             setLoadingCounts(false);
           }
         );
-      } catch (error) {
-        console.error("Error in fetchCounts:", error);
+
+        return unsubscribe;
+      } catch (err) {
+        console.error("Error in fetchData:", err);
         toast.error("Failed to fetch dashboard data");
         setLoadingCounts(false);
       }
     };
 
-    fetchCounts();
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
+    const unsubscribe = fetchData();
+    return () => unsubscribe && unsubscribe();
   }, [currentUser]);
 
-  // Memoize summary cards data
   const summaryCards = useMemo(() => [
     {
       title: "Available Inventory",
@@ -213,7 +192,7 @@ function UserDashboard() {
                 )}
                 <Scanner
                   onResult={handleScanResult}
-                  onError={handleScanError}
+                  onError={handleScanErrorShared}
                   options={{
                     delayBetweenScanAttempts: 100,
                     delayBetweenScanSuccess: 500,

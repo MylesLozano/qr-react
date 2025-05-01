@@ -46,6 +46,20 @@ function Requests() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
 
+  // Helper function for status colors
+  const getStatusColor = useCallback((status) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-500';
+      case 'approved':
+        return 'bg-green-500';
+      case 'rejected':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
+    }
+  }, []);
+
   // Permission checks
   const canManageRequests = useMemo(() => canPerformAction(role, 'manage_requests'), [role]);
   const canExportRequests = useMemo(() => canPerformAction(role, 'export_requests'), [role]);
@@ -294,10 +308,7 @@ function Requests() {
             </Button>
           </div>
           <div>
-            <span className={`px-2 py-1 rounded text-white ${request.status === 'pending' ? 'bg-yellow-500' :
-              request.status === 'approved' ? 'bg-green-500' :
-                'bg-red-500'
-              }`}>
+            <span className={`px-2 py-1 rounded text-white ${getStatusColor(request.status)}`}>
               {request.status}
             </span>
           </div>
@@ -324,7 +335,7 @@ function Requests() {
         </div>
       </div>
     );
-  }, [filteredRequests, selectedRequests, isDarkMode, isUpdating, updateRequestStatus]);
+  }, [filteredRequests, selectedRequests, isDarkMode, isUpdating, updateRequestStatus, getStatusColor]);
 
   return (
     <ErrorBoundary>

@@ -93,6 +93,14 @@ function BaseDashboard({ children }) {
     logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
   };
 
+  // Add a helper function for className to reduce redundancy
+  const getNavLinkClass = (isActive, isMobileView) => {
+    if (isMobileView) {
+      return isActive ? themeStyles.mobileActiveLink : themeStyles.mobileInactiveLink;
+    }
+    return isActive ? `${themeStyles.activeLink} ${themeStyles.activeLinkBg}` : themeStyles.inactiveLink;
+  };
+
   // Handle window resize with optimized debounce
   const handleResize = useCallback(
     debounce(() => {
@@ -151,23 +159,20 @@ function BaseDashboard({ children }) {
     }
   }, [isMenuOpen]);
 
-  // Link component to avoid duplication
-  const NavLink = ({ item, index, isMobile }) => {
+  // Link component with updated className logic
+  const NavLink = ({ item, index, isMobile: isMobileView }) => {
     const isActive = location.pathname === item.path || location.pathname.includes(item.path);
-    const className = isMobile
-      ? `${isActive ? themeStyles.mobileActiveLink : themeStyles.mobileInactiveLink} block px-3 py-2 rounded-md text-base font-medium`
-      : `${isActive ? `${themeStyles.activeLink} ${themeStyles.activeLinkBg}` : themeStyles.inactiveLink} inline-flex items-center px-4 pt-1 border-b-2 text-sm font-medium transition-all duration-200`;
-
+    const baseClass = getNavLinkClass(isActive, isMobileView);  // Use the helper
     return (
       <Link
         to={item.path}
-        className={className}
-        ref={isMobile && index === 0 ? firstNavItemRef : null}
+        className={`${baseClass} block px-3 py-2 rounded-md text-base font-medium`}
+        ref={isMobileView && index === 0 ? firstNavItemRef : null}
         aria-current={isActive ? 'page' : undefined}
         title={item.description}
       >
         <span className="mr-2" aria-hidden="true">
-          {isMobile && window.innerWidth < 500 ? '📋' : item.icon}
+          {isMobileView && window.innerWidth < 500 ? '📋' : item.icon}
         </span>
         {item.label}
       </Link>
