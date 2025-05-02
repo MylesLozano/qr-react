@@ -22,7 +22,7 @@ const NAV_CONFIG = [
     icon: '📦',
     action: 'view_inventory',
     description: 'View and manage inventory items',
-    roles: ['user', 'admin', 'superadmin']
+    roles: ['user', 'admin', 'superadmin'] // Users can view inventory for search purposes
   },
   {
     path: '/user-dashboard/my-requests',

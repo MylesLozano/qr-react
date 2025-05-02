@@ -12,7 +12,7 @@ function SplashScreen() {
             <div className="text-center">
                 <div className="mb-8">
                     <img
-                        src="/QCheckCITE_Logo.png"
+                        src="../assets/QCheckCITE_Logo.png"
                         alt="QCheckCITE Logo"
                         className="w-48 h-auto mx-auto animate-pulse"
                     />

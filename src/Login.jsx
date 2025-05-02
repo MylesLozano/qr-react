@@ -153,11 +153,12 @@ function Login() {
 
           <button
             onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isDarkMode
-              ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-offset-gray-900'
-              : 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-offset-white'
-            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}          
+            disabled={isLoading} // Disable the button when isLoading is true
+            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+              isDarkMode
+                ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-offset-gray-900'
+                : 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-offset-white'
+            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`} // Add visual feedback for the disabled state
           >
             {isLoading ? (
               <div className="flex items-center justify-center">

@@ -112,14 +112,10 @@ try {
         email,
         action,
         timestamp: serverTimestamp(),
-        userAgent:
-          typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
-        platform:
-          typeof navigator !== "undefined" ? navigator.platform : "unknown",
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+        platform: typeof navigator !== "undefined" ? navigator.platform : "unknown",
       });
-      console.log(
-        `✅ Audit log added: ${email} - ${action} (ID: ${auditRef.id})`
-      );
+      console.log(`✅ Audit log added: ${email} - ${action} (ID: ${auditRef.id})`);
     } catch (error) {
       console.error("🚨 Error logging audit event:", error);
       throw error;

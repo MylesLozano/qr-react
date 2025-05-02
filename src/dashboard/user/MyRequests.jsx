@@ -44,6 +44,9 @@ function MyRequests() {
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState(null);
   const [scanning, setScanning] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // State for dynamic counts
   const [inventoryCount, setInventoryCount] = useState(0);
@@ -69,7 +72,7 @@ function MyRequests() {
       setPaused(true);
       toast.success("QR code scanned successfully!");
     } catch (err) {
-      handleScanErrorShared(err);  // Use shared handler
+      handleScanErrorShared(err); // Use shared handler
     }
   }, [handleScanErrorShared]);
 
@@ -138,6 +141,53 @@ function MyRequests() {
     const unsubscribe = fetchData();
     return () => unsubscribe && unsubscribe();
   }, [currentUser]);
+
+  // Search inventory items
+  const handleSearch = useCallback(() => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const inventoryQuery = query(
+      collection(db, "inventory"),
+      where("name", ">=", searchTerm),
+      where("name", "<=", searchTerm + "\uf8ff")
+    );
+
+    const unsubscribe = onSnapshot(
+      inventoryQuery,
+      (snapshot) => {
+        const results = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          name: doc.data().name,
+          category: doc.data().category,
+          lab: doc.data().lab,
+          quantity: doc.data().quantity,
+        }));
+        setSearchResults(results);
+        if (results.length === 0) {
+          toast.info("Item not found");
+        }
+      },
+      (error) => {
+        console.error("Error searching inventory:", error);
+        toast.error("Failed to search inventory");
+      }
+    );
+
+    return () => unsubscribe();
+  }, [searchTerm]);
+
+  // Pre-fill request form when an item is selected
+  const handleSelectItem = (item) => {
+    setSelectedItem(item);
+    setFormData((prev) => ({
+      ...prev,
+      itemName: item.name,
+      usageLocation: item.lab,
+    }));
+  };
 
   // Validate form data
   const validateForm = useCallback(() => {
@@ -277,6 +327,39 @@ function MyRequests() {
             ))}
           </div>
 
+          {/* Search Inventory */}
+          <div className="mb-6">
+            <input
+              type="text"
+              placeholder="Search inventory..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`p-2 rounded border w-full ${isDarkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"}`}
+            />
+            <Button onClick={handleSearch} className="mt-2">
+              Search
+            </Button>
+            {searchResults.length > 0 && (
+              <div className="mt-4">
+                <h2 className="text-xl font-semibold mb-2">Search Results</h2>
+                <ul>
+                  {searchResults.map((item) => (
+                    <li
+                      key={item.id}
+                      className={`p-2 rounded cursor-pointer ${isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"}`}
+                      onClick={() => handleSelectItem(item)}
+                    >
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-sm">Category: {item.category}</p>
+                      <p className="text-sm">Lab: {item.lab}</p>
+                      <p className="text-sm">Available: {item.quantity}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           {/* Request Form */}
           <form onSubmit={handleSubmit} className="mb-8 space-y-4 max-w-xl">
             <div>
@@ -293,6 +376,7 @@ function MyRequests() {
                   } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
                 aria-invalid={!!errors.itemName}
                 aria-describedby={errors.itemName ? "itemName-error" : undefined}
+                disabled={!!selectedItem}
               />
               {errors.itemName && (
                 <p id="itemName-error" className="text-red-500 text-sm mt-1">

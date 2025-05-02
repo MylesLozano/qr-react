@@ -98,6 +98,7 @@ const UserManagement = () => {
         role: newRole,
         updatedAt: new Date().toISOString()
       });
+      await logAudit(auth.currentUser.email, `Updated role for ${userId} to ${newRole}`);
       toast.success("User role updated successfully");
     } catch (error) {
       console.error("Error updating user role:", error);
