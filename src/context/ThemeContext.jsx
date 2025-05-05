@@ -33,6 +33,6 @@ export function useTheme() {
   return context;
 }
 
-export function getThemeClass(baseClass, darkClass, lightClass) {
+export function getThemeClass(isDarkMode, baseClass, darkClass, lightClass) {
   return isDarkMode ? `${baseClass} ${darkClass}` : `${baseClass} ${lightClass}`;
 }

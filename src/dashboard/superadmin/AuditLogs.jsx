@@ -17,17 +17,12 @@ import Button from '../../components/Button';
 const AuditLogs = () => {
   const { isDarkMode } = useTheme();
   const [logs, setLogs] = useState([]);
-  const formattedLogs = useMemo(() =>
-    logs.map(log => ({
-      ...log,
-      timestamp: log.timestamp instanceof Date
-        ? log.timestamp.toLocaleString()
-        : log.timestamp
-    })), [logs]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);
+
   const [filters, setFilters] = useState({
     action: '',
     entityType: '',
@@ -37,19 +32,26 @@ const AuditLogs = () => {
   // Helper function for action colors
   const getActionColor = useCallback((action) => {
     switch (action) {
-      case 'create':
-        return 'bg-green-500';
-      case 'update':
-        return 'bg-blue-500';
-      case 'delete':
-        return 'bg-red-500';
-      case 'login':
-        return 'bg-yellow-500';
-      case 'logout':
-        return 'bg-gray-500';
-      default:
-        return 'bg-gray-500';
+      case 'create': return 'bg-green-500';
+      case 'update': return 'bg-blue-500';
+      case 'delete': return 'bg-red-500';
+      case 'login': return 'bg-yellow-500';
+      case 'logout': return 'bg-gray-500';
+      default: return 'bg-gray-500';
     }
+  }, []);
+
+  // Safely convert any value to string for rendering
+  const safeToString = useCallback((value) => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch (err) {
+        return '[Complex Object]';
+      }
+    }
+    return String(value);
   }, []);
 
   // Memoize filter options
@@ -70,10 +72,31 @@ const AuditLogs = () => {
     { value: 'report', label: 'Report' }
   ], []);
 
-  // Fetch logs with filters
+  // Process log data to ensure all fields are renderable
+  const processLogData = useCallback((doc) => {
+    const data = doc.data();
+    
+    // Process timestamp specially
+    const timestamp = data.timestamp?.toDate().toLocaleString() || 'N/A';
+    
+    // Make sure all fields are renderable
+    return {
+      id: doc.id,
+      timestamp,
+      action: safeToString(data.action),
+      entityType: safeToString(data.entityType),
+      userEmail: safeToString(data.userEmail),
+      details: data.details, // Will handle special rendering in the component
+      userAgent: safeToString(data.userAgent),
+      platform: safeToString(data.platform)
+    };
+  }, [safeToString]);
+
+  // Fetch logs with filters and pagination
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const constraints = [orderBy('timestamp', 'desc'), limit(20)];
 
       if (filters.action) {
@@ -96,22 +119,19 @@ const AuditLogs = () => {
       const q = query(collection(db, 'auditLogs'), ...constraints);
 
       const snapshot = await getDocs(q);
-      const newLogs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate().toLocaleString()
-      }));
+      const newLogs = snapshot.docs.map(processLogData);
 
       setLogs(newLogs);
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setLastDoc(snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null);
       setHasMore(snapshot.docs.length === 20);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      toast.error('Failed to fetch audit logs');
+      setError('Failed to fetch audit logs.');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, processLogData]);
 
   // Load more logs
   const loadMore = useCallback(async () => {
@@ -119,38 +139,63 @@ const AuditLogs = () => {
 
     try {
       setLoading(true);
-      let q = query(
-        collection(db, 'auditLogs'),
+      setError(null);
+      const constraints = [
         orderBy('timestamp', 'desc'),
         startAfter(lastDoc),
         limit(20)
+      ];
+
+      if (filters.action) {
+        constraints.push(where('action', '==', filters.action));
+      }
+      if (filters.entityType) {
+        constraints.push(where('entityType', '==', filters.entityType));
+      }
+      if (filters.dateRange.start) {
+        const startDate = new Date(filters.dateRange.start);
+        startDate.setHours(0, 0, 0, 0);
+        constraints.push(where('timestamp', '>=', startDate));
+      }
+      if (filters.dateRange.end) {
+        const endDate = new Date(filters.dateRange.end);
+        endDate.setHours(23, 59, 59, 999);
+        constraints.push(where('timestamp', '<=', endDate));
+      }
+
+      const q = query(
+        collection(db, 'auditLogs'),
+        ...constraints
       );
 
       const snapshot = await getDocs(q);
-      const newLogs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate().toLocaleString()
-      }));
+      const newLogs = snapshot.docs.map(processLogData);
 
       setLogs(prev => [...prev, ...newLogs]);
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setLastDoc(snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null);
       setHasMore(snapshot.docs.length === 20);
     } catch (error) {
       console.error('Error loading more logs:', error);
-      toast.error('Failed to load more logs');
+      setError('Failed to load more logs.');
     } finally {
       setLoading(false);
     }
-  }, [lastDoc, hasMore]);
+  }, [lastDoc, hasMore, filters, processLogData]);
 
   // Export logs to CSV
   const exportToCSV = useCallback(async () => {
     try {
       setExporting(true);
-      const csv = Papa.unparse(logs, {
+      const csvData = logs.map(log => ({
+        ...log,
+        details: typeof log.details === 'object' && log.details !== null
+                  ? JSON.stringify(log.details)
+                  : String(log.details || '')
+      }));
+
+      const csv = Papa.unparse(csvData, {
         header: true,
-        columns: ['timestamp', 'action', 'entityType', 'userEmail', 'details']
+        columns: ['timestamp', 'action', 'entityType', 'userEmail', 'details', 'userAgent', 'platform']
       });
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       saveAs(blob, `audit_logs_${new Date().toISOString()}.csv`);
@@ -163,10 +208,37 @@ const AuditLogs = () => {
     }
   }, [logs]);
 
-  // Fetch logs when filters change
+  // Fetch logs initially and when filters change
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  // Helper function to safely render details field
+  const renderDetails = (details) => {
+    try {
+      if (details === null || details === undefined) {
+        return 'No details';
+      }
+      
+      if (typeof details === 'object') {
+        return JSON.stringify(details, null, 2);
+      }
+      
+      return String(details);
+    } catch (err) {
+      console.error('Error rendering details:', err);
+      return '[Error displaying details]';
+    }
+  };
+
+  // Conditional rendering for loading and error states
+  if (loading && logs.length === 0 && !error) {
+    return <LoadingSpinner size="md" />;
+  }
+
+  if (error && logs.length === 0) {
+    return <div className="text-red-500 p-4 text-center">{error}</div>;
+  }
 
   return (
     <ErrorBoundary>
@@ -184,11 +256,11 @@ const AuditLogs = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* Filter by Action */}
           <select
             value={filters.action}
             onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-            className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-              }`}
+            className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white border-gray-300 text-gray-700'}`}
             aria-label="Filter by action"
           >
             {actionOptions.map(option => (
@@ -198,11 +270,11 @@ const AuditLogs = () => {
             ))}
           </select>
 
+          {/* Filter by Entity Type */}
           <select
             value={filters.entityType}
             onChange={(e) => setFilters({ ...filters, entityType: e.target.value })}
-            className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-              }`}
+            className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white border-gray-300 text-gray-700'}`}
             aria-label="Filter by entity type"
           >
             {entityOptions.map(option => (
@@ -212,76 +284,107 @@ const AuditLogs = () => {
             ))}
           </select>
 
+          {/* Date Range Filters */}
           <div className="flex gap-2">
             <input
               type="date"
               value={filters.dateRange.start}
               onChange={(e) => setFilters({ ...filters, dateRange: { ...filters.dateRange, start: e.target.value } })}
-              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                }`}
+              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white border-gray-300 text-gray-700'}`}
               aria-label="Start date"
             />
             <input
               type="date"
               value={filters.dateRange.end}
               onChange={(e) => setFilters({ ...filters, dateRange: { ...filters.dateRange, end: e.target.value } })}
-              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                }`}
+              className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white border-gray-300 text-gray-700'}`}
               aria-label="End date"
             />
           </div>
         </div>
 
-        <div className={`overflow-x-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-          }`}>
-          <table className="min-w-full" role="table" aria-label="Audit logs">
-            <thead className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+        <div className={`overflow-x-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <table className={`min-w-full divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`} role="table" aria-label="Audit logs">
+            <thead className={`${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Action</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Entity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Details</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Action</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Entity</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Details</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User Agent</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Platform</th>
               </tr>
             </thead>
-            <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700 bg-gray-900' : 'divide-gray-200 bg-white'
-              }`}>
-              {formattedLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                  <td className="px-6 py-4 whitespace-nowrap">{log.timestamp}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-white ${getActionColor(log.action)}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{log.entityType}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{log.userEmail}</td>
-                  <td className="px-6 py-4">
-                    <pre className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                      }`}>
-                      {JSON.stringify(log.details, null, 2)}
-                    </pre>
+            <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700 bg-gray-900' : 'divide-gray-200 bg-white'}`}>
+              {logs.length > 0 ? (
+                logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                    {/* Timestamp */}
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      {log.timestamp}
+                    </td>
+                    {/* Action */}
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      <span className={`px-2 py-1 rounded text-white text-xs font-semibold ${getActionColor(log.action)}`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    {/* Entity Type */}
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      {log.entityType}
+                    </td>
+                    {/* User Email */}
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      {log.userEmail}
+                    </td>
+                    {/* Details - WITH IMPROVED ERROR HANDLING */}
+                    <td className={`px-6 py-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      <pre className={`text-xs overflow-x-auto ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {renderDetails(log.details)}
+                      </pre>
+                    </td>
+                    {/* User Agent */}
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      {log.userAgent}
+                    </td>
+                    {/* Platform */}
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`}>
+                      {log.platform}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className={`px-6 py-4 text-center text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No audit logs found for the selected filters.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Loading spinner for pagination - show only if loading and logs exist */}
+        {loading && logs.length > 0 && <LoadingSpinner />}
+
+        {/* Load More Button - show only if hasMore, not loading, and logs exist */}
+        {hasMore && !loading && logs.length > 0 && (
+          <Button
+            onClick={loadMore}
+            className={`mt-4 w-full`}
+            aria-label="Load more audit logs"
+            disabled={loading}
+          >
+            Load More
+          </Button>
+        )}
+
+        {/* Message when no logs are found after initial load - show only if not loading and no logs */}
         {!loading && logs.length === 0 && (
           <p className="text-center text-gray-500 mt-4">
             No logs found for the selected filters.
           </p>
-        )}
-        {loading && <LoadingSpinner />}
-
-        {hasMore && !loading && (
-          <Button
-            onClick={loadMore}
-            className={`mt-4`}
-            aria-label="Load more audit logs"
-          >
-            Load More
-          </Button>
         )}
       </div>
     </ErrorBoundary>

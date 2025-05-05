@@ -1,4 +1,5 @@
-import React from "react";
+// File: src/dashboard/Inventory.jsx
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -12,27 +13,28 @@ import CategoryList from '../components/inventory/CategoryList';
 import InventoryList from '../components/inventory/InventoryList';
 import AddEditForm from '../components/inventory/AddEditForm';
 import CategoryDetails from '../components/inventory/CategoryDetails';
+// Import QRCodePreview from the correct path
 import QRCodePreview from '../components/inventory/QRCodePreview';
 import useInventory from '../hooks/useInventory';
 import useSearch from '../hooks/useSearch';
 import useQRCode from '../hooks/useQRCode';
+import { toast } from 'react-toastify';
 
 function Inventory() {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
   const navigate = useNavigate();
-  
-  const { 
-    items, 
-    isLoading, 
-    error, 
-    addItem, 
-    editItem, 
-    deleteItem, 
-    bulkUpload, 
-    isUploading, 
-    formData, 
-    setFormData, 
+
+  // Fetch inventory data and manage item state (from useInventory hook)
+  const {
+    items,
+    isLoading, // Loading state for inventory data
+    error, // Error state for inventory data fetch
+    deleteItem,
+    bulkUpload,
+    isUploading,
+    formData,
+    setFormData,
     defaultFormData,
     isEditing,
     setIsEditing,
@@ -43,9 +45,9 @@ function Inventory() {
     csvData,
     handleSaveEdit
   } = useInventory(user);
-  
+
+  // Search and filter logic (from useSearch hook)
   const {
-    searchTerm,
     searchField,
     filterCondition,
     filterLab,
@@ -56,35 +58,71 @@ function Inventory() {
     filteredItems,
     categoryGroups
   } = useSearch(items);
-  
-  const {
-    qrStats,
-    qrPreview,
-    setQrPreview,
-    isGeneratingQr,
-    generateQrCode,
-    previewQrCode
-  } = useQRCode(items, user);
-  
-  const [selectedCategory, setSelectedCategory] = React.useState(null);
-  const [showCategoryDetails, setShowCategoryDetails] = React.useState(false);
 
-  const toggleCategory = (category) => {
+  // QR Code related state and handlers (from useQRCode hook)
+  const {
+    qrStats, // QR statistics
+    qrPreview, // The item currently selected for QR preview (determines modal visibility)
+    setQrPreview, // Setter to control qrPreview state (can be used to close modal)
+    generatedQrData, // The actual generated data for the QR code
+    isGeneratingQr, // Loading state during QR data generation
+    qrError, // Error state specific to QR operations
+    // generateQrCode, // Removed from hook's return, logic integrated into previewQrCode
+    previewQrCode, // Handler to trigger the QR preview process
+    closeQrPreview // Handler to close the QR preview modal and clear state
+  } = useQRCode(items, user); // Pass items and user to the hook
+
+  // State for managing category details modal
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+
+  // Handler to open the category details modal
+  const toggleCategory = useCallback((category) => {
     setSelectedCategory(category);
     setShowCategoryDetails(true);
-  };
+  }, []);
 
-  const canEdit = role === 'admin' || role === 'superadmin';
-  const canDelete = role === 'admin' || role === 'superadmin';
-  const canGenerateQr = role === 'admin' || role === 'superadmin';
+  // Handler to close the category details modal
+  const closeCategoryDetails = useCallback(() => {
+    setShowCategoryDetails(false);
+    setSelectedCategory(null);
+  }, []);
+
+  // Handler for editing an item
+  const handleEdit = useCallback((item) => {
+    setEditingItem(item);
+    setIsEditing(true);
+    // Add logic here to show/scroll to the form if needed
+  }, [setEditingItem, setIsEditing]);
+
+
+   // Handler for deleting an item
+   const handleDeleteItem = useCallback(async (itemId, itemName) => {
+     try {
+         const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
+         if (!confirmDelete) return;
+
+         await deleteItem(itemId); // Use the deleteItem function from useInventory
+         toast.success(`${itemName} deleted successfully!`);
+     } catch (error) {
+         console.error("Error deleting item:", error);
+         toast.error(`Failed to delete ${itemName}. ${error.message || ''}`);
+     }
+   }, [deleteItem]);
+
+
+  // Permission check (simplified)
+  const canAddEditDelete = role === 'admin' || role === 'superadmin';
+
 
   return (
     <ErrorBoundary>
       <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        {isLoading && <LoadingSpinner />}
-        {error && (
+        {/* Main Inventory Loading and Error Feedback */}
+        {isLoading && !error && <LoadingSpinner />} {/* Show spinner only if loading and no error */}
+        {error && ( // Show inventory fetch error if it exists
           <div className="text-red-500 text-center mb-4">
-            {error}
+            Error loading inventory: {error.message || error}
           </div>
         )}
 
@@ -96,13 +134,14 @@ function Inventory() {
               color="gray"
               size="md"
               className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
+              aria-label="Go back to the previous page"
             >
               <span className="mr-2">←</span> Back
             </Button>
             <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
-            
-            {/* Search Bar */}
-            <SearchFilters 
+
+            {/* Search and Filter Component */}
+            <SearchFilters
               searchField={searchField}
               setSearchField={setSearchField}
               handleSearchChange={handleSearchChange}
@@ -112,39 +151,46 @@ function Inventory() {
               setFilterLab={setFilterLab}
               isDarkMode={isDarkMode}
             />
-            
+
             {/* Bulk Upload and QR Stats side-by-side */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <BulkUploadSection 
-                setCsvData={setCsvData}
-                csvData={csvData}
-                bulkUpload={bulkUpload}
-                isUploading={isUploading}
-                isDarkMode={isDarkMode}
-              />
-              <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
+               {/* Render BulkUploadSection only if user has permission */}
+               {canAddEditDelete && (
+                 <BulkUploadSection
+                   setCsvData={setCsvData}
+                   csvData={csvData}
+                   bulkUpload={bulkUpload}
+                   isUploading={isUploading}
+                   isDarkMode={isDarkMode}
+                 />
+               )}
+               {/* QR Stats Section */}
+               <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
             </div>
-            
+
             {/* Categories and Virtualized List side-by-side */}
             <div className="flex flex-col lg:flex-row gap-4 mb-6">
-              <CategoryList 
+              {/* Category List */}
+              <CategoryList
                 categoryGroups={categoryGroups}
                 toggleCategory={toggleCategory}
                 isDarkMode={isDarkMode}
               />
-              <InventoryList 
-                filteredItems={filteredItems}
-                handleEdit={setEditingItem}
-                deleteItem={deleteItem}
-                previewQrCode={previewQrCode}
+              {/* The main InventoryList displaying filtered search results */}
+              <InventoryList
+                items={filteredItems} // Pass filtered items from search
+                onEdit={handleEdit}
+                onDelete={handleDeleteItem}
+                onPreviewQr={previewQrCode} // Pass the previewQrCode handler from useQRCode
+                isLoading={isLoading}
                 role={role}
                 isDarkMode={isDarkMode}
               />
             </div>
-            
+
             {/* Add/Edit Item Form */}
-            {(role === 'admin' || role === 'superadmin') && (
-              <AddEditForm 
+            {canAddEditDelete && (
+              <AddEditForm
                 formData={formData}
                 setFormData={setFormData}
                 isEditing={isEditing}
@@ -158,25 +204,31 @@ function Inventory() {
                 isDarkMode={isDarkMode}
               />
             )}
-            
+
             {/* Category Details Modal */}
             {showCategoryDetails && (
-              <CategoryDetails 
-                selectedCategory={selectedCategory}
-                filteredItems={filteredItems}
-                setShowCategoryDetails={setShowCategoryDetails}
+              <CategoryDetails
+                category={selectedCategory}
+                items={items} // Pass the *full* items list to CategoryDetails
+                onClose={closeCategoryDetails}
+                onEdit={handleEdit}
+                onDelete={handleDeleteItem}
+                onPreviewQr={previewQrCode} // Pass the previewQrCode handler
+                isLoading={isLoading}
+                role={role}
                 isDarkMode={isDarkMode}
               />
             )}
-            
-            {/* QR Preview Modal */}
+
+            {/* QR Preview Modal (render if qrPreview item is set) */}
             {qrPreview && (
-              <QRCodePreview 
-                qrPreview={qrPreview}
-                setQrPreview={setQrPreview}
-                generateQrCode={generateQrCode}
-                isGeneratingQr={isGeneratingQr}
-                isDarkMode={isDarkMode}
+              <QRCodePreview
+                item={qrPreview} // Pass the item data
+                qrData={generatedQrData} // Pass the generated QR data
+                onClose={closeQrPreview} // Pass the handler to close the modal
+                isGenerating={isGeneratingQr} // Pass loading state from hook
+                qrError={qrError} // Pass error state from hook
+                // No need to pass onGenerate or previewQrCode here anymore
               />
             )}
           </div>

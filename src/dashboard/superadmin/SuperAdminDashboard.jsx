@@ -20,12 +20,6 @@ function SuperAdminDashboard() {
   usePageTitle("QCheckCITE - SuperAdmin Dashboard");
   const { isDarkMode } = useTheme();
   const location = useLocation();
-  const [loading, setLoading] = useState(true);  // Reintroduced and set to true initially
-  const [activePage, setActivePage] = useState(() => {
-    const initialPage = getActivePage();  // Compute initial active page
-    setLoading(false);  // Set loading to false after initial setup
-    return initialPage;
-  });
 
   // Determine active page based on URL path
   const getActivePage = useCallback(() => {
@@ -38,17 +32,23 @@ function SuperAdminDashboard() {
     return "userManagement"; // default view
   }, [location.pathname]);
 
+  const [loading, setLoading] = useState(true);
+  const [activePage, setActivePage] = useState(() => {
+    const initialPage = getActivePage();
+    setLoading(false);
+    return initialPage;
+  });
+
+
   useEffect(() => {
     setActivePage(getActivePage());
-    // Optionally, you could add more logic here to set loading based on async operations
   }, [getActivePage]);
 
   // Render the appropriate component based on active page
   const renderActivePage = useCallback(() => {
     if (loading) {
-      return <LoadingSpinner size="md" />;  // Utilize LoadingSpinner here
+      return <LoadingSpinner size="md" />; // Utilize LoadingSpinner here
     }
-
     switch (activePage) {
       case "inventory":
         return <Inventory />;
@@ -72,7 +72,6 @@ function SuperAdminDashboard() {
           <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">
             SuperAdmin Dashboard
           </h1>
-
           {/* Active Page Content */}
           <div className={`rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
             {renderActivePage()}

@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './Button';
 import { toast } from 'react-toastify';
 
 class ErrorBoundary extends React.Component {

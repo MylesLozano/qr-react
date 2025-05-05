@@ -1,4 +1,4 @@
-/// File: src/firebase.js
+// File: src/firebase.js
 
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
@@ -76,11 +76,19 @@ try {
         console.log(
           `✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`
         );
-        await logAudit(user.email, `Assigned role: ${DEFAULT_ROLE} (new user)`);
+        // Updated logAudit call to match the new signature
+        await logAudit("Assigned Role", user.email, "user", {
+          role: DEFAULT_ROLE,
+          userId: user.uid,
+        });
       } else {
         const userData = userSnap.data();
         console.log(`ℹ️ User ${user.email} exists with role: ${userData.role}`);
-        await logAudit(user.email, `Role verified: ${userData.role}`);
+        // Updated logAudit call to match the new signature
+        await logAudit("Role Verified", user.email, "user", {
+          role: userData.role,
+          userId: user.uid,
+        });
         await setDoc(
           userRef,
           { lastLogin: serverTimestamp() },
@@ -105,17 +113,34 @@ try {
     }
   };
 
-  logAudit = async (email, action) => {
-    if (!email || !action) return;
+  /**
+   * Logs an audit event to Firestore
+   * @param {string} action - Description of the action performed (e.g., 'User logged in', 'Item added')
+   * @param {string} userEmail - The email of the user performing the action
+   * @param {string} entityType - The type of entity the action is related to (e.g., 'user', 'inventory', 'request')
+   * @param {object} details - Optional object with additional details about the action (e.g., { itemId: 'abc', userName: '...' })
+   */
+  logAudit = async (action, userEmail, entityType = "system", details = {}) => {
+    // <-- Updated function signature
+    if (!action || !userEmail) {
+      console.warn("Attempted to log audit without action or user email.");
+      return;
+    }
     try {
       const auditRef = await addDoc(collection(db, AUDIT_COLLECTION), {
-        email,
         action,
+        userEmail,
+        entityType,
+        details,
         timestamp: serverTimestamp(),
-        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
-        platform: typeof navigator !== "undefined" ? navigator.platform : "unknown",
+        userAgent:
+          typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+        platform:
+          typeof navigator !== "undefined" ? navigator.platform : "unknown",
       });
-      console.log(`✅ Audit log added: ${email} - ${action} (ID: ${auditRef.id})`);
+      console.log(
+        `✅ Audit log added: ${userEmail} - ${action} (ID: ${auditRef.id})`
+      );
     } catch (error) {
       console.error("🚨 Error logging audit event:", error);
       throw error;

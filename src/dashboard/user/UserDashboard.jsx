@@ -55,52 +55,63 @@ function UserDashboard() {
   }, []);
 
   // Consolidated effect for fetching counts
-  useEffect(() => {
-    if (!currentUser) {
+  // Replace your current useEffect with this implementation
+useEffect(() => {
+  if (!currentUser) {
+    setLoadingCounts(false);
+    return;
+  }
+
+  let unsubscribeListener = null;
+
+  const fetchData = async () => {
+    try {
+      // Fetch inventory count (which doesn't need cleanup)
+      const inventoryCol = collection(db, "inventory");
+      const snapshot = await getCountFromServer(inventoryCol);
+      setInventoryCount(snapshot.data().count);
+
+      // Set up the onSnapshot listener and store its unsubscribe function
+      const myRequestsQuery = query(
+        collection(db, "requests"),
+        where("userId", "==", currentUser.uid)
+      );
+      
+      unsubscribeListener = onSnapshot(
+        myRequestsQuery,
+        (snapshot) => {
+          let total = 0;
+          let approved = 0;
+          snapshot.forEach((doc) => {
+            total++;
+            if (doc.data().status === "approved") approved++;
+          });
+          setMyRequestsCount(total);
+          setApprovedRequestsCount(approved);
+          setLoadingCounts(false);
+        },
+        (err) => {
+          console.error("Error fetching request counts:", err);
+          toast.error("Failed to fetch request counts");
+          setLoadingCounts(false);
+        }
+      );
+    } catch (err) {
+      console.error("Error in fetchData:", err);
+      toast.error("Failed to fetch dashboard data");
       setLoadingCounts(false);
-      return;
     }
+  };
 
-    const fetchData = async () => {
-      try {
-        const inventoryCol = collection(db, "inventory");
-        const snapshot = await getCountFromServer(inventoryCol);
-        setInventoryCount(snapshot.data().count);
+  // Call fetchData (but don't use its return value for cleanup)
+    fetchData();
 
-        const myRequestsQuery = query(
-          collection(db, "requests"),
-          where("userId", "==", currentUser.uid)
-        );
-        const unsubscribe = onSnapshot(
-          myRequestsQuery,
-          (snapshot) => {
-            let total = 0;
-            let approved = 0;
-            snapshot.forEach((doc) => {
-              total++;
-              if (doc.data().status === "approved") approved++;
-            });
-            setMyRequestsCount(total);
-            setApprovedRequestsCount(approved);
-            setLoadingCounts(false);
-          },
-          (err) => {
-            console.error("Error fetching request counts:", err);
-            toast.error("Failed to fetch request counts");
-            setLoadingCounts(false);
-          }
-        );
-
-        return unsubscribe;
-      } catch (err) {
-        console.error("Error in fetchData:", err);
-        toast.error("Failed to fetch dashboard data");
-        setLoadingCounts(false);
+    // Return a cleanup function that uses our properly stored unsubscribe
+    return () => {
+      if (typeof unsubscribeListener === 'function') {
+        unsubscribeListener();
       }
     };
-
-    const unsubscribe = fetchData();
-    return () => unsubscribe && unsubscribe();
   }, [currentUser]);
 
   const summaryCards = useMemo(() => [
