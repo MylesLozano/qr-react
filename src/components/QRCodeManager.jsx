@@ -1,7 +1,8 @@
+// File: src/components/QRCodeManager.jsx
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { saveAs } from 'file-saver';
-import html2canvas from 'html2canvas';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { logAudit } from '../firebase';
@@ -12,203 +13,214 @@ import Button from './Button';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 
 // Constants
-const RATE_LIMIT_MS = 5000; // 5 seconds
 const MAX_QR_SIZE = 256;
 const MIN_QR_SIZE = 128;
-const MAX_NAME_LENGTH = 100;
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
 
 function QRCodeManager({
-    item,
-    onGenerate,
-    onPreview,
-    isGenerating,
-    showActions = true,
-    size = MAX_QR_SIZE
+    item, // Item details (for context, like filename for download)
+    qrData, // The pre-generated QR data object
+    isGenerating = false, // Loading state for generation (passed from hook, less critical here)
+    showActions = true, // Whether to show action buttons (Download)
+    size = MAX_QR_SIZE, // Default size, can be overridden by getQRSize
+    onGenerateQR = null // Optional callback for QR generation
 }) {
     const { user } = useAuth();
     const { isDarkMode } = useTheme();
     const { error, setError, handleError } = useErrorHandler();
-    const [qrData, setQrData] = useState(null);
+
+    // Internal states
     const [isDownloading, setIsDownloading] = useState(false);
-    const [lastGenerationTime, setLastGenerationTime] = useState(null);
+    const [localQrData, setLocalQrData] = useState(null);
+    const [qrGenerated, setQrGenerated] = useState(false);
+    const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
+
     const qrElementRef = useRef(null);
     const retryTimeoutRef = useRef(null);
 
-    // Validate QR data with improved error messages
-    const validateQRData = useCallback((data) => {
-        if (!data) {
-            throw new Error('No data provided for QR code generation');
+    // Use the provided qrData or generate our own item-specific QR data
+    useEffect(() => {
+        // If qrData is provided externally, use it
+        if (qrData) {
+            setLocalQrData(qrData);
+            setQrGenerated(true);
+            return;
         }
-        if (!data.id || !data.name) {
-            throw new Error('Item ID and name are required for QR code generation');
+        
+        // Otherwise, reset the state when item changes
+        if (item) {
+            setLocalQrData(null);
+            setQrGenerated(false);
         }
-        if (data.name.length > MAX_NAME_LENGTH) {
-            throw new Error(`Item name must be less than ${MAX_NAME_LENGTH} characters`);
-        }
-        return true;
-    }, []);
+    }, [qrData, item]);
 
-    // Generate QR data with improved validation and error handling
-    const generateQRData = useCallback(() => {
-        if (!item) {
-            throw new Error('No item selected for QR code generation');
+    // Generate a unique QR code based on item properties
+    const generateUniqueQRForItem = useCallback(async () => {
+        if (!item || !item.id) {
+            toast.error('Cannot generate QR: No valid item provided');
+            return;
         }
 
-        const data = {
-            id: item.id,
-            name: item.name,
-            unitNumber: item.unitNumber,
-            lab: item.lab,
-            condition: item.itemCondition,
-            lastUpdated: new Date().toISOString()
-        };
+        setIsGeneratingLocal(true);
+        setError(null);
 
-        validateQRData(data);
-        return data;
-    }, [item, validateQRData]);
-
-    // Handle QR code generation with improved rate limiting and error handling
-    const handleGenerate = async () => {
         try {
-            if (lastGenerationTime && Date.now() - lastGenerationTime < RATE_LIMIT_MS) {
-                const timeLeft = Math.ceil((RATE_LIMIT_MS - (Date.now() - lastGenerationTime)) / 1000);
-                toast.warning(`Please wait ${timeLeft} seconds before generating another QR code`);
-                return;
+            // Create a unique QR data object for this specific item
+            const uniqueQRData = {
+                itemId: item.id,
+                name: item.name || 'Unnamed Item',
+                unitNumber: item.unitNumber || '',
+                timestamp: new Date().toISOString(),
+                // Add a unique identifier - could be a hash of item properties or a UUID
+                uniqueId: `${item.id}-${Date.now()}`,
+                // Add any other relevant item data for QR identification
+                ...(item.category && { category: item.category }),
+                ...(item.location && { location: item.location }),
+                ...(item.status && { status: item.status })
+            };
+
+            // If external generation callback is provided, use it
+            if (onGenerateQR && typeof onGenerateQR === 'function') {
+                const result = await onGenerateQR(uniqueQRData);
+                setLocalQrData(result || uniqueQRData);
+            } else {
+                // Otherwise use our local generation
+                setLocalQrData(uniqueQRData);
             }
 
-            setError(null);
-            if (onGenerate) {
-                await onGenerate(item);
-            }
-            const data = generateQRData();
-            setQrData(data);
-            setLastGenerationTime(Date.now());
-
-            // Log audit with improved error handling
-            try {
-                await logAudit(user.uid, 'generate_qr', {
-                    itemId: item.id,
-                    itemName: item.name,
-                    timestamp: new Date().toISOString()
-                });
-            } catch (auditError) {
-                console.error('Error logging audit:', auditError);
-                // Continue with QR generation even if audit fails
-            }
-
+            setQrGenerated(true);
             toast.success('QR code generated successfully');
-        } catch (error) {
-            handleError(error);
-        }
-    };
-
-    // Handle QR code preview with improved error handling
-    const handlePreview = useCallback(() => {
-        try {
-            setError(null);
-            if (onPreview) {
-                onPreview(item);
+            
+            // Log the generation event
+            try {
+                if (user?.email && item?.id) {
+                    logAudit('Generated QR Code', user.email, 'inventory', {
+                        itemId: item.id,
+                        itemName: item.name || 'Unnamed Item',
+                    });
+                }
+            } catch (auditError) {
+                console.error('Error logging audit for QR generation:', auditError);
             }
-            const data = generateQRData();
-            setQrData(data);
-        } catch (error) {
-            handleError(error);
-        }
-    }, [item, onPreview, generateQRData]);
 
-    // Handle QR code download with improved retry logic and error handling
+        } catch (err) {
+            handleError(err);
+            setQrGenerated(false);
+        } finally {
+            setIsGeneratingLocal(false);
+        }
+    }, [item, user, onGenerateQR, handleError, setError]);
+
+    // Handle QR code download with a simpler approach that avoids html2canvas
     const handleDownload = async () => {
-        if (!qrData) {
+        // Only attempt download if QR data is available and generated
+        if (!localQrData || !qrGenerated) {
             toast.warning('Please generate a QR code first');
             return;
         }
 
         setIsDownloading(true);
-        let retryCount = 0;
+        setError(null);
 
-        const attemptDownload = async () => {
-            try {
-                const qrElement = qrElementRef.current;
-                if (!qrElement) {
-                    throw new Error('QR code element not found');
-                }
+        try {
+            // Get the SVG element
+            const svgElement = qrElementRef.current?.querySelector('svg');
+            if (!svgElement) {
+                throw new Error('QR code SVG element not found.');
+            }
 
-                const canvas = await html2canvas(qrElement, {
-                    scale: 2,
-                    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
-                    logging: false,
-                    useCORS: true
-                });
-
+            // Get SVG data
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            
+            // Create an image from the SVG
+            const DOMURL = window.URL || window.webkitURL || window;
+            const url = DOMURL.createObjectURL(svgBlob);
+            
+            const img = new Image();
+            img.onload = () => {
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = getQRSize;
+                canvas.height = getQRSize;
+                
+                // Draw background
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = isDarkMode ? '#1a1a1a' : '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw SVG
+                ctx.drawImage(img, 0, 0);
+                
+                // Convert to blob and download
                 canvas.toBlob((blob) => {
                     if (!blob) {
-                        throw new Error('Failed to create image blob');
+                        throw new Error('Failed to create image blob.');
                     }
-                    saveAs(blob, `qr-code-${item.unitNumber || item.id}.png`);
-
-                    // Log audit with improved error handling
+                    
+                    const filename = `qr-code-${item?.unitNumber || item?.id || 'item'}.png`;
+                    saveAs(blob, filename);
+                    
+                    // Log audit
                     try {
-                        logAudit(user.uid, 'download_qr', {
-                            itemId: item.id,
-                            itemName: item.name,
-                            timestamp: new Date().toISOString()
-                        });
+                        if (user?.email && item?.id && item?.name) {
+                            logAudit('Downloaded QR Code', user.email, 'inventory', {
+                                itemId: item.id,
+                                itemName: item.name || 'Unnamed Item',
+                            });
+                        }
                     } catch (auditError) {
                         console.error('Error logging audit:', auditError);
-                        // Continue with download even if audit fails
                     }
-
+                    
                     toast.success('QR code downloaded successfully');
-                });
-            } catch (error) {
-                if (retryCount < MAX_RETRIES) {
-                    retryCount++;
-                    retryTimeoutRef.current = setTimeout(attemptDownload, RETRY_DELAY_MS);
-                } else {
-                    handleError(error);
-                }
-            } finally {
-                if (retryCount >= MAX_RETRIES) {
                     setIsDownloading(false);
-                }
-            }
-        };
-
-        await attemptDownload();
+                    DOMURL.revokeObjectURL(url);
+                }, 'image/png');
+            };
+            
+            img.onerror = (error) => {
+                DOMURL.revokeObjectURL(url);
+                throw new Error('Failed to load SVG image: ' + error);
+            };
+            
+            img.src = url;
+            
+        } catch (error) {
+            handleError(error);
+            setIsDownloading(false);
+        }
     };
 
-    // Get QR code size with improved memoization
+    // Get QR code size based on data length (memoized)
     const getQRSize = useMemo(() => {
-        if (!qrData) return size;
-        const dataLength = JSON.stringify(qrData).length;
-        return Math.min(MAX_QR_SIZE, Math.max(MIN_QR_SIZE, dataLength * 2));
-    }, [qrData, size]);
+        if (!localQrData) return MIN_QR_SIZE;
 
-    // Cleanup on unmount
+        const dataLength = JSON.stringify(localQrData).length;
+        return Math.min(MAX_QR_SIZE, Math.max(MIN_QR_SIZE, dataLength * 3));
+    }, [localQrData]);
+
+    // Clean up on unmount
     useEffect(() => {
         return () => {
             if (retryTimeoutRef.current) {
                 clearTimeout(retryTimeoutRef.current);
             }
-            setQrData(null);
-            setError(null);
         };
     }, []);
+
 
     return (
         <ErrorBoundary>
             <div
-                className={getThemeClass('p-6 rounded-lg shadow', 'bg-gray-800', 'bg-white')}
+                className={getThemeClass(isDarkMode, 'p-6 rounded-lg shadow', 'bg-gray-800', 'bg-white')}
                 role="region"
-                aria-label="QR Code Manager"
+                aria-label="QR Code Display and Download"
             >
                 <div className="flex flex-col items-center space-y-4">
                     {/* Error Display */}
                     {error && (
                         <div
-                            className={getThemeClass('p-4 rounded mb-4', 'bg-red-900 text-red-100 border-red-700', 'bg-red-100 text-red-700 border-red-400 border')}
+                            className={getThemeClass(isDarkMode, 'p-4 rounded mb-4', 'bg-red-900 text-red-100 border-red-700', 'bg-red-100 text-red-700 border-red-400 border')}
                             role="alert"
                             aria-live="assertive"
                         >
@@ -216,91 +228,88 @@ function QRCodeManager({
                         </div>
                     )}
 
-                    {/* QR Code Display */}
+                    {/* QR Code Display Area */}
                     <div
                         id="qr-code"
-                        className={getThemeClass('p-4 rounded-lg', 'bg-gray-700', 'bg-white')}
-                        aria-label="QR Code Display"
+                        className={getThemeClass(isDarkMode, 'p-4 rounded-lg flex items-center justify-center', 'bg-gray-700', 'bg-white')}
+                        aria-label="Generated QR Code"
                         ref={qrElementRef}
+                        style={{ width: getQRSize, height: getQRSize }}
                     >
-                        {qrData ? (
+                        {localQrData && qrGenerated ? (
                             <QRCodeSVG
-                                value={JSON.stringify(qrData)}
+                                value={JSON.stringify(localQrData)}
                                 size={getQRSize}
                                 level="H"
-                                includeMargin={true}
-                                aria-label={`QR Code for ${item?.name}`}
+                                includeMargin={false}
+                                aria-label={`QR Code for ${item?.name || 'item'}`}
                                 className="transition-opacity duration-300"
+                                // Set explicit foreground/background colors for better compatibility
+                                bgColor={isDarkMode ? "#333333" : "#FFFFFF"}
+                                fgColor={isDarkMode ? "#FFFFFF" : "#000000"}
                             />
                         ) : (
-                            <div
-                                className={getThemeClass('w-64 h-64 flex items-center justify-center rounded-lg', 'bg-gray-700', 'bg-gray-100')}
-                                aria-label="No QR code generated"
-                            >
-                                <p className={getThemeClass('text-gray-400', 'text-gray-500')}>
-                                    No QR code generated
-                                </p>
+                            // Show placeholder if no QR data
+                            <div className={getThemeClass('w-full h-full flex items-center justify-center rounded-lg', 'bg-gray-700', 'bg-gray-100')}>
+                                {isGenerating || isGeneratingLocal ? (
+                                    <LoadingSpinner size="md" />
+                                ) : (
+                                    <p className={getThemeClass('text-gray-400', 'text-gray-500')}>
+                                        No QR code generated
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>
 
                     {/* Item Information */}
-                    <div className="text-center">
-                        <h3 className={getThemeClass('text-lg font-semibold', 'text-white', 'text-gray-900')}>
-                            {item?.name || 'No item selected'}
-                        </h3>
-                        <p className={getThemeClass('text-sm', 'text-gray-600')}>
-                            {item?.unitNumber ? `Unit #${item.unitNumber}` : 'No unit number'}
-                        </p>
-                        <p className={getThemeClass('text-sm', 'text-gray-600')}>
-                            {item?.lab ? `Lab: ${item.lab}` : 'No lab assigned'}
-                        </p>
-                        <p className={getThemeClass('text-sm', 'text-gray-600')}>
-                            Condition: {item?.itemCondition || 'Unknown'}
-                        </p>
-                    </div>
+                    {item && (
+                        <div className="text-center">
+                            <p className={getThemeClass('text-sm font-semibold', isDarkMode ? 'text-white' : 'text-gray-900')}>
+                                {item.name || 'Item Details'}
+                            </p>
+                            {item.unitNumber && <p className={getThemeClass('text-xs', isDarkMode ? 'text-gray-500' : 'text-gray-600')}>Unit #{item.unitNumber}</p>}
+                        </div>
+                    )}
 
-                    {/* Action Buttons */}
+                    {/* Actions Area */}
                     {showActions && (
-                        <div className="flex space-x-4">
-                            <Button
-                                onClick={handleGenerate}
-                                disabled={isGenerating}
-                                className={getThemeClass(
-                                    'px-4 py-2 rounded-md text-white transition-colors duration-200',
-                                    isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700',
-                                    isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                                )}
-                                aria-label="Generate QR Code"
-                                aria-busy={isGenerating}
-                            >
-                                {isGenerating ? <LoadingSpinner size="small" /> : 'Generate QR'}
-                            </Button>
-                            <Button
-                                onClick={handlePreview}
-                                disabled={!qrData}
-                                className={getThemeClass(
-                                    'px-4 py-2 rounded-md text-white transition-colors duration-200',
-                                    !qrData ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700',
-                                    !qrData ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-                                )}
-                                aria-label="Preview QR Code"
-                            >
-                                Preview
-                            </Button>
-                            <Button
-                                onClick={handleDownload}
-                                disabled={!qrData || isDownloading}
-                                className={getThemeClass(
-                                    'px-4 py-2 rounded-md text-white transition-colors duration-200',
-                                    !qrData || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700',
-                                    !qrData || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
-                                )}
-                                aria-label="Download QR Code"
-                                aria-busy={isDownloading}
-                            >
-                                {isDownloading ? <LoadingSpinner size="small" /> : 'Download'}
-                            </Button>
+                        <div className="flex flex-col w-full space-y-3">
+                            {/* Generate QR Button - Always show if we have an item */}
+                            {item && item.id && (
+                                <Button
+                                    onClick={generateUniqueQRForItem}
+                                    disabled={isGeneratingLocal || isGenerating}
+                                    className={getThemeClass(
+                                        'px-4 py-2 rounded-md text-white transition-colors duration-200 w-full',
+                                        isGeneratingLocal || isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700',
+                                        isGeneratingLocal || isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                                    )}
+                                    aria-label="Generate Unique QR Code"
+                                    aria-busy={isGeneratingLocal || isGenerating}
+                                >
+                                    {isGeneratingLocal || isGenerating ? (
+                                        <LoadingSpinner size="small" />
+                                    ) : qrGenerated ? 'Regenerate QR Code' : 'Generate QR Code'}
+                                </Button>
+                            )}
+                            
+                            {/* Download Button - Only show if QR has been generated */}
+                            {qrGenerated && localQrData && (
+                                <Button
+                                    onClick={handleDownload}
+                                    disabled={!localQrData || !qrGenerated || isDownloading}
+                                    className={getThemeClass(
+                                        'px-4 py-2 rounded-md text-white transition-colors duration-200 w-full',
+                                        !localQrData || !qrGenerated || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700',
+                                        !localQrData || !qrGenerated || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
+                                    )}
+                                    aria-label="Download QR Code"
+                                    aria-busy={isDownloading}
+                                >
+                                    {isDownloading ? <LoadingSpinner size="small" /> : 'Download QR Code'}
+                                </Button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -309,4 +318,4 @@ function QRCodeManager({
     );
 }
 
-export default QRCodeManager; 
+export default QRCodeManager;

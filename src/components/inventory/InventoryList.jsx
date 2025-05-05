@@ -6,10 +6,10 @@ import { useAuth } from '../../context/AuthContext';
 import Button from '../Button';
 import { canPerformAction } from '../../utils/roleUtils';
 
-function InventoryList({ 
-  items, 
-  onEdit, 
-  onDelete, 
+function InventoryList({
+  items,
+  onEdit,
+  onDelete,
   onPreviewQr,
   isLoading
 }) {
@@ -30,7 +30,7 @@ function InventoryList({
   // Memoize the row renderer to prevent unnecessary re-renders
   const Row = useCallback(({ index, style }) => {
     const item = items[index];
-    if (!item) return null;
+    if (!item) return null; // Defensive check just in case
 
     return (
       <div style={style} className="px-2">
@@ -48,7 +48,6 @@ function InventoryList({
               <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
                 Qty: {item.quantity}
               </span>
-              
               {(canEdit || canDelete || canGenerateQr) && (
                 <div className="flex gap-2 mt-2">
                   {canEdit && (
@@ -60,7 +59,6 @@ function InventoryList({
                       Edit
                     </Button>
                   )}
-                  
                   {canDelete && (
                     <Button
                       onClick={() => onDelete(item.id, item.name)}
@@ -70,7 +68,6 @@ function InventoryList({
                       Delete
                     </Button>
                   )}
-                  
                   {canGenerateQr && (
                     <Button
                       onClick={() => onPreviewQr(item)}
@@ -89,18 +86,21 @@ function InventoryList({
     );
   }, [items, isDarkMode, canEdit, canDelete, canGenerateQr, onEdit, onDelete, onPreviewQr]);
 
+  // Add a check if items is an array before accessing length
   if (isLoading) {
-    return <div className="text-center p-4">Loading inventory items...</div>;
+     return <div className="text-center p-4">Loading inventory items...</div>;
   }
 
-  if (items.length === 0) {
+  if (!Array.isArray(items) || items.length === 0) { // <-- Corrected check here
     return (
-      <div className={`p-4 text-center rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+      <div className={`p-4 text-center rounded-lg ${isDarkMode ? 'bg-gray-700' :
+      'bg-gray-100'}`}>
         No inventory items found matching your criteria.
       </div>
     );
   }
 
+  // If items is an array and not empty, render the list
   return (
     <div className="h-[600px] w-full">
       <AutoSizer>
