@@ -24,51 +24,51 @@ function QRCodePreview({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       {/* Modal content container */}
       <div className={`p-6 rounded-lg max-w-md w-full ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-900'}`}>
-        {/* Modal Header */}
-        <div className="flex justify-between items-center mb-4">
+        {/* Modal Header - Adjust to stack on small screens */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
           <h3 className="text-xl font-semibold">QR Code Preview</h3>
           {/* Close Button (using a regular button for consistency with design) */}
-           <Button onClick={onClose} color="gray" size="sm">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-               </svg>
-           </Button>
+          <Button onClick={onClose} color="gray" size="sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </Button>
         </div>
 
         {/* Loading or Error during data generation */}
         {isGenerating && !qrData && (
-            <div className="flex flex-col items-center justify-center h-40"> {/* Adjust height as needed */}
-                <LoadingSpinner size="md" />
-                <p className="mt-2">Generating QR data...</p>
-            </div>
+          <div className="flex flex-col items-center justify-center h-40"> {/* Adjust height as needed */}
+            <LoadingSpinner size="md" />
+            <p className="mt-2">Generating QR data...</p>
+          </div>
         )}
 
         {qrError && !qrData && (
-             <div className="text-red-500 text-center mb-4">
-                {qrError}
-            </div>
+          <div className="text-red-500 text-center mb-4">
+            {qrError}
+          </div>
         )}
 
 
         {/* Item Information (Display if item data is available) */}
         {item && (
-             <div className="mb-4">
-               <p className="font-semibold">{item.name}</p>
-               {item.serialNumber && <p className="text-sm">Serial: {item.serialNumber}</p>}
-               {item.category && <p className="text-sm">Category: {item.category}</p>}
-             </div>
+          <div className="mb-4">
+            <p className="font-semibold">{item.name}</p>
+            {item.serialNumber && <p className="text-sm">Serial: {item.serialNumber}</p>}
+            {item.category && <p className="text-sm">Category: {item.category}</p>}
+          </div>
         )}
 
 
         {/* QR Code Manager (Display only if qrData is available) */}
         {qrData && item && ( // Pass item as context for download naming etc.
-             <QRCodeManager
-               item={item} // Pass the item data
-               qrData={qrData} // Pass the generated QR data
-               // Pass download related props/handlers if you move download logic here
-               // isDownloading={isDownloading} // State from QRCodeManager if download is internal
-               // onDownload={handleDownload} // Handler from parent/hook if download is external
-             />
+          <QRCodeManager
+            item={item} // Pass the item data
+            qrData={qrData} // Pass the generated QR data
+          // Pass download related props/handlers if you move download logic here
+          // isDownloading={isDownloading} // State from QRCodeManager if download is internal
+          // onDownload={handleDownload} // Handler from parent/hook if download is external
+          />
         )}
 
 

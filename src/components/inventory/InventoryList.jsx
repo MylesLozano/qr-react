@@ -34,52 +34,50 @@ function InventoryList({
 
     return (
       <div style={style} className="px-2">
-        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} mb-2`}>
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-semibold">{item.name}</h3>
-              <p className="text-sm">Brand: {item.brand || 'N/A'}</p>
-              <p className="text-sm">Serial: {item.serialNumber || 'N/A'}</p>
-              <p className="text-sm">Category: {item.category}</p>
-              {item.lab && <p className="text-sm">Lab: {item.lab}</p>}
-              {item.itemCondition && <p className="text-sm">Condition: {item.itemCondition}</p>}
-            </div>
-            <div className="flex flex-col items-end">
-              <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
-                Qty: {item.quantity}
-              </span>
-              {(canEdit || canDelete || canGenerateQr) && (
-                <div className="flex gap-2 mt-2">
-                  {canEdit && (
-                    <Button
-                      onClick={() => onEdit(item)}
-                      color="blue"
-                      size="sm"
-                    >
-                      Edit
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button
-                      onClick={() => onDelete(item.id, item.name)}
-                      color="red"
-                      size="sm"
-                    >
-                      Delete
-                    </Button>
-                  )}
-                  {canGenerateQr && (
-                    <Button
-                      onClick={() => onPreviewQr(item)}
-                      color="green"
-                      size="sm"
-                    >
-                      QR
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4`}>
+          <div>
+            <h3 className="font-semibold">{item.name}</h3>
+            <p className="text-sm">Brand: {item.brand || 'N/A'}</p>
+            <p className="text-sm">Serial: {item.serialNumber || 'N/A'}</p>
+            <p className="text-sm">Category: {item.category}</p>
+            {item.lab && <p className="text-sm">Lab: {item.lab}</p>}
+            {item.itemCondition && <p className="text-sm">Condition: {item.itemCondition}</p>}
+          </div>
+          <div className="flex flex-col items-start sm:items-end gap-2 mt-2 sm:mt-0">
+            <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
+              Qty: {item.quantity}
+            </span>
+            {(canEdit || canDelete || canGenerateQr) && (
+              <div className="flex gap-2">
+                {canEdit && (
+                  <Button
+                    onClick={() => onEdit(item)}
+                    color="blue"
+                    size="sm"
+                  >
+                    Edit
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    onClick={() => onDelete(item.id, item.name)}
+                    color="red"
+                    size="sm"
+                  >
+                    Delete
+                  </Button>
+                )}
+                {canGenerateQr && (
+                  <Button
+                    onClick={() => onPreviewQr(item)}
+                    color="green"
+                    size="sm"
+                  >
+                    QR
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -88,13 +86,13 @@ function InventoryList({
 
   // Add a check if items is an array before accessing length
   if (isLoading) {
-     return <div className="text-center p-4">Loading inventory items...</div>;
+    return <div className="text-center p-4">Loading inventory items...</div>;
   }
 
   if (!Array.isArray(items) || items.length === 0) { // <-- Corrected check here
     return (
       <div className={`p-4 text-center rounded-lg ${isDarkMode ? 'bg-gray-700' :
-      'bg-gray-100'}`}>
+        'bg-gray-100'}`}>
         No inventory items found matching your criteria.
       </div>
     );

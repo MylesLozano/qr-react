@@ -13,8 +13,8 @@ import Button from './Button';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 
 // Constants
-const MAX_QR_SIZE = 256;
-const MIN_QR_SIZE = 128;
+const MAX_QR_SIZE = 200;
+const MIN_QR_SIZE = 120;
 
 function QRCodeManager({
     item, // Item details (for context, like filename for download)
@@ -201,7 +201,6 @@ function QRCodeManager({
         };
     }, []);
 
-
     return (
         <ErrorBoundary>
             <div
@@ -221,39 +220,36 @@ function QRCodeManager({
                         </div>
                     )}
 
-                    {/* QR Code Display Area */}
-                    <div
-                        id="qr-code"
-                        className={getThemeClass(isDarkMode, 'p-4 rounded-lg flex items-center justify-center', 'bg-gray-700', 'bg-white')}
-                        aria-label="Generated QR Code"
-                        ref={qrElementRef}
-                        style={{ width: getQRSize, height: getQRSize }}
-                    >
-                        {localQrData && qrGenerated ? (
-                            <QRCodeSVG
-                                value={JSON.stringify(localQrData)}
-                                size={getQRSize}
-                                level="H"
-                                marginSize={0}
-                                aria-label={`QR Code for ${item?.name || 'item'}`}
-                                className="transition-opacity duration-300"
-                                // Set explicit foreground/background colors for better compatibility
-                                bgColor={isDarkMode ? "#333333" : "#FFFFFF"}
-                                fgColor={isDarkMode ? "#FFFFFF" : "#000000"}
-                            />
-                        ) : (
-                            // Show placeholder if no QR data
-                            <div className={getThemeClass('w-full h-full flex items-center justify-center rounded-lg', 'bg-gray-700', 'bg-gray-100')}>
-                                {isGenerating || isGeneratingLocal ? (
-                                    <LoadingSpinner size="md" />
-                                ) : (
-                                    <p className={getThemeClass('text-gray-400', 'text-gray-500')}>
-                                        No QR code generated
-                                    </p>
-                                )}
+                    {/* QR Code Manager (Display only if qrData is available) */}
+                    {qrData && item && ( // Pass item as context for download naming etc.
+                        <div className="flex flex-col items-center justify-center w-full">
+                            {/* Container to make QR code responsive */}
+                            <div ref={qrElementRef} className="p-4 bg-white rounded-lg mb-4" style={{ maxWidth: MAX_QR_SIZE, width: '100%', height: 'auto' }}>
+                                <QRCodeSVG
+                                    value={JSON.stringify(localQrData)}
+                                    size={getQRSize} // Use calculated size, but container limits max
+                                    level="H"
+                                    includeMargin={false}
+                                />
                             </div>
-                        )}
-                    </div>
+
+                            {/* Action Buttons - Stack on small screens */}
+                            {showActions && (
+                                <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                                    <Button
+                                        onClick={handleDownload}
+                                        disabled={isDownloading || !qrGenerated}
+                                        color="blue"
+                                        size="md"
+                                        className="w-full sm:w-auto justify-center"
+                                    >
+                                        {isDownloading ? 'Downloading...' : 'Download QR'}
+                                    </Button>
+                                    {/* Add other actions here if needed */}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Item Information */}
                     {item && (
@@ -284,23 +280,6 @@ function QRCodeManager({
                                     {isGeneratingLocal || isGenerating ? (
                                         <LoadingSpinner size="small" />
                                     ) : qrGenerated ? 'Regenerate QR Code' : 'Generate QR Code'}
-                                </Button>
-                            )}
-
-                            {/* Download Button - Only show if QR has been generated */}
-                            {qrGenerated && localQrData && (
-                                <Button
-                                    onClick={handleDownload}
-                                    disabled={!localQrData || !qrGenerated || isDownloading}
-                                    className={getThemeClass(
-                                        'px-4 py-2 rounded-md text-white transition-colors duration-200 w-full',
-                                        !localQrData || !qrGenerated || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700',
-                                        !localQrData || !qrGenerated || isDownloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
-                                    )}
-                                    aria-label="Download QR Code"
-                                    aria-busy={isDownloading}
-                                >
-                                    {isDownloading ? <LoadingSpinner size="small" /> : 'Download QR Code'}
                                 </Button>
                             )}
                         </div>

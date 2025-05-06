@@ -96,19 +96,19 @@ function Inventory() {
   }, [setEditingItem, setIsEditing]);
 
 
-   // Handler for deleting an item
-   const handleDeleteItem = useCallback(async (itemId, itemName) => {
-     try {
-         const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
-         if (!confirmDelete) return;
+  // Handler for deleting an item
+  const handleDeleteItem = useCallback(async (itemId, itemName) => {
+    try {
+      const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
+      if (!confirmDelete) return;
 
-         await deleteItem(itemId); // Use the deleteItem function from useInventory
-         toast.success(`${itemName} deleted successfully!`);
-     } catch (error) {
-         console.error("Error deleting item:", error);
-         toast.error(`Failed to delete ${itemName}. ${error.message || ''}`);
-     }
-   }, [deleteItem]);
+      await deleteItem(itemId); // Use the deleteItem function from useInventory
+      toast.success(`${itemName} deleted successfully!`);
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast.error(`Failed to delete ${itemName}. ${error.message || ''}`);
+    }
+  }, [deleteItem]);
 
 
   // Permission check (simplified)
@@ -119,14 +119,15 @@ function Inventory() {
     <ErrorBoundary>
       <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Main Inventory Loading and Error Feedback */}
-        {isLoading && !error && <LoadingSpinner />} {/* Show spinner only if loading and no error */}
+        {isLoading && !error && <LoadingSpinner fullScreen />} {/* Show spinner only if loading and no error */}
         {error && ( // Show inventory fetch error if it exists
           <div className="text-red-500 text-center mb-4">
             Error loading inventory: {error.message || error}
           </div>
         )}
 
-        <div className={`max-w-7xl mx-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        {/* Use a responsive container with padding */}
+        <div className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
           <div className="mb-8">
             {/* Back Button */}
             <Button
@@ -153,22 +154,24 @@ function Inventory() {
             />
 
             {/* Bulk Upload and QR Stats side-by-side */}
+            {/* Adjust spacing and stacking on smaller screens */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
-               {/* Render BulkUploadSection only if user has permission */}
-               {canAddEditDelete && (
-                 <BulkUploadSection
-                   setCsvData={setCsvData}
-                   csvData={csvData}
-                   bulkUpload={bulkUpload}
-                   isUploading={isUploading}
-                   isDarkMode={isDarkMode}
-                 />
-               )}
-               {/* QR Stats Section */}
-               <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
+              {/* Render BulkUploadSection only if user has permission */}
+              {canAddEditDelete && (
+                <BulkUploadSection
+                  setCsvData={setCsvData}
+                  csvData={csvData}
+                  bulkUpload={bulkUpload}
+                  isUploading={isUploading}
+                  isDarkMode={isDarkMode}
+                />
+              )}
+              {/* QR Stats Section */}
+              <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
             </div>
 
             {/* Categories and Virtualized List side-by-side */}
+            {/* Adjust stacking on smaller screens */}
             <div className="flex flex-col lg:flex-row gap-4 mb-6">
               {/* Category List */}
               <CategoryList
@@ -228,7 +231,7 @@ function Inventory() {
                 onClose={closeQrPreview} // Pass the handler to close the modal
                 isGenerating={isGeneratingQr} // Pass loading state from hook
                 qrError={qrError} // Pass error state from hook
-                // No need to pass onGenerate or previewQrCode here anymore
+              // No need to pass onGenerate or previewQrCode here anymore
               />
             )}
           </div>

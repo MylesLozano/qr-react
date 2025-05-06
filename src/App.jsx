@@ -7,10 +7,10 @@ import "react-toastify/dist/ReactToastify.css";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { ThemeProvider } from "./context/ThemeContext";
-import { canPerformAction, getDashboardPath } from './utils/roleUtils';
-import SplashScreen from "./components/SplashScreen";
+import { getDashboardPath } from './utils/roleUtils';
 import SessionTimeout from "./components/SessionTimeout";
 import { useAuth } from "./context/AuthContext";
+import ReportGenerator from "./dashboard/admin/ReportGenerator";
 
 // Constants
 const SESSION_TIMEOUT_MINUTES = 30;
