@@ -30,30 +30,52 @@ function InventoryList({
   // Memoize the row renderer to prevent unnecessary re-renders
   const Row = useCallback(({ index, style }) => {
     const item = items[index];
-    if (!item) return null; // Defensive check just in case
+    if (!item) return null;
 
     return (
       <div style={style} className="px-2">
-        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4`}>
-          <div>
-            <h3 className="font-semibold">{item.name}</h3>
-            <p className="text-sm">Brand: {item.brand || 'N/A'}</p>
-            <p className="text-sm">Serial: {item.serialNumber || 'N/A'}</p>
-            <p className="text-sm">Category: {item.category}</p>
-            {item.lab && <p className="text-sm">Lab: {item.lab}</p>}
-            {item.itemCondition && <p className="text-sm">Condition: {item.itemCondition}</p>}
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200`}>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold truncate">{item.name}</h3>
+            <div className="space-y-1 text-sm">
+              <p className="flex items-center gap-2">
+                <span className="text-opacity-75">Brand:</span>
+                <span>{item.brand || 'N/A'}</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-opacity-75">Serial:</span>
+                <span>{item.serialNumber || 'N/A'}</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-opacity-75">Category:</span>
+                <span>{item.category}</span>
+              </p>
+              {item.lab && (
+                <p className="flex items-center gap-2">
+                  <span className="text-opacity-75">Lab:</span>
+                  <span>{item.lab}</span>
+                </p>
+              )}
+              {item.itemCondition && (
+                <p className="flex items-center gap-2">
+                  <span className="text-opacity-75">Condition:</span>
+                  <span>{item.itemCondition}</span>
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex flex-col items-start sm:items-end gap-2 mt-2 sm:mt-0">
             <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
               Qty: {item.quantity}
             </span>
             {(canEdit || canDelete || canGenerateQr) && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {canEdit && (
                   <Button
                     onClick={() => onEdit(item)}
                     color="blue"
                     size="sm"
+                    className="min-w-[60px]"
                   >
                     Edit
                   </Button>
@@ -63,6 +85,7 @@ function InventoryList({
                     onClick={() => onDelete(item.id, item.name)}
                     color="red"
                     size="sm"
+                    className="min-w-[60px]"
                   >
                     Delete
                   </Button>
@@ -72,6 +95,7 @@ function InventoryList({
                     onClick={() => onPreviewQr(item)}
                     color="green"
                     size="sm"
+                    className="min-w-[60px]"
                   >
                     QR
                   </Button>
@@ -84,30 +108,33 @@ function InventoryList({
     );
   }, [items, isDarkMode, canEdit, canDelete, canGenerateQr, onEdit, onDelete, onPreviewQr]);
 
-  // Add a check if items is an array before accessing length
   if (isLoading) {
-    return <div className="text-center p-4">Loading inventory items...</div>;
-  }
-
-  if (!Array.isArray(items) || items.length === 0) { // <-- Corrected check here
     return (
-      <div className={`p-4 text-center rounded-lg ${isDarkMode ? 'bg-gray-700' :
-        'bg-gray-100'}`}>
-        No inventory items found matching your criteria.
+      <div className="flex items-center justify-center p-8">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
-  // If items is an array and not empty, render the list
+  if (!Array.isArray(items) || items.length === 0) {
+    return (
+      <div className={`p-8 text-center rounded-lg ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+        <p className="text-lg">No inventory items found matching your criteria.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[600px] w-full">
+    <div className="relative flex-1 min-h-[400px] h-[calc(100vh-20rem)]">
       <AutoSizer>
         {({ height, width }) => (
           <List
             height={height}
             itemCount={items.length}
-            itemSize={130}
+            itemSize={180}
             width={width}
+            overscanCount={3}
+            className={`scrollbar-thin ${isDarkMode ? 'scrollbar-track-gray-800 scrollbar-thumb-gray-600' : 'scrollbar-track-gray-200 scrollbar-thumb-gray-400'}`}
           >
             {Row}
           </List>

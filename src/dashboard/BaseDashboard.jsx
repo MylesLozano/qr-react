@@ -185,33 +185,19 @@ function BaseDashboard({ children }) {
 
   return (
     <ErrorBoundary>
-      <div
-        className={`min-h-screen ${themeStyles.container}`}
-        role="application"
-        aria-label="Dashboard"
-      >
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-500 text-white p-2 rounded"
-        >
+      <div className={`min-h-screen ${themeStyles.container}`}>
+        {/* Skip link for accessibility */}
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-500 text-white p-2 rounded z-50">
           Skip to main content
         </a>
 
         {/* Navigation */}
-        <nav
-          className={`${themeStyles.nav} shadow-lg`}
-          role="navigation"
-          aria-label="Main navigation"
-        >
+        <nav className={`${themeStyles.nav} shadow-lg sticky top-0 z-40`}>
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-between h-16">
               <div className="flex">
                 <div className="flex-shrink-0 flex items-center">
-                  <span
-                    className={`text-xl font-bold ${themeStyles.heading}`}
-                    role="heading"
-                    aria-level="1"
-                  >
+                  <span className={`text-xl font-bold ${themeStyles.heading}`}>
                     QCheckCITE
                   </span>
                 </div>
@@ -222,45 +208,66 @@ function BaseDashboard({ children }) {
                   ))}
                 </div>
               </div>
-              <div className="flex items-center">
+              
+              <div className="flex items-center gap-2">
                 {/* Mobile menu button */}
                 {isMobile && (
                   <button
                     ref={menuButtonRef}
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                    className={`inline-flex items-center justify-center p-2 rounded-md transition-colors duration-200
+                      ${isDarkMode 
+                        ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
                     aria-expanded={isMenuOpen}
                     aria-controls="mobile-menu"
                     aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
                   >
                     <span className="sr-only">{isMenuOpen ? 'Close menu' : 'Open menu'}</span>
-                    {isMenuOpen ? '✕' : '☰'}
+                    {isMenuOpen ? (
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    )}
                   </button>
                 )}
+
+                {/* Theme toggle button */}
                 <button
                   onClick={toggleTheme}
-                  className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md transition-colors duration-200 ${themeStyles.themeButton}`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${themeStyles.themeButton}`}
                   aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
                 >
-                  {isDarkMode ? 'Switch to Light Mode 🌞' : 'Switch to Dark Mode 🌙'}
+                  {isDarkMode ? '🌞' : '🌙'}
                 </button>
+
+                {/* Logout button */}
                 <Button
                   onClick={handleLogout}
                   disabled={isLoading}
-                  className={`ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors duration-200 ${themeStyles.logoutButton} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`transition-colors duration-200 ${themeStyles.logoutButton} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Logout"
                 >
-                  {isLoading ? <LoadingSpinner size="small" /> : 'Logout'}
+                  {isLoading ? <LoadingSpinner size="sm" /> : 'Logout'}
                 </Button>
               </div>
             </div>
           </div>
         </nav>
 
-        {/* Mobile menu */}
+        {/* Mobile menu - Slide in from top */}
         {isMenuOpen && (
-          <div className="sm:hidden" id="mobile-menu">
-            <div className={`pt-2 pb-3 space-y-1 ${themeStyles.nav}`}>
+          <div 
+            className={`sm:hidden fixed inset-x-0 top-16 z-30 transform transition-transform duration-200 ease-in-out
+              ${isMenuOpen ? 'translate-y-0' : '-translate-y-full'}
+              ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
+            id="mobile-menu"
+          >
+            <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-2 pt-2 pb-3 space-y-1">
               {navItems.map((item, index) => (
                 <NavLink key={item.path} item={item} index={index} isMobile={true} />
               ))}
@@ -269,7 +276,10 @@ function BaseDashboard({ children }) {
         )}
 
         {/* Main content */}
-        <main id="main-content" className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <main 
+          id="main-content" 
+          className={`max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)] ${isMenuOpen ? 'pt-[calc(4rem+1px)]' : ''}`}
+        >
           <ErrorBoundary>
             {children}
           </ErrorBoundary>

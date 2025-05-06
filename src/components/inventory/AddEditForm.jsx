@@ -115,12 +115,12 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
     validationErrors[fieldName] ? "border-red-500" : "";
 
   return (
-    <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-      <h2 className="text-xl font-semibold mb-4">
+    <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} max-h-[85vh] overflow-y-auto`}>
+      <h2 className="text-xl font-semibold sticky top-0 bg-inherit py-2 mb-4 z-10">
         {isEditing ? 'Edit Item' : 'Add New Item'}
       </h2>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <input
