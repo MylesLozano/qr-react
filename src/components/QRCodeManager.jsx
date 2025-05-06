@@ -45,7 +45,7 @@ function QRCodeManager({
             setQrGenerated(true);
             return;
         }
-        
+
         // Otherwise, reset the state when item changes
         if (item) {
             setLocalQrData(null);
@@ -88,19 +88,12 @@ function QRCodeManager({
             }
 
             setQrGenerated(true);
-            toast.success('QR code generated successfully');
-            
-            // Log the generation event
-            try {
-                if (user?.email && item?.id) {
-                    logAudit('Generated QR Code', user.email, 'inventory', {
-                        itemId: item.id,
-                        itemName: item.name || 'Unnamed Item',
-                    });
-                }
-            } catch (auditError) {
-                console.error('Error logging audit for QR generation:', auditError);
-            }
+            toast.success('QR code generated successfully!');
+            // Standardized audit log action and entity type
+            logAudit('qr_code_generated', user.email, 'inventory', {
+                itemName: item.name,
+                itemId: item.id,
+            });
 
         } catch (err) {
             handleError(err);
@@ -131,35 +124,35 @@ function QRCodeManager({
             // Get SVG data
             const svgData = new XMLSerializer().serializeToString(svgElement);
             const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-            
+
             // Create an image from the SVG
             const DOMURL = window.URL || window.webkitURL || window;
             const url = DOMURL.createObjectURL(svgBlob);
-            
+
             const img = new Image();
             img.onload = () => {
                 // Create canvas
                 const canvas = document.createElement('canvas');
                 canvas.width = getQRSize;
                 canvas.height = getQRSize;
-                
+
                 // Draw background
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = isDarkMode ? '#1a1a1a' : '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
+
                 // Draw SVG
                 ctx.drawImage(img, 0, 0);
-                
+
                 // Convert to blob and download
                 canvas.toBlob((blob) => {
                     if (!blob) {
                         throw new Error('Failed to create image blob.');
                     }
-                    
+
                     const filename = `qr-code-${item?.unitNumber || item?.id || 'item'}.png`;
                     saveAs(blob, filename);
-                    
+
                     // Log audit
                     try {
                         if (user?.email && item?.id && item?.name) {
@@ -171,20 +164,20 @@ function QRCodeManager({
                     } catch (auditError) {
                         console.error('Error logging audit:', auditError);
                     }
-                    
+
                     toast.success('QR code downloaded successfully');
                     setIsDownloading(false);
                     DOMURL.revokeObjectURL(url);
                 }, 'image/png');
             };
-            
+
             img.onerror = (error) => {
                 DOMURL.revokeObjectURL(url);
                 throw new Error('Failed to load SVG image: ' + error);
             };
-            
+
             img.src = url;
-            
+
         } catch (error) {
             handleError(error);
             setIsDownloading(false);
@@ -241,7 +234,7 @@ function QRCodeManager({
                                 value={JSON.stringify(localQrData)}
                                 size={getQRSize}
                                 level="H"
-                                includeMargin={false}
+                                marginSize={0}
                                 aria-label={`QR Code for ${item?.name || 'item'}`}
                                 className="transition-opacity duration-300"
                                 // Set explicit foreground/background colors for better compatibility
@@ -293,7 +286,7 @@ function QRCodeManager({
                                     ) : qrGenerated ? 'Regenerate QR Code' : 'Generate QR Code'}
                                 </Button>
                             )}
-                            
+
                             {/* Download Button - Only show if QR has been generated */}
                             {qrGenerated && localQrData && (
                                 <Button

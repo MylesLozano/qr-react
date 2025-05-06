@@ -86,17 +86,11 @@ export default function useQRCode(items, user) {
       // Set the generated data state - this will be passed to QRCodeManager
       setGeneratedQrData(data);
 
-      // Log audit for preview action (optional, or maybe log on generation/download)
-      // Ensure logAudit is called with correct parameters: action, userEmail, entityType, details
-       if (user?.email) {
-           await logAudit('Previewed QR Code', user.email, 'inventory', {
-               itemId: item.id,
-               itemName: item.name,
-           });
-       } else {
-            console.warn("User not logged in, cannot log audit for QR preview.");
-       }
-
+      // Standardized audit log action and entity type
+      await logAudit('qr_code_previewed', user.email, 'inventory', {
+        itemName: item.name,
+        itemId: item.id,
+      });
 
       // toast.success("QR code data prepared for preview"); // Optional toast
 

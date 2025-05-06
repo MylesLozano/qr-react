@@ -167,7 +167,10 @@ function Requests() {
         updatedAt: serverTimestamp(),
         updatedBy: user.email
       });
-      await logAudit(user.email, `Updated request ${id} status to ${status}`);
+      await logAudit('request_updated_status', user.email, 'request', {
+        requestId: id,
+        status: status,
+      });
       toast.success(`Request ${status}.`);
     } catch (error) {
       console.error("Error updating status:", error);
@@ -202,7 +205,10 @@ function Requests() {
         });
       });
       await batch.commit();
-      await logAudit(user.email, `Bulk updated ${selectedRequests.size} requests to ${status}`);
+      await logAudit('request_bulk_updated_status', user.email, 'request', {
+        requestCount: selectedRequests.size,
+        status: status,
+      });
       setSelectedRequests(new Set());
       toast.success(`Successfully ${status} ${selectedRequests.size} request(s)`);
     } catch (error) {
@@ -242,7 +248,9 @@ function Requests() {
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const fileName = `requests_${new Date().toISOString().split('T')[0]}.csv`;
       saveAs(blob, fileName);
-      await logAudit(user.email, "Exported requests to CSV");
+      await logAudit('report_exported', user.email, 'request', {
+        recordCount: filteredRequests.length,
+      });
       toast.success("Requests exported successfully!");
     } catch (error) {
       console.error("Error exporting:", error);

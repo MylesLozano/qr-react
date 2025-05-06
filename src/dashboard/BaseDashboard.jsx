@@ -41,15 +41,15 @@ const NAV_CONFIG = [
     roles: ['admin', 'superadmin']
   },
   {
-    path: '/admin-dashboard/reports',
+    path: '/admin-dashboard/reporting',
     label: 'Reports',
     icon: '📊',
     action: 'generate_reports',
-    description: 'Generate and view reports',
+    description: 'Access consolidated reports and audit logs',
     roles: ['admin', 'superadmin']
   },
   {
-    path: '/superadmin-dashboard/audit-logs',
+    path: '/superadmin-dashboard/reporting',
     label: 'Audit Logs',
     icon: '📝',
     action: 'view_audit_logs',

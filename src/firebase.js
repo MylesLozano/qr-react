@@ -76,16 +76,16 @@ try {
         console.log(
           `✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`
         );
-        // Updated logAudit call to match the new signature
-        await logAudit("Assigned Role", user.email, "user", {
+        // Updated logAudit call to match the new standard action and entity type
+        await logAudit("user_role_assigned", user.email, "user", {
           role: DEFAULT_ROLE,
           userId: user.uid,
         });
       } else {
         const userData = userSnap.data();
         console.log(`ℹ️ User ${user.email} exists with role: ${userData.role}`);
-        // Updated logAudit call to match the new signature
-        await logAudit("Role Verified", user.email, "user", {
+        // Updated logAudit call to match the new standard action and entity type
+        await logAudit("user_role_verified", user.email, "user", {
           role: userData.role,
           userId: user.uid,
         });

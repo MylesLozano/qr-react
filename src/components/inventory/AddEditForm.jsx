@@ -12,10 +12,10 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  
+
   // Initialize form with default values or editing item values
   const [formData, setFormData] = useState(editingItem || defaultFormData);
-  
+
   // Reset form when editingItem changes
   useEffect(() => {
     setFormData(editingItem || defaultFormData);
@@ -26,7 +26,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    
+
     // Handle different input types appropriately
     if (type === "number") {
       setFormData({ ...formData, [name]: parseInt(value) || 0 });
@@ -56,12 +56,12 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!handleItemValidation()) return;
-    
+
     try {
       setIsLoading(true);
-      
+
       const sanitizedData = {
         ...formData,
         name: sanitizeInput(formData.name),
@@ -73,21 +73,31 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
         updatedAt: serverTimestamp(),
         updatedBy: user.email
       };
-      
+
       if (isEditing) {
         // Update existing item
         await updateDoc(doc(db, "inventory", editingItem.id), sanitizedData);
-        await logAudit(user.email, `Updated item: ${sanitizedData.name}`);
-        toast.success("Item updated successfully");
+        toast.success('Inventory item updated successfully!');
+        // Standardized audit log action and entity type
+        await logAudit('inventory_updated', user.email, 'inventory', {
+          itemId: editingItem.id,
+          itemName: sanitizedData.name,
+          details: sanitizedData,
+        });
       } else {
         // Add new item
         sanitizedData.createdAt = serverTimestamp();
         sanitizedData.createdBy = user.email;
-        await addDoc(collection(db, "inventory"), sanitizedData);
-        await logAudit(user.email, `Added item: ${sanitizedData.name}`);
-        toast.success("Item added successfully");
+        const docRef = await addDoc(collection(db, "inventory"), sanitizedData);
+        toast.success('Inventory item added successfully!');
+        // Standardized audit log action and entity type
+        await logAudit('inventory_added', user.email, 'inventory', {
+          itemId: docRef.id,
+          itemName: sanitizedData.name,
+          details: sanitizedData,
+        });
       }
-      
+
       setFormData(defaultFormData);
       if (onSuccess) onSuccess();
     } catch (error) {
@@ -98,11 +108,10 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
     }
   };
 
-  const inputClass = `p-2 rounded border ${
-    isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'
-  }`;
+  const inputClass = `p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'
+    }`;
 
-  const getErrorClass = (fieldName) => 
+  const getErrorClass = (fieldName) =>
     validationErrors[fieldName] ? "border-red-500" : "";
 
   return (
@@ -110,7 +119,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
       <h2 className="text-xl font-semibold mb-4">
         {isEditing ? 'Edit Item' : 'Add New Item'}
       </h2>
-      
+
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
@@ -127,7 +136,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>
             )}
           </div>
-          
+
           <div>
             <input
               type="text"
@@ -138,7 +147,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               className={`${inputClass} w-full`}
             />
           </div>
-          
+
           <div>
             <input
               type="text"
@@ -149,7 +158,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               className={`${inputClass} w-full`}
             />
           </div>
-          
+
           <div>
             <input
               type="text"
@@ -164,7 +173,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               <p className="text-red-500 text-xs mt-1">{validationErrors.category}</p>
             )}
           </div>
-          
+
           <div>
             <input
               type="number"
@@ -180,7 +189,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
             )}
           </div>
-          
+
           <div>
             <input
               type="date"
@@ -191,7 +200,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               className={`${inputClass} w-full`}
             />
           </div>
-          
+
           <div>
             <select
               name="itemCondition"
@@ -204,7 +213,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               <option value="Damaged">Damaged</option>
             </select>
           </div>
-          
+
           <div>
             <select
               name="lab"
@@ -218,7 +227,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               <option value="Others">Others</option>
             </select>
           </div>
-          
+
           <div className="md:col-span-2 lg:col-span-1">
             <label className="flex items-center mb-2">
               <input
@@ -231,7 +240,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               <span className="text-sm">Generate Unique QR Code</span>
             </label>
           </div>
-          
+
           <div className="col-span-full">
             <textarea
               name="description"
@@ -242,7 +251,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               rows="2"
             />
           </div>
-          
+
           <div className="col-span-full">
             <textarea
               name="remarks"
@@ -254,7 +263,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             />
           </div>
         </div>
-        
+
         <div className="mt-4 flex justify-end space-x-4">
           {isEditing && (
             <Button
@@ -266,7 +275,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               Cancel
             </Button>
           )}
-          
+
           <Button
             color="blue"
             size="md"
@@ -274,8 +283,8 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             loading={isLoading}
             disabled={isLoading}
           >
-            {isLoading 
-              ? 'Saving...' 
+            {isLoading
+              ? 'Saving...'
               : (isEditing ? 'Save Changes' : 'Add Item')
             }
           </Button>

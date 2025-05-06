@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import BaseDashboard from "../BaseDashboard";
 import ManageUsers from "./ManageUsers";
-import AuditLogs from "./AuditLogs";
 import Inventory from "../Inventory";
 import Requests from "../admin/Requests";
-import Reports from "../admin/Reports";
+import UnifiedReporting from "../UnifiedReporting";
 import usePageTitle from "../../hooks/usePageTitle";
 import { useLocation } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
@@ -26,8 +25,7 @@ function SuperAdminDashboard() {
     const path = location.pathname;
     if (path.includes("/inventory")) return "inventory";
     if (path.includes("/requests")) return "requests";
-    if (path.includes("/reports")) return "reports";
-    if (path.includes("/audit-logs")) return "auditLogs";
+    if (path.includes("/reporting")) return "reporting";
     if (path.includes("/user-management")) return "userManagement";
     return "userManagement"; // default view
   }, [location.pathname]);
@@ -54,10 +52,8 @@ function SuperAdminDashboard() {
         return <Inventory />;
       case "requests":
         return <Requests />;
-      case "reports":
-        return <Reports />;
-      case "auditLogs":
-        return <AuditLogs />;
+      case "reporting":
+        return <UnifiedReporting />;
       case "userManagement":
         return <ManageUsers />;
       default:

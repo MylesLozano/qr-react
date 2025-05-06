@@ -22,15 +22,13 @@ const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdmin
 const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
 const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
 const Inventory = lazy(() => import("./dashboard/Inventory"));
-const AuditLogs = lazy(() => import("./dashboard/superadmin/AuditLogs"));
 const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
 const MyRequests = lazy(() => import("./dashboard/user/MyRequests"));
 const Requests = lazy(() => import("./dashboard/admin/Requests"));
-const Reports = lazy(() => import("./dashboard/admin/Reports"));
 const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
 const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCategories'));
 const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
-const ReportGenerator = lazy(() => import('./dashboard/admin/ReportGenerator'));
+const UnifiedReporting = lazy(() => import("./dashboard/UnifiedReporting"));
 
 // Route configurations
 const ROUTE_CONFIG = {
@@ -41,8 +39,7 @@ const ROUTE_CONFIG = {
       { path: "", element: <Navigate to="user-management" replace /> },
       { path: "inventory", element: <Inventory /> },
       { path: "requests", element: <Requests /> },
-      { path: "reports", element: <Reports /> },
-      { path: "audit-logs", element: <AuditLogs /> },
+      { path: "reporting", element: <UnifiedReporting /> },
       { path: "user-management", element: <ManageUsers /> }
     ]
   },
@@ -53,10 +50,9 @@ const ROUTE_CONFIG = {
       { path: "", element: <Navigate to="inventory" replace /> },
       { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
       { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
-      { path: "reports", element: <ProtectedRoute requiredAction="generate_reports"><Reports /></ProtectedRoute> },
+      { path: "reporting", element: <UnifiedReporting /> },
       { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> },
       { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
-      { path: "generate-report", element: <ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute> }
     ]
   },
   user: {
@@ -95,7 +91,7 @@ function App() {
           case 'superadmin':
             await Promise.all([
               import("./dashboard/superadmin/SuperAdminDashboard"),
-              import("./dashboard/superadmin/AuditLogs"),
+              import("./dashboard/UnifiedReporting"),
               import("./dashboard/superadmin/ManageUsers")
             ]);
             break;
@@ -103,7 +99,7 @@ function App() {
             await Promise.all([
               import("./dashboard/admin/AdminDashboard"),
               import("./dashboard/admin/Requests"),
-              import("./dashboard/admin/Reports")
+              import("./dashboard/UnifiedReporting")
             ]);
             break;
           case 'user':
@@ -170,16 +166,12 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/admin-dashboard/generate-report" element={<ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute>} />
 
             {/* Shared Routes */}
-            <Route
-              path="/inventory"
-              element={
-                <ProtectedRoute requiredAction="view_inventory">
-                  <Inventory />
-                </ProtectedRoute>
-              }
-            />
+            {/* Example: A shared Inventory view if roles have different permissions for it */}
+            {/* The specific Inventory route within admin dashboard is already permissioned */}
+            {/* Add other shared routes here if necessary */}
 
             {/* User Routes */}
             <Route {...ROUTE_CONFIG.user}>

@@ -1,113 +1,109 @@
 // File: src/ProtectedRoute.jsx
+// This component is a wrapper around route elements that enforces authentication and role/action-based authorization.
+// It checks if a user is logged in and has the necessary permissions to access the requested route.
 
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import { hasPermission, canPerformAction, getDashboardPath } from './utils/roleUtils'; // Ensure correct import paths
+// hasPermission: checks if a user's role meets a required role (e.g., admin for admin-only pages)
+// canPerformAction: checks if a user's role is allowed to perform a specific action (e.g., 'generate_reports')
+// getDashboardPath: returns the default dashboard path for a given role
+import { hasPermission, canPerformAction, getDashboardPath } from './utils/roleUtils';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './components/LoadingSpinner';
-import ErrorBoundary from './components/ErrorBoundary'; // Ensure correct import paths
+import ErrorBoundary from './components/ErrorBoundary';
 
 
+// ProtectedRoute component props:
+// children: The component(s) to render if the user is authorized.
+// requiredRole: The minimum role required to access the route (e.g., 'admin', 'superadmin'). Optional.
+// requiredAction: A specific action permission required to access the route (e.g., 'manage_users'). Optional.
 function ProtectedRoute({ children, requiredRole, requiredAction }) {
-  const { user, role, loading, error } = useAuth();
-  const location = useLocation();
+  const { user, role, loading, error } = useAuth();
+  const location = useLocation();
 
-  // Optional: Effect for showing toasts based on auth/permission status on mount/state change
-  // Be mindful of when these toasts show - having them inside conditional renders is often better.
-  useEffect(() => {
-    if (error) {
-      toast.error('Authentication error: ' + error.message);
-    }
-    // Decide when you want the "Please log in" toast to appear
-    // Currently, your Login.jsx useEffect handles navigation and implicitly requires user/role
-    // If you want a toast only when trying to access a protected page while logged out:
-    // if (!user && !loading && location.pathname !== '/login') {
-    //     toast.error('Please log in to access this page');
-    // }
+  // Effect to display authentication errors as toasts
+  useEffect(() => {
+    if (error) {
+      // Display a toast for any authentication-related errors from the useAuth hook
+      toast.error('Authentication error: ' + error.message);
+    }
+    // The 'Please log in' toast is handled below when redirecting unauthenticated users.
+    // Permission denied toasts are also handled below when redirecting unauthorized users.
+  }, [error]); // Depend on the 'error' state from auth context
 
-    // Toasts for permission denied are handled by the Navigate components below
-  }, [error, user, loading, location.pathname]); // Added loading and location.pathname to deps
+  // --- Routing and Authorization Logic ---
 
+  // 1. Handle loading state: Show a spinner while authentication state is being determined.
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
+        <LoadingSpinner fullScreen />
+      </div>
+    );
+  }
 
-  // --- Routing Logic ---
+  // 2. Handle unauthenticated users: If the user is not logged in...
+  if (!user) {
+    // If the user is trying to access the login page, render the Login component.
+    if (location.pathname === '/login') {
+      return children; // Render the Login component provided as children
+    }
+    // If the user is not logged in and trying to access any other page,
+    // show a toast and redirect them to the login page.
+    toast.error('Please log in to access this page');
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
-  // 1. While authentication state is loading, show a spinner.
-  if (loading) {
-    // console.log("ProtectedRoute: Loading authentication state..."); // Debug log
-    return (
-      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
-        <LoadingSpinner fullScreen />
-      </div>
-    );
-  }
-
-  // 2. If user is NOT logged in...
-  if (!user) {
-    // console.log("ProtectedRoute: User not authenticated."); // Debug log
-      // If the current path is /login, render the children (the Login component).
-    if (location.pathname === '/login') {
-        // console.log("ProtectedRoute: Currently on /login, rendering Login component."); // Debug log
-      return children; // Render the Login component
-    }
-      // If the current path is NOT /login, redirect to /login.
-    // console.log(`ProtectedRoute: Not authenticated and not on /login (${location.pathname}), redirecting to /login.`); // Debug log
-    // You might want to move the "Please log in" toast here if you want it only on redirect
-    toast.error('Please log in to access this page'); // Show toast on redirect
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // 3. If user IS logged in...
-  if (user) {
-     // console.log(`ProtectedRoute: User authenticated. Role: ${role}, Path: ${location.pathname}`); // Debug log
-
-      // Check if the authenticated user is currently on the /login page.
-    if (location.pathname === '/login') {
-        const dashboardPath = getDashboardPath(role); // Get the correct dashboard path based on the user's role
-        // console.log(`ProtectedRoute: User logged in at /login. Calculated dashboard path: ${dashboardPath}`); // Debug log
-
-        // If a valid dashboard path is found and it's not '/login' itself, redirect.
-      if (dashboardPath && dashboardPath !== '/login') {
-          // console.log(`ProtectedRoute: Redirecting authenticated user from /login to ${dashboardPath}`); // Debug log
-        return <Navigate to={dashboardPath} replace />; // <-- Redirect to the dashboard
-      } else {
-          // console.warn("ProtectedRoute: User logged in at /login, but calculated dashboard path is invalid or '/login'. Not redirecting."); // Debug log
-          // This case indicates a potential issue with getDashboardPath or user role data.
-          // You might want to redirect to a default authenticated page (like home) or show an error.
-          // For now, it will fall through and render children, which for the /login route is the Login component.
-          // This is why you were stuck - because this redirect logic was missing entirely.
-          // Consider adding a redirect to a safe route if getDashboardPath fails, e.g.:
-          // return <Navigate to="/" replace />; // Redirect to homepage if it exists and is safe
+  // 3. Handle authenticated users: If the user is logged in...
+  if (user) {
+    // If the authenticated user is on the login page, redirect them to their appropriate dashboard.
+    if (location.pathname === '/login') {
+      const dashboardPath = getDashboardPath(role); // Get the dashboard path based on the user's role
+      // Redirect to the dashboard if a valid path is found and it's not the login page itself
+      if (dashboardPath && dashboardPath !== '/login') {
+        return <Navigate to={dashboardPath} replace />; // Redirect to the user's dashboard
+      } else {
+        // This case should ideally not happen if getDashboardPath is configured correctly.
+        // It might indicate an issue with the user's role or the dashboard path configuration.
+        // For now, we fall through, which means the Login component will be rendered (if children for /login is Login),
+        // but a more robust application might redirect to a generic safe page or show an error.
+        console.warn("ProtectedRoute: User logged in at /login, but calculated dashboard path is invalid or '/login'.");
       }
-    }
+    }
 
-      // If the user is logged in and is trying to access a protected route (not /login), check permissions.
-    if (requiredRole && !hasPermission(role, requiredRole)) {
-        // console.log(`ProtectedRoute: Permission denied. User role: ${role}, Required role: ${requiredRole}`); // Debug log
-      toast.error('You do not have permission to access this page'); // Show toast
-      return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />; // Redirect to their dashboard
-    }
+    // For any protected route (not /login), check required permissions.
 
-    if (requiredAction && !canPerformAction(role, requiredAction)) {
-        // console.log(`ProtectedRoute: Permission denied. User role: ${role}, Required action: ${requiredAction}`); // Debug log
-      toast.error('You do not have permission to perform this action'); // Show toast
-      return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />; // Redirect to their dashboard
-    }
+    // Check if a specific role is required and if the user's role meets that requirement.
+    if (requiredRole && !hasPermission(role, requiredRole)) {
+      // If the user does not have the required role,
+      // show a permission denied toast and redirect them to their dashboard.
+      toast.error('You do not have permission to access this page');
+      return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
+    }
 
-    // If logged in and has the necessary permissions for this route, render the protected content.
-    // console.log(`ProtectedRoute: User authenticated and has permissions. Rendering children for ${location.pathname}`); // Debug log
-    return (
-      <ErrorBoundary> {/* Assuming ErrorBoundary is correctly implemented */}
-        {children} {/* Render the component for the matched route */}
-      </ErrorBoundary>
-    );
-  }
+    // Check if a specific action permission is required and if the user's role can perform that action.
+    // Note: This is often used for more granular control *within* a dashboard,
+    // while requiredRole controls access to the dashboard section itself.
+    if (requiredAction && !canPerformAction(role, requiredAction)) {
+      // If the user cannot perform the required action,
+      // show a permission denied toast and redirect them to their dashboard.
+      toast.error('You do not have permission to perform this action');
+      return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
+    }
 
-  // Fallback: If somehow the logic above doesn't result in a return,
-  // which theoretically shouldn't happen with the current structure,
-  // you might have a default render or redirect.
-  // Given the `if (!user)` and `if (user)` structure, all paths should be covered.
-  // Adding a final fallback redirect to login for safety in case of unexpected state:
+    // If the user is logged in and has all necessary role and action permissions,
+    // render the protected content.
+    return (
+      <ErrorBoundary> {/* Wrap children with ErrorBoundary for error handling within protected routes */}
+        {children} {/* Render the component(s) for the matched protected route */}
+      </ErrorBoundary>
+    );
+  }
+
+  // Fallback: This part of the code should theoretically be unreachable given the checks above.
+  // If somehow we reach here, it indicates an unexpected state.
+  // As a safety measure, we could redirect to login, but the current logic covers all cases.
   // console.warn("ProtectedRoute: Reached end of logic without explicit return. Unexpected state.");
   // return <Navigate to="/login" state={{ from: location }} replace />;
 }

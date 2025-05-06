@@ -69,17 +69,17 @@ function Login() {
         });
 
         console.log(`✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`);
-        await logAudit(user.email, `Assigned role: ${DEFAULT_ROLE} (new user)`);
+        await logAudit('user_signed_in', user.email, 'user');
       } else {
         userRole = userSnap.data().role;
         console.log(`ℹ️ Existing user logged in with role: ${userRole}`);
       }
 
-      await logAudit(user.email, "Signed in");
+      await logAudit('user_signed_in', user.email, 'user');
       toast.success(`Login successful! Welcome, ${userRole}! 🎉`);
     } catch (error) {
       console.error("🚨 Error signing in with Google:", error);
-    
+
       let errorMessage = 'Login failed. Please try again.';
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = 'Sign in was cancelled.';
@@ -91,11 +91,11 @@ function Login() {
         errorMessage = `Login failed: ${error.message}`;
         toast.error(errorMessage);
       }
-    
+
       setError(errorMessage);
       await signOut(auth);
     }
-     finally {
+    finally {
       setIsLoading(false);
     }
   }, []);
@@ -154,11 +154,10 @@ function Login() {
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading} // Disable the button when isLoading is true
-            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              isDarkMode
-                ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-offset-gray-900'
-                : 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-offset-white'
-            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`} // Add visual feedback for the disabled state
+            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isDarkMode
+              ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-offset-gray-900'
+              : 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-offset-white'
+              } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`} // Add visual feedback for the disabled state
           >
             {isLoading ? (
               <div className="flex items-center justify-center">

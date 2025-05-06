@@ -71,8 +71,11 @@ function ManageUsers() {
     try {
       const userRef = doc(db, "users", userId);
       await updateDoc(userRef, { role: newRole });
-      await logAudit(email, `Role changed to ${newRole} by SuperAdmin`);
-      toast.success(`Successfully updated ${email}'s role to ${newRole}`);
+      await logAudit('user_role_updated', email, 'user', {
+        targetUserEmail: email,
+        newRole: newRole,
+      });
+      toast.success(`Role updated to ${newRole} for ${email}`);
     } catch (error) {
       console.error("Error updating user role:", error);
       toast.error(`Failed to update ${email}'s role`);
