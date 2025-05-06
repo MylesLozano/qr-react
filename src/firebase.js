@@ -17,6 +17,7 @@ const EMAIL_DOMAIN = "@jmc.edu.ph";
 const DEFAULT_ROLE = "user";
 const AUDIT_COLLECTION = "auditLogs";
 const USERS_COLLECTION = "users";
+const QR_COLLECTION = "qrCodes";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -45,7 +46,7 @@ const validateFirebaseConfig = (config) => {
   }
 };
 
-let auth, db, logAudit, getUserRole, checkAndAssignUserRole, firebaseApp;
+let auth, db, logAudit, getUserRole, checkAndAssignUserRole, firebaseApp, saveQRCodeToFirestore, getQRCodeFromFirestore;
 
 try {
   validateFirebaseConfig(firebaseConfig);
@@ -76,7 +77,6 @@ try {
         console.log(
           `✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`
         );
-        // Updated logAudit call to match the new standard action and entity type
         await logAudit("user_role_assigned", user.email, "user", {
           role: DEFAULT_ROLE,
           userId: user.uid,
@@ -84,7 +84,6 @@ try {
       } else {
         const userData = userSnap.data();
         console.log(`ℹ️ User ${user.email} exists with role: ${userData.role}`);
-        // Updated logAudit call to match the new standard action and entity type
         await logAudit("user_role_verified", user.email, "user", {
           role: userData.role,
           userId: user.uid,
@@ -121,7 +120,6 @@ try {
    * @param {object} details - Optional object with additional details about the action (e.g., { itemId: 'abc', userName: '...' })
    */
   logAudit = async (action, userEmail, entityType = "system", details = {}) => {
-    // <-- Updated function signature
     if (!action || !userEmail) {
       console.warn("Attempted to log audit without action or user email.");
       return;
@@ -146,9 +144,49 @@ try {
       throw error;
     }
   };
+
+  // Add new function to handle QR code storage in Firestore
+  saveQRCodeToFirestore = async (itemId, qrDataUrl, metadata = {}) => {
+    try {
+      const qrRef = doc(db, QR_COLLECTION, itemId);
+      await setDoc(qrRef, {
+        qrCode: qrDataUrl,
+        createdAt: serverTimestamp(),
+        ...metadata,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error saving QR code:", error);
+      throw error;
+    }
+  };
+
+  // Add function to retrieve QR code from Firestore
+  getQRCodeFromFirestore = async (itemId) => {
+    try {
+      const qrRef = doc(db, QR_COLLECTION, itemId);
+      const qrDoc = await getDoc(qrRef);
+      if (qrDoc.exists()) {
+        return qrDoc.data();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error retrieving QR code:", error);
+      throw error;
+    }
+  };
 } catch (error) {
   console.error("🚨 Firebase initialization failed:", error);
   throw error;
 }
 
-export { auth, db, logAudit, getUserRole, checkAndAssignUserRole, firebaseApp };
+export {
+  auth,
+  db,
+  logAudit,
+  getUserRole,
+  checkAndAssignUserRole,
+  firebaseApp,
+  saveQRCodeToFirestore,
+  getQRCodeFromFirestore,
+};

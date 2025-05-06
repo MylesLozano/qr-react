@@ -10,25 +10,29 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { getDashboardPath } from './utils/roleUtils';
 import SessionTimeout from "./components/SessionTimeout";
 import { useAuth } from "./context/AuthContext";
-import ReportGenerator from "./dashboard/admin/ReportGenerator";
 
-// Constants
-const SESSION_TIMEOUT_MINUTES = 30;
-const SESSION_WARNING_MINUTES = 5;
-const TOAST_AUTO_CLOSE = 3000;
-
-// Lazy load dashboards with preload hints
-const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
-const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
-const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
+// Lazy load all major components
+const QRCodeManager = lazy(() => import("./components/QRCodeManager"));
+const BaseDashboard = lazy(() => import("./dashboard/BaseDashboard"));
+const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCategories'));
+const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
+const UnifiedReporting = lazy(() => import("./dashboard/UnifiedReporting"));
 const Inventory = lazy(() => import("./dashboard/Inventory"));
 const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
 const MyRequests = lazy(() => import("./dashboard/user/MyRequests"));
 const Requests = lazy(() => import("./dashboard/admin/Requests"));
 const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
-const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCategories'));
-const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
-const UnifiedReporting = lazy(() => import("./dashboard/UnifiedReporting"));
+const ReportGenerator = lazy(() => import("./dashboard/admin/ReportGenerator"));
+
+// Lazy load dashboards with preload hints
+const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
+const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
+const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
+
+// Constants
+const SESSION_TIMEOUT_MINUTES = 30;
+const SESSION_WARNING_MINUTES = 5;
+const TOAST_AUTO_CLOSE = 3000;
 
 // Route configurations
 const ROUTE_CONFIG = {

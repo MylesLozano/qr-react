@@ -2,132 +2,170 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
-// Import logAudit from firebase.js
-import { logAudit } from "../firebase"; // Assuming logAudit is exported from firebase.js
-// Import calculateQrStats if it's a separate utility
-import { calculateQrStats } from "../utils/inventoryUtils"; // Assuming calculateQrStats is in inventoryUtils
+import { logAudit, saveQRCodeToFirestore, db } from "../firebase";
+import { calculateQrStats } from "../utils/inventoryUtils";
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  setDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
 
 export default function useQRCode(items, user) {
-  // State for the item whose QR code is being previewed
   const [qrPreview, setQrPreview] = useState(null);
-  // State for the generated QR code data (the actual content of the QR)
   const [generatedQrData, setGeneratedQrData] = useState(null);
-  // State for the loading indicator during QR data generation
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
-  // State for tracking QR code statistics
   const [qrStats, setQrStats] = useState({
     totalWithQr: 0,
     totalWithoutQr: 0,
     lastGenerated: null,
   });
-   // State for managing errors during QR operations within the hook
-   const [qrError, setQrError] = useState(null);
+  const [qrError, setQrError] = useState(null);
 
-
-  // Calculate QR stats whenever the items list changes
+  // Calculate QR stats whenever items change
   useEffect(() => {
     setQrStats(calculateQrStats(items));
-  }, [items]); // Dependency array: recalculate when 'items' changes
+  }, [items]);
 
-  // Validate data structure before generating QR code
-  const validateQRData = useCallback((data) => {
-     if (!data) {
-         throw new Error('No data provided for QR code');
-     }
-     // Add more specific validation based on your item structure if needed
-     // Example: if (!data.id || !data.name) { throw new Error('Item ID and name are required'); }
-     return true; // Return true if validation passes
-  }, []); // No dependencies if validation is based on data structure
-
-  // Generate QR code data for a given item
-  const generateQrCodeData = useCallback((item) => {
-      if (!item || !item.id || !item.name) {
-          console.error("Attempted to generate QR data for invalid item:", item);
-          throw new Error("Invalid item data provided for QR code generation.");
-      }
-
-      const data = {
-          // Include essential item details for the QR code payload
-          id: item.id,
-          name: item.name,
-          // Add other relevant fields that should be encoded in the QR
-          serialNumber: item.serialNumber || null,
-          unitNumber: item.unitNumber || null,
-          category: item.category || null,
-          lab: item.lab || null,
-          condition: item.itemCondition || null,
-          // Include a timestamp when the QR data was generated
-          dateGenerated: new Date().toISOString() // Use ISO string for consistency
-      };
-
-      // Optional: Validate the generated data structure if validateQRData is complex
-      // validateQRData(data);
-
-      return data;
-  }, []); // No dependencies if generate logic only uses item properties
-
-
-  // Prepare data and trigger preview modal
-  const previewQrCode = useCallback(async (item) => {
-    if (!item) return;
-
-    setQrPreview(item); // Set the item to be previewed (opens the modal)
-    setGeneratedQrData(null); // Clear previous QR data
-    setIsGeneratingQr(true); // Indicate loading for data generation
-    setQrError(null); // Clear any previous errors
-
+  // Check if an item is already requested
+  const checkExistingRequest = async (itemId) => {
     try {
-      // Generate the data that will be encoded in the QR code
-      const data = generateQrCodeData(item);
+      const requestRef = doc(db, "itemRequests", itemId);
+      const requestDoc = await getDoc(requestRef);
 
-      // Validate the generated data
-      validateQRData(data); // Use the validation function
+      if (requestDoc.exists()) {
+        const requestData = requestDoc.data();
+        // Check if the request is still active (less than 24 hours old)
+        const requestTime = requestData.timestamp.toDate();
+        const now = new Date();
+        const hoursDiff = (now - requestTime) / (1000 * 60 * 60);
 
-      // Set the generated data state - this will be passed to QRCodeManager
-      setGeneratedQrData(data);
-
-      // Standardized audit log action and entity type
-      await logAudit('qr_code_previewed', user.email, 'inventory', {
-        itemName: item.name,
-        itemId: item.id,
-      });
-
-      // toast.success("QR code data prepared for preview"); // Optional toast
-
-
+        if (hoursDiff < 24) {
+          if (requestData.requestedBy === user.email) {
+            return { isRequested: true, isSameUser: true };
+          }
+          return { isRequested: true, isSameUser: false };
+        }
+      }
+      return { isRequested: false };
     } catch (error) {
-      console.error("Error preparing QR code data for preview:", error);
-      setQrError("Failed to prepare QR code data for preview.");
-      toast.error("Failed to prepare QR code data for preview.");
-      setQrPreview(null); // Close the modal on error
-      setGeneratedQrData(null); // Clear generated data on error
-    } finally {
-      setIsGeneratingQr(false); // End loading
+      console.error("Error checking request status:", error);
+      throw error;
     }
-  }, [generateQrCodeData, validateQRData, user, logAudit]); // Depend on handlers and user
+  };
 
+  // Create a new request
+  const createRequest = async (itemId) => {
+    const requestRef = doc(db, "itemRequests", itemId);
+    await setDoc(requestRef, {
+      itemId,
+      requestedBy: user.email,
+      timestamp: serverTimestamp(),
+      status: "pending",
+    });
+  };
 
-    // Reset states when the preview modal is closed
-    const closeQrPreview = useCallback(() => {
+  const validateQRData = useCallback((data) => {
+    if (!data) {
+      throw new Error("No data provided for QR code");
+    }
+    return true;
+  }, []);
+
+  const generateQrCodeData = useCallback((item) => {
+    if (!item || !item.id || !item.name) {
+      throw new Error("Invalid item data provided for QR code generation.");
+    }
+
+    return {
+      id: item.id,
+      name: item.name,
+      serialNumber: item.serialNumber || null,
+      unitNumber: item.unitNumber || null,
+      category: item.category || null,
+      lab: item.lab || null,
+      condition: item.itemCondition || null,
+      dateGenerated: new Date().toISOString(),
+    };
+  }, []);
+
+  const previewQrCode = useCallback(
+    async (item) => {
+      if (!item) return;
+
+      setQrPreview(item);
+      setGeneratedQrData(null);
+      setIsGeneratingQr(true);
+      setQrError(null);
+
+      try {
+        // Check for existing requests first
+        const { isRequested, isSameUser } = await checkExistingRequest(item.id);
+        if (isRequested) {
+          if (isSameUser) {
+            toast.info("You have already requested this item");
+          } else {
+            toast.error("Item has already been requested. Choose another one.");
+          }
+          setQrPreview(null);
+          setIsGeneratingQr(false);
+          return;
+        }
+
+        // Create a new request
+        await createRequest(item.id);
+
+        // Generate QR code data
+        const data = generateQrCodeData(item);
+        validateQRData(data);
+
+        // Convert QR code to image using QRCodeSVG
+        const qrSvg = document.createElement("div");
+        qrSvg.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"></svg>`;
+        // Note: The actual QR code rendering will happen in the QRCodeManager component
+
+        // Store QR code and update item
+        const itemRef = doc(db, "inventory", item.id);
+        await updateDoc(itemRef, {
+          hasQR: true,
+          lastQRGenerated: serverTimestamp(),
+        });
+
+        setGeneratedQrData(data);
+
+        await logAudit("qr_code_generated", user.email, "inventory", {
+          itemName: item.name,
+          itemId: item.id,
+        });
+      } catch (error) {
+        console.error("Error preparing QR code data for preview:", error);
+        setQrError("Failed to prepare QR code data for preview.");
+        toast.error("Failed to prepare QR code data for preview.");
         setQrPreview(null);
-        setGeneratedQrData(null); // Clear generated data when modal closes
-        setQrError(null); // Clear error when modal closes
-    }, []);
+        setGeneratedQrData(null);
+      } finally {
+        setIsGeneratingQr(false);
+      }
+    },
+    [generateQrCodeData, validateQRData, user]
+  );
 
-
-  // You can also have a separate function here if you need to explicitly trigger generate & save (not just preview)
-  // const generateAndDownloadQrCode = useCallback(async (item) => { ... }, [/* dependencies */]);
-
+  const closeQrPreview = useCallback(() => {
+    setQrPreview(null);
+    setGeneratedQrData(null);
+    setQrError(null);
+  }, []);
 
   return {
-    qrStats, // Statistics about QR codes
-    qrPreview, // The item being previewed (determines if modal is open)
-    setQrPreview, // Setter for preview item (can be used to open/close, but previewQrCode is preferred for opening)
-    generatedQrData, // The actual data encoded in the QR code (pass to QRCodeManager)
-    isGeneratingQr, // Loading state for data generation
-    qrError, // Error state for QR operations
-    // generateQrCode, // Removed - logic is now within previewQrCode or a separate download trigger
-    previewQrCode, // Handler to trigger preview (generates data and opens modal)
-    closeQrPreview // Handler to close the preview modal
+    qrStats,
+    qrPreview,
+    setQrPreview,
+    generatedQrData,
+    isGeneratingQr,
+    qrError,
+    previewQrCode,
+    closeQrPreview,
   };
 }

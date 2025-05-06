@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from './themeContext';
+import { useTheme } from '../context/ThemeContext';
 
 function Tab({ label, isActive, onClick, disabled = false }) {
     const { isDarkMode } = useTheme();

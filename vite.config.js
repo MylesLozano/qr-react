@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-// No more PostCSS here!
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
@@ -9,17 +9,33 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    chunkSizeWarningLimit: 600, // Increased from default 500kb to accommodate vendor-firebase chunk
     rollupOptions: {
-      external: ['jspdf', 'jspdf-autotable'],
+      external: ["jspdf", "jspdf-autotable"],
       output: {
         globals: {
-          jspdf: 'jsPDF',
-          'jspdf-autotable': 'jsPDFAutoTable'
-        }
-      }
-    }
+          jspdf: "jsPDF",
+          "jspdf-autotable": "jsPDFAutoTable",
+        },
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-firebase": [
+            "firebase/app",
+            "firebase/auth",
+            "firebase/firestore",
+          ],
+          "vendor-ui": ["react-toastify", "react-virtualized-auto-sizer"],
+          "dashboard-common": [
+            "./src/dashboard/BaseDashboard.jsx",
+            "./src/components/LoadingSpinner.jsx",
+            "./src/components/ErrorBoundary.jsx",
+            "./src/components/Button.jsx",
+          ],
+        },
+      },
+    },
   },
   optimizeDeps: {
-    include: ['jspdf', 'jspdf-autotable']
-  }
+    include: ["jspdf", "jspdf-autotable"],
+  },
 });
