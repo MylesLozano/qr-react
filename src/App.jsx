@@ -166,6 +166,15 @@ function App() {
               ].map(route => <Route key={route.path} {...route} />)}
             />
 
+            {/* Direct access routes for common user actions */}
+            <Route path="/scan-qr" element={<ProtectedRoute requiredRole="user" requiredAction="view_inventory">
+              <QRScanner />
+            </ProtectedRoute>} />
+
+            <Route path="/my-requests" element={<ProtectedRoute requiredRole="user" requiredAction="view_requests">
+              <MyRequests />
+            </ProtectedRoute>} />
+
             {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to={isAuthenticated ? getDashboardPath(role) : "/login"} replace />} />
           </Routes>

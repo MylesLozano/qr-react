@@ -12,23 +12,23 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import usePageTitle from "../../hooks/usePageTitle";
-import BaseDashboard from "../BaseDashboard";
 import { toast } from "react-toastify";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { format } from "date-fns";
 import Button from "../../components/Button";
-import { Scanner } from "@yudiel/react-qr-scanner";
+import { useNavigate } from "react-router-dom";
 
 /**
  * MyRequests component - Allows users to view and manage their item requests
  * @component
  * @returns {JSX.Element} The rendered MyRequests component
  */
-function MyRequests() {
+function MyRequests({ isInDashboard = false }) {
   usePageTitle("QCheckCITE - My Requests");
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,48 +40,17 @@ function MyRequests() {
     usageLocation: "",
   });
   const [errors, setErrors] = useState({});
-  const [scanResult, setScanResult] = useState(null);
-  const [paused, setPaused] = useState(false);
-  const [error, setError] = useState(null);
-  const [scanning, setScanning] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
   // State for dynamic counts
-  const [inventoryCount, setInventoryCount] = useState(0);
-  const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
 
   // Memoize the current user
   const currentUser = useMemo(() => auth.currentUser, []);
-
-  // Shared error handler for QR scanning
-  const handleScanErrorShared = useCallback((err) => {
-    console.error("QR Scan Error:", err);
-    setError(err.message);
-    setScanning(false);
-    toast.error("Failed to scan QR code");
-  }, []);
-
-  const handleScanResult = useCallback((result) => {
-    try {
-      setScanning(false);
-      setScanResult(result);
-      setPaused(true);
-      toast.success("QR code scanned successfully!");
-    } catch (err) {
-      handleScanErrorShared(err); // Use shared handler
-    }
-  }, [handleScanErrorShared]);
-
-  const resetScanner = useCallback(() => {
-    setPaused(false);
-    setScanResult(null);
-    setError(null);
-    setScanning(true);
-  }, []);
 
   // Consolidated effect for fetching counts and requests
   useEffect(() => {
@@ -91,20 +60,17 @@ function MyRequests() {
       return;
     }
 
+    let unsubscribeRequests = null;
+
     const fetchData = async () => {
       try {
-        const inventoryCol = collection(db, "inventory");
-        const snapshot = await getCountFromServer(inventoryCol);
-        setInventoryCount(snapshot.data().count);
-
         const myRequestsQuery = query(
           collection(db, "requests"),
           where("userId", "==", currentUser.uid)
         );
-        const unsubscribeRequests = onSnapshot(
+        unsubscribeRequests = onSnapshot(
           myRequestsQuery,
           (snapshot) => {
-            let total = 0;
             let approved = 0;
             const userRequests = snapshot.docs.map((doc) => ({
               id: doc.id,
@@ -113,10 +79,8 @@ function MyRequests() {
             }));
             setRequests(userRequests);
             snapshot.forEach((doc) => {
-              total++;
               if (doc.data().status === "approved") approved++;
             });
-            setMyRequestsCount(total);
             setApprovedRequestsCount(approved);
             setLoading(false);
             setLoadingCounts(false);
@@ -128,18 +92,22 @@ function MyRequests() {
             setLoadingCounts(false);
           }
         );
-
-        return unsubscribeRequests;
       } catch (err) {
         console.error("Error in fetchData:", err);
-        toast.error("Failed to fetch dashboard data");
+        toast.error("Failed to fetch request data");
         setLoading(false);
         setLoadingCounts(false);
       }
     };
 
-    const unsubscribe = fetchData();
-    return () => unsubscribe && unsubscribe();
+    fetchData();
+
+    // Return cleanup function that checks if unsubscribeRequests is a function
+    return () => {
+      if (typeof unsubscribeRequests === 'function') {
+        unsubscribeRequests();
+      }
+    };
   }, [currentUser]);
 
   // Search inventory items
@@ -243,6 +211,7 @@ function MyRequests() {
         reason: "",
         usageLocation: "",
       });
+      setShowForm(false);
     } catch (error) {
       console.error("Error submitting request:", error);
       toast.error("Failed to submit request. Please try again.");
@@ -271,153 +240,117 @@ function MyRequests() {
     pending: "bg-yellow-500",
   }), []);
 
-  // Memoize summary cards data
-  const summaryCards = useMemo(() => [
-    {
-      title: "Available Inventory",
-      count: inventoryCount,
-      icon: "📦",
-      description: "Total items available for request",
-    },
-    {
-      title: "My Requests",
-      count: myRequestsCount,
-      icon: "📝",
-      description: "Total requests submitted",
-    },
-    {
-      title: "Approved Requests",
-      count: approvedRequestsCount,
-      icon: "✅",
-      description: "Total approved requests",
-    },
-  ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
-
   // Extract the EmptyRequestsOptions component to improve readability
-  const EmptyRequestsOptions = ({ isDarkMode, inventoryCount, onStartNewRequest }) => (
+  const EmptyRequestsOptions = () => (
     <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
       <h2 className="text-xl font-semibold mb-4">Get Started with Requests</h2>
-      <p className="mb-4">You haven't made any requests yet. Here are some ways to get started:</p>
+      <p className="mb-4">You haven't made any requests yet. Create your first request to get started.</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <h3 className="font-bold text-lg mb-2">
-            <span className="mr-2" aria-hidden="true">📋</span>
-            Create a New Request
-          </h3>
-          <p className="mb-3">Browse our inventory of {inventoryCount} available items and make a request.</p>
-          <Button
-            onClick={onStartNewRequest}
-            color="blue"
-            size="md"
-            className="w-full"
-          >
-            Start New Request
-          </Button>
-        </div>
-
-        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <h3 className="font-bold text-lg mb-2">
-            <span className="mr-2" aria-hidden="true">📱</span>
-            Quick Request via QR Code
-          </h3>
-          <p className="mb-3">Found an item with a QR code? Scan it to quickly request that item.</p>
-          <Button
-            onClick={() => document.getElementById('qr-scanner-section')?.scrollIntoView({ behavior: 'smooth' })}
-            color="green"
-            size="md"
-            className="w-full"
-          >
-            Open Scanner
-          </Button>
-        </div>
-      </div>
-
-      <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-indigo-900/20' : 'bg-indigo-50'} border ${isDarkMode ? 'border-indigo-800' : 'border-indigo-200'}`}>
-        <h3 className="font-semibold mb-2 flex items-center">
-          <span className="mr-2 text-xl">💡</span>
-          Request Process
-        </h3>
-        <ol className="list-decimal pl-5 space-y-1">
-          <li>Find an item through search or QR code scan</li>
-          <li>Fill in the request details</li>
-          <li>Submit your request for review</li>
-          <li>Track the approval status here</li>
-        </ol>
+      <div className="flex justify-center">
+        <Button
+          onClick={() => setShowForm(true)}
+          color="blue"
+          size="md"
+        >
+          Create New Request
+        </Button>
       </div>
     </div>
   );
 
   return (
     <ErrorBoundary>
-      <BaseDashboard role="user">
-        <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-          <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">
-            My Requests
-          </h1>
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {summaryCards.map((card, index) => (
-              <div
-                key={index}
-                className={`p-6 rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"
-                  }`}
-                role="region"
-                aria-label={card.title}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">{card.title}</h2>
-                  <span className="text-2xl">{card.icon}</span>
-                </div>
-                {loadingCounts ? (
-                  <LoadingSpinner size="small" />
-                ) : (
-                  <>
-                    <p className="text-3xl font-bold mb-2">{card.count}</p>
-                    <p className="text-sm text-gray-500">{card.description}</p>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Search Inventory */}
-          <div className="mb-6">
-            <input
-              type="text"
-              placeholder="Search inventory..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`p-2 rounded border w-full ${isDarkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"}`}
-            />
-            <Button onClick={handleSearch} className="mt-2">
-              Search
+      <div className={`${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+        {!isInDashboard && (
+          <div className="mb-4">
+            <Button
+              onClick={() => navigate(-1)}
+              color="gray"
+              size="md"
+              className="flex items-center"
+              aria-label="Go back to the previous page"
+            >
+              <span className="mr-2">←</span> Back
             </Button>
-            {searchResults.length > 0 && (
-              <div className="mt-4">
-                <h2 className="text-xl font-semibold mb-2">Search Results</h2>
-                <ul>
-                  {searchResults.map((item) => (
-                    <li
-                      key={item.id}
-                      className={`p-2 rounded cursor-pointer ${isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"}`}
-                      onClick={() => handleSelectItem(item)}
-                    >
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm">Category: {item.category}</p>
-                      <p className="text-sm">Lab: {item.lab}</p>
-                      <p className="text-sm">Available: {item.quantity}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
+        )}
 
-          {/* Request Form */}
+        <h1 className="text-2xl font-bold mb-6" role="heading" aria-level="1">
+          My Requests
+        </h1>
+
+        <div className="mb-4 flex justify-between items-center">
+          {!showForm && (
+            <Button
+              onClick={() => setShowForm(true)}
+              color="blue"
+            >
+              New Request
+            </Button>
+          )}
+          {showForm && (
+            <Button
+              onClick={() => setShowForm(false)}
+              color="gray"
+            >
+              Cancel
+            </Button>
+          )}
+          <div>
+            <span className="font-semibold mr-2">Approved:</span>
+            {loadingCounts ? <LoadingSpinner size="small" /> : approvedRequestsCount}
+            <span className="font-semibold mx-2">Total:</span>
+            {loadingCounts ? <LoadingSpinner size="small" /> : requests.length}
+          </div>
+        </div>
+
+        {/* Request Form */}
+        {showForm && (
           <div id="request-form" className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
-            <form onSubmit={handleSubmit} className="mb-8 space-y-4 max-w-xl">
+            <h2 className="text-xl font-semibold mb-4">Create Request</h2>
+
+            {/* Search Inventory */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-1">
+                Search for an item
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Search inventory..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`p-2 rounded border flex-grow ${isDarkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                />
+                <Button onClick={handleSearch}>
+                  Search
+                </Button>
+              </div>
+
+              {searchResults.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold mb-2">Search Results</h3>
+                  <div className="max-h-40 overflow-y-auto">
+                    <ul>
+                      {searchResults.map((item) => (
+                        <li
+                          key={item.id}
+                          className={`p-2 rounded cursor-pointer mb-1 ${isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"}`}
+                          onClick={() => handleSelectItem(item)}
+                        >
+                          <p className="font-semibold">{item.name}</p>
+                          <p className="text-sm">Category: {item.category}</p>
+                          <p className="text-sm">Lab: {item.lab}</p>
+                          <p className="text-sm">Available: {item.quantity}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="itemName" className="block text-sm font-medium mb-1">
                   Item Name
@@ -507,79 +440,42 @@ function MyRequests() {
                 )}
               </div>
 
-              <Button
-                type="submit"
-                disabled={submitting}
-                color="blue"
-                className={`px-4 py-2 rounded transition-colors duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
-                aria-label="Submit request"
-              >
-                {submitting ? <LoadingSpinner size="small" /> : "Submit Request"}
-              </Button>
-            </form>
-          </div>
-
-          {/* QR Scanner Section */}
-          <div id="qr-scanner-section" className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
-            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
-              QR Code Scanner
-            </h2>
-
-            {error && (
-              <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
-                <p>{error}</p>
-              </div>
-            )}
-
-            {scanResult ? (
-              <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
-                <p>Scanned Result: {scanResult}</p>
+              <div className="flex gap-2">
                 <Button
-                  onClick={resetScanner}
+                  type="submit"
+                  disabled={submitting}
                   color="blue"
-                  className="mt-4"
-                  aria-label="Scan another QR code"
+                  className={`${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                  aria-label="Submit request"
                 >
-                  Scan Another
+                  {submitting ? <LoadingSpinner size="small" /> : "Submit Request"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  color="gray"
+                >
+                  Cancel
                 </Button>
               </div>
-            ) : (
-              <div className="relative">
-                {scanning && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
-                    <LoadingSpinner size="large" />
-                  </div>
-                )}
-                <Scanner
-                  onResult={handleScanResult}
-                  onError={handleScanErrorShared}
-                  options={{
-                    delayBetweenScanAttempts: 100,
-                    delayBetweenScanSuccess: 500,
-                  }}
-                  className="rounded-lg"
-                />
-              </div>
-            )}
+            </form>
           </div>
+        )}
 
-          {/* Requests Table */}
-          {!loading && requests.length === 0 ? (
-            <EmptyRequestsOptions
-              isDarkMode={isDarkMode}
-              inventoryCount={inventoryCount}
-              onStartNewRequest={() => document.getElementById('request-form').scrollIntoView({ behavior: 'smooth' })}
-            />
-          ) : (
+        {/* Requests Table */}
+        {!loading && requests.length === 0 ? (
+          <EmptyRequestsOptions />
+        ) : (
+          <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+            <h2 className="text-xl font-semibold mb-4">My Requests</h2>
             <div className="overflow-x-auto">
               <table
-                className={`min-w-full border ${isDarkMode ? "border-gray-700" : "border-gray-300"
-                  }`}
+                className={`min-w-full border ${isDarkMode ? "border-gray-700" : "border-gray-300"}`}
                 role="table"
                 aria-label="List of requests"
               >
                 <thead>
-                  <tr className={isDarkMode ? "bg-gray-800" : "bg-gray-100"}>
+                  <tr className={isDarkMode ? "bg-gray-700" : "bg-gray-100"}>
                     <th className="p-2 border">Item</th>
                     <th className="p-2 border">Quantity</th>
                     <th className="p-2 border">Reason</th>
@@ -593,8 +489,7 @@ function MyRequests() {
                   {requests.map((req) => (
                     <tr
                       key={req.id}
-                      className={`text-center ${isDarkMode ? "hover:bg-gray-800" : "hover:bg-gray-50"
-                        }`}
+                      className={`text-center ${isDarkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
                     >
                       <td className="p-2 border">{req.itemName}</td>
                       <td className="p-2 border">{req.quantity}</td>
@@ -602,8 +497,7 @@ function MyRequests() {
                       <td className="p-2 border">{req.usageLocation || "N/A"}</td>
                       <td className="p-2 border">
                         <span
-                          className={`px-2 py-1 rounded text-white ${statusColors[req.status] || "bg-gray-500"
-                            }`}
+                          className={`px-2 py-1 rounded text-white ${statusColors[req.status] || "bg-gray-500"}`}
                         >
                           {req.status || "Pending"}
                         </span>
@@ -618,7 +512,7 @@ function MyRequests() {
                           <Button
                             onClick={() => handleDelete(req.id)}
                             color="red"
-                            className={`px-3 py-1 rounded transition-colors duration-200`}
+                            size="sm"
                             aria-label={`Cancel request for ${req.itemName}`}
                           >
                             Cancel
@@ -632,9 +526,9 @@ function MyRequests() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      </BaseDashboard>
+          </div>
+        )}
+      </div>
     </ErrorBoundary>
   );
 }

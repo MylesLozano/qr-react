@@ -205,9 +205,23 @@ function BaseDashboard({ children }) {
   const NavLink = ({ item, index, isMobile: isMobileView }) => {
     const isActive = location.pathname === item.path || location.pathname.includes(item.path);
     const baseClass = getNavLinkClass(isActive, isMobileView);  // Use the helper
+
+    const handleNavClick = (e) => {
+      e.preventDefault();
+      // Close mobile menu if open
+      if (isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+      // Use navigate for programmatic navigation with a slight delay
+      setTimeout(() => {
+        navigate(item.path);
+      }, 50);
+    };
+
     return (
-      <Link
-        to={item.path}
+      <a
+        href={item.path}
+        onClick={handleNavClick}
         className={`${baseClass} block px-3 py-2 rounded-md text-base font-medium`}
         ref={isMobileView && index === 0 ? firstNavItemRef : null}
         aria-current={isActive ? 'page' : undefined}
@@ -217,7 +231,7 @@ function BaseDashboard({ children }) {
           {isMobileView && window.innerWidth < 500 ? '📋' : item.icon}
         </span>
         {item.label}
-      </Link>
+      </a>
     );
   };
 

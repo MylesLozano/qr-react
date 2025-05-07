@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, onSnapshot, getCountFromServer } from "firebase/firestore";
 import { db, auth } from "../../firebase";
@@ -7,7 +6,11 @@ import { toast } from "react-toastify";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import Button from "../../components/Button";
+import QRScanner from "../../components/QRScanner";
+import Inventory from "../Inventory";
+import MyRequests from "./MyRequests";
 
 /**
  * UserDashboard component - Main dashboard for regular users
@@ -16,12 +19,16 @@ import { Link } from "react-router-dom";
  */
 function UserDashboard() {
   usePageTitle("QCheckCITE - User Dashboard");
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [inventoryCount, setInventoryCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
   const currentUser = useMemo(() => auth.currentUser, []);
+
+  // Active component state
+  const [activeComponent, setActiveComponent] = useState(null);
 
   // Consolidated effect for fetching counts
   useEffect(() => {
@@ -71,7 +78,7 @@ function UserDashboard() {
       }
     };
 
-    // Call fetchData (but don't use its return value for cleanup)
+    // Call fetchData
     fetchData();
 
     // Return a cleanup function that uses our properly stored unsubscribe
@@ -88,98 +95,176 @@ function UserDashboard() {
       count: inventoryCount,
       icon: "📦",
       description: "Total items available for request",
-      link: "/user-dashboard/inventory"
+      component: "inventory"
     },
     {
       title: "My Requests",
       count: myRequestsCount,
       icon: "📝",
       description: "Total requests submitted",
-      link: "/user-dashboard/my-requests"
+      component: "requests"
     },
     {
       title: "Approved Requests",
       count: approvedRequestsCount,
       icon: "✅",
       description: "Total approved requests",
-      link: "/user-dashboard/my-requests"
+      component: "requests"
     },
   ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
 
-  return (
-    <ErrorBoundary>
-      <BaseDashboard role="user">
-        <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-          <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">
-            User Dashboard
-          </h1>
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      toast.success("Logged out successfully");
+      navigate('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to log out");
+    }
+  };
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {summaryCards.map((card, index) => (
-              <Link
-                to={card.link}
-                key={index}
-                className={`p-6 rounded-lg shadow-md transition-transform hover:scale-105 ${isDarkMode ? "bg-gray-800" : "bg-white"}`}
-                role="region"
-                aria-label={card.title}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">{card.title}</h2>
-                  <span className="text-2xl">{card.icon}</span>
-                </div>
-                {loadingCounts ? (
-                  <LoadingSpinner size="small" />
-                ) : (
-                  <>
-                    <p className="text-3xl font-bold mb-2">{card.count}</p>
-                    <p className="text-sm text-gray-500">{card.description}</p>
-                  </>
-                )}
-              </Link>
-            ))}
+  // Render active component
+  const renderActiveComponent = () => {
+    switch (activeComponent) {
+      case "inventory":
+        return <Inventory isInDashboard={true} />;
+      case "requests":
+        return <MyRequests isInDashboard={true} />;
+      case "scan":
+        return <QRScanner isInDashboard={true} />;
+      default:
+        return renderDashboard();
+    }
+  };
+
+  // Render dashboard home
+  const renderDashboard = () => (
+    <>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {summaryCards.map((card, index) => (
+          <div
+            onClick={() => setActiveComponent(card.component)}
+            key={index}
+            className={`p-6 rounded-lg shadow-md transition-transform hover:scale-105 cursor-pointer ${isDarkMode ? "bg-gray-800" : "bg-white"}`}
+            role="button"
+            aria-label={`Go to ${card.title}`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">{card.title}</h2>
+              <span className="text-2xl">{card.icon}</span>
+            </div>
+            {loadingCounts ? (
+              <LoadingSpinner size="small" />
+            ) : (
+              <>
+                <p className="text-3xl font-bold mb-2">{card.count}</p>
+                <p className="text-sm text-gray-500">{card.description}</p>
+              </>
+            )}
           </div>
+        ))}
+      </div>
 
-          {/* Quick Access Section */}
-          <div className={`p-6 rounded-lg shadow-md mb-6 ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
-            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
-              Quick Access
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link
-                to="/user-dashboard/inventory"
-                className={`p-4 rounded-lg flex items-center ${isDarkMode ? "bg-blue-900 hover:bg-blue-800" : "bg-blue-100 hover:bg-blue-200"}`}
-              >
-                <span className="text-2xl mr-3">📦</span>
-                <div>
-                  <h3 className="font-bold">Browse Inventory</h3>
-                  <p className="text-sm">View and request available items</p>
-                </div>
-              </Link>
-              <Link
-                to="/user-dashboard/my-requests"
-                className={`p-4 rounded-lg flex items-center ${isDarkMode ? "bg-green-900 hover:bg-green-800" : "bg-green-100 hover:bg-green-200"}`}
-              >
-                <span className="text-2xl mr-3">📄</span>
-                <div>
-                  <h3 className="font-bold">My Requests</h3>
-                  <p className="text-sm">Track and manage your requests</p>
-                </div>
-              </Link>
-              <Link
-                to="/user-dashboard/scan"
-                className={`p-4 rounded-lg flex items-center ${isDarkMode ? "bg-purple-900 hover:bg-purple-800" : "bg-purple-100 hover:bg-purple-200"}`}
-              >
-                <span className="text-2xl mr-3">📱</span>
-                <div>
-                  <h3 className="font-bold">Scan QR Code</h3>
-                  <p className="text-sm">Quickly scan item QR codes</p>
-                </div>
-              </Link>
+      {/* Quick Access Section */}
+      <div className={`p-6 rounded-lg shadow-md mb-6 ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
+        <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
+          Quick Access
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            onClick={() => setActiveComponent("inventory")}
+            className={`p-4 rounded-lg flex items-center cursor-pointer ${isDarkMode ? "bg-blue-900 hover:bg-blue-800" : "bg-blue-100 hover:bg-blue-200"}`}
+            role="button"
+            aria-label="Go to Browse Inventory"
+          >
+            <span className="text-2xl mr-3">📦</span>
+            <div>
+              <h3 className="font-bold">Browse Inventory</h3>
+              <p className="text-sm">View and request available items</p>
+            </div>
+          </div>
+          <div
+            onClick={() => setActiveComponent("requests")}
+            className={`p-4 rounded-lg flex items-center cursor-pointer ${isDarkMode ? "bg-green-900 hover:bg-green-800" : "bg-green-100 hover:bg-green-200"}`}
+            role="button"
+            aria-label="Go to My Requests"
+          >
+            <span className="text-2xl mr-3">📄</span>
+            <div>
+              <h3 className="font-bold">My Requests</h3>
+              <p className="text-sm">Track and manage your requests</p>
+            </div>
+          </div>
+          <div
+            onClick={() => setActiveComponent("scan")}
+            className={`p-4 rounded-lg flex items-center cursor-pointer ${isDarkMode ? "bg-purple-900 hover:bg-purple-800" : "bg-purple-100 hover:bg-purple-200"}`}
+            role="button"
+            aria-label="Go to Scan QR Code"
+          >
+            <span className="text-2xl mr-3">📱</span>
+            <div>
+              <h3 className="font-bold">Scan QR Code</h3>
+              <p className="text-sm">Quickly scan item QR codes</p>
             </div>
           </div>
         </div>
-      </BaseDashboard>
+      </div>
+    </>
+  );
+
+  return (
+    <ErrorBoundary>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
+        {/* Simple Header */}
+        <header className={`shadow-md ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center">
+              <h1
+                className="text-2xl font-bold cursor-pointer"
+                onClick={() => setActiveComponent(null)}
+              >
+                QCheckCITE
+              </h1>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+              >
+                {isDarkMode ? '🌞' : '🌙'}
+              </button>
+              <Button
+                onClick={handleLogout}
+                color="red"
+                size="sm"
+              >
+                Logout
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto p-6">
+          {activeComponent && (
+            <div className="mb-4">
+              <Button
+                onClick={() => setActiveComponent(null)}
+                color="gray"
+                className="mb-4"
+              >
+                ← Back to Dashboard
+              </Button>
+            </div>
+          )}
+
+          {renderActiveComponent()}
+        </main>
+      </div>
     </ErrorBoundary>
   );
 }

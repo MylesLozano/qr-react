@@ -2,8 +2,8 @@
 // This component is a wrapper around route elements that enforces authentication and role/action-based authorization.
 // It checks if a user is logged in and has the necessary permissions to access the requested route.
 
-import React, { useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 // hasPermission: checks if a user's role meets a required role (e.g., admin for admin-only pages)
 // canPerformAction: checks if a user's role is allowed to perform a specific action (e.g., 'generate_reports')
@@ -21,6 +21,17 @@ import ErrorBoundary from './components/ErrorBoundary';
 function ProtectedRoute({ children, requiredRole, requiredAction }) {
   const { user, role, loading, error } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [delayedAuth, setDelayedAuth] = useState(true);
+
+  // Add a slight delay to ensure all auth processes complete
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDelayedAuth(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Effect to display authentication errors as toasts
   useEffect(() => {
@@ -46,10 +57,16 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     }
   }, [user, role, requiredRole, requiredAction]);
 
+  // Helper function to handle navigation programmatically
+  const navigateToPath = (path) => {
+    // Use navigate instead of Navigate component for better state handling
+    navigate(path, { replace: true });
+  };
+
   // --- Routing and Authorization Logic ---
 
   // 1. Handle loading state: Show a spinner while authentication state is being determined.
-  if (loading) {
+  if (loading || delayedAuth) {
     return (
       <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
         <LoadingSpinner fullScreen />
@@ -91,7 +108,15 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     if (requiredRole && !hasPermission(role, requiredRole)) {
       // If the user does not have the required role,
       // show a permission denied toast and redirect them to their dashboard.
-      return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
+      setTimeout(() => {
+        navigateToPath(getDashboardPath(role));
+      }, 100);
+
+      return (
+        <div className="flex items-center justify-center min-h-screen" role="status">
+          <LoadingSpinner fullScreen />
+        </div>
+      );
     }
 
     // Check if a specific action permission is required and if the user's role can perform that action.
@@ -100,7 +125,15 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     if (requiredAction && !canPerformAction(role, requiredAction)) {
       // If the user cannot perform the required action,
       // show a permission denied toast and redirect them to their dashboard.
-      return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
+      setTimeout(() => {
+        navigateToPath(getDashboardPath(role));
+      }, 100);
+
+      return (
+        <div className="flex items-center justify-center min-h-screen" role="status">
+          <LoadingSpinner fullScreen />
+        </div>
+      );
     }
 
     // If the user is logged in and has all necessary role and action permissions,

@@ -22,7 +22,7 @@ import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import { canPerformAction } from '../utils/roleUtils';
 
-function Inventory() {
+function Inventory({ isInDashboard = false }) {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
   const navigate = useNavigate();
@@ -123,15 +123,17 @@ function Inventory() {
         <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
           <div className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
             <div className="mb-8">
-              <Button
-                onClick={() => navigate(-1)}
-                color="gray"
-                size="md"
-                className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
-                aria-label="Go back to the previous page"
-              >
-                <span className="mr-2">←</span> Back
-              </Button>
+              {!isInDashboard && (
+                <Button
+                  onClick={() => navigate(-1)}
+                  color="gray"
+                  size="md"
+                  className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
+                  aria-label="Go back to the previous page"
+                >
+                  <span className="mr-2">←</span> Back
+                </Button>
+              )}
               <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
 
               <div className={`p-8 rounded-lg text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
@@ -195,15 +197,17 @@ function Inventory() {
         <div className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
           <div className="mb-8">
             {/* Back Button */}
-            <Button
-              onClick={() => navigate(-1)}
-              color="gray"
-              size="md"
-              className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
-              aria-label="Go back to the previous page"
-            >
-              <span className="mr-2">←</span> Back
-            </Button>
+            {!isInDashboard && (
+              <Button
+                onClick={() => navigate(-1)}
+                color="gray"
+                size="md"
+                className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
+                aria-label="Go back to the previous page"
+              >
+                <span className="mr-2">←</span> Back
+              </Button>
+            )}
             <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
 
             {/* Search and Filter Component */}
