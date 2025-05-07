@@ -39,13 +39,7 @@ const ROUTE_CONFIG = {
   superadmin: {
     path: "/superadmin-dashboard/*",
     element: <ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>,
-    children: [
-      { path: "", element: <Navigate to="user-management" replace /> },
-      { path: "inventory", element: <Inventory /> },
-      { path: "requests", element: <Requests /> },
-      { path: "reporting", element: <UnifiedReporting /> },
-      { path: "user-management", element: <ManageUsers /> }
-    ]
+    children: []
   },
   admin: {
     path: "/admin-dashboard",
@@ -63,7 +57,8 @@ const ROUTE_CONFIG = {
     path: "/user-dashboard",
     element: <ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>,
     children: [
-      { path: "my-requests", element: <MyRequests /> }
+      { path: "my-requests", element: <MyRequests /> },
+      { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> }
     ]
   }
 };

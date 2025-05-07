@@ -4,6 +4,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../Button';
+import LoadingSpinner from '../LoadingSpinner';
 import { canPerformAction } from '../../utils/roleUtils';
 
 function InventoryList({

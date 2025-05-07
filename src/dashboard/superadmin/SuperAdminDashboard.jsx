@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import BaseDashboard from "../BaseDashboard";
 import ManageUsers from "./ManageUsers";
 import Inventory from "../Inventory";
 import Requests from "../admin/Requests";
 import UnifiedReporting from "../UnifiedReporting";
 import usePageTitle from "../../hooks/usePageTitle";
-import { useLocation } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
@@ -20,46 +20,28 @@ function SuperAdminDashboard() {
   const { isDarkMode } = useTheme();
   const location = useLocation();
 
-  // Determine active page based on URL path
+  // Determine active page based on exact path match
   const getActivePage = useCallback(() => {
-    const path = location.pathname;
-    if (path.includes("/inventory")) return "inventory";
-    if (path.includes("/requests")) return "requests";
-    if (path.includes("/reporting")) return "reporting";
-    if (path.includes("/user-management")) return "userManagement";
-    return "userManagement"; // default view
+    const path = location.pathname.split('/').pop();
+    switch (path) {
+      case 'inventory':
+        return 'inventory';
+      case 'requests':
+        return 'requests';
+      case 'reporting':
+        return 'reporting';
+      case 'user-management':
+        return 'userManagement';
+      default:
+        return 'userManagement';
+    }
   }, [location.pathname]);
 
-  const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState(() => {
-    const initialPage = getActivePage();
-    setLoading(false);
-    return initialPage;
-  });
-
+  const [activePage, setActivePage] = useState(getActivePage);
 
   useEffect(() => {
     setActivePage(getActivePage());
   }, [getActivePage]);
-
-  // Render the appropriate component based on active page
-  const renderActivePage = useCallback(() => {
-    if (loading) {
-      return <LoadingSpinner size="md" />; // Utilize LoadingSpinner here
-    }
-    switch (activePage) {
-      case "inventory":
-        return <Inventory />;
-      case "requests":
-        return <Requests />;
-      case "reporting":
-        return <UnifiedReporting />;
-      case "userManagement":
-        return <ManageUsers />;
-      default:
-        return <ManageUsers />;
-    }
-  }, [activePage, loading]);
 
   return (
     <ErrorBoundary>
@@ -68,9 +50,15 @@ function SuperAdminDashboard() {
           <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">
             SuperAdmin Dashboard
           </h1>
-          {/* Active Page Content */}
           <div className={`rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
-            {renderActivePage()}
+            <Routes>
+              <Route path="/" element={<Navigate to="user-management" replace />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="requests" element={<Requests />} />
+              <Route path="reporting" element={<UnifiedReporting />} />
+              <Route path="user-management" element={<ManageUsers />} />
+              <Route path="*" element={<Navigate to="user-management" replace />} />
+            </Routes>
           </div>
         </div>
       </BaseDashboard>

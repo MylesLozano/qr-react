@@ -11,7 +11,7 @@ export const canPerformAction = (userRole, action) => {
 export const getDashboardPath = (role) => {
   switch (role) {
     case 'superadmin':
-      return '/superadmin-dashboard';
+      return '/superadmin-dashboard/user-management';
     case 'admin':
       return '/admin-dashboard';
     case 'user':

@@ -1,16 +1,18 @@
 import React from 'react';
 import Papa from 'papaparse';
 import Button from '../Button';
+import { toast } from 'react-toastify';
 
 function BulkUploadSection({ setCsvData, csvData, bulkUpload, isUploading, isDarkMode }) {
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     Papa.parse(file, {
       header: true,
       complete: (results) => {
         setCsvData(results.data);
+        toast.success(`${results.data.length} items parsed from CSV`);
       },
       error: (error) => {
         toast.error(`Error parsing CSV: ${error.message}`);

@@ -24,6 +24,33 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import Button from '../components/Button';
 import Tab from '../components/Tab';
 
+// Add getActionColor function at the top with other utility functions
+const getActionColor = (action) => {
+    switch (action) {
+        case 'user_created':
+        case 'user_signed_in':
+        case 'user_role_assigned':
+        case 'user_role_verified':
+            return 'text-blue-500';
+        case 'inventory_added':
+        case 'inventory_updated':
+        case 'qr_code_generated':
+            return 'text-green-500';
+        case 'inventory_deleted':
+        case 'request_rejected':
+            return 'text-red-500';
+        case 'request_approved':
+        case 'report_generated':
+        case 'report_exported':
+            return 'text-purple-500';
+        case 'qr_code_downloaded':
+        case 'qr_code_previewed':
+            return 'text-yellow-500';
+        default:
+            return 'text-gray-500';
+    }
+};
+
 /**
  * UnifiedReporting component - Combines Reports and AuditLogs functionality
  * @component

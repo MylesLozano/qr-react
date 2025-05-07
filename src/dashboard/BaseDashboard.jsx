@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { auth } from '../firebase';
+import { auth, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -17,12 +17,28 @@ const DEBOUNCE_WAIT = 100;
 // Navigation items configuration - organized by permissions rather than roles
 const NAV_CONFIG = [
   {
-    path: '/inventory',
+    path: '/user-dashboard/inventory',
     label: 'Inventory',
     icon: '📦',
     action: 'view_inventory',
     description: 'View and manage inventory items',
-    roles: ['user', 'admin', 'superadmin'] // Users can view inventory for search purposes
+    roles: ['user']
+  },
+  {
+    path: '/admin-dashboard/inventory',
+    label: 'Inventory',
+    icon: '📦',
+    action: 'view_inventory',
+    description: 'Manage inventory items',
+    roles: ['admin']
+  },
+  {
+    path: '/superadmin-dashboard/inventory',
+    label: 'Inventory',
+    icon: '📦',
+    action: 'view_inventory',
+    description: 'Manage inventory items',
+    roles: ['superadmin']
   },
   {
     path: '/user-dashboard/my-requests',
@@ -128,7 +144,18 @@ function BaseDashboard({ children }) {
   const handleLogout = async () => {
     try {
       setIsLoading(true);
+      const userEmail = user?.email; // Capture email before logout
       await auth.signOut();
+
+      // Log the logout action to audit logs
+      try {
+        await logAudit('user_signed_out', userEmail, 'user', {
+          timestamp: new Date().toISOString()
+        });
+      } catch (auditError) {
+        console.error("Error logging audit for logout:", auditError);
+      }
+
       toast.success("Logged out successfully");
       navigate('/login');
     } catch (error) {
@@ -208,7 +235,7 @@ function BaseDashboard({ children }) {
                   ))}
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {/* Mobile menu button */}
                 {isMobile && (
@@ -216,8 +243,8 @@ function BaseDashboard({ children }) {
                     ref={menuButtonRef}
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     className={`inline-flex items-center justify-center p-2 rounded-md transition-colors duration-200
-                      ${isDarkMode 
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                      ${isDarkMode
+                        ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
                     aria-expanded={isMenuOpen}
                     aria-controls="mobile-menu"
@@ -261,7 +288,7 @@ function BaseDashboard({ children }) {
 
         {/* Mobile menu - Slide in from top */}
         {isMenuOpen && (
-          <div 
+          <div
             className={`sm:hidden fixed inset-x-0 top-16 z-30 transform transition-transform duration-200 ease-in-out
               ${isMenuOpen ? 'translate-y-0' : '-translate-y-full'}
               ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
@@ -276,8 +303,8 @@ function BaseDashboard({ children }) {
         )}
 
         {/* Main content */}
-        <main 
-          id="main-content" 
+        <main
+          id="main-content"
           className={`max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)] ${isMenuOpen ? 'pt-[calc(4rem+1px)]' : ''}`}
         >
           <ErrorBoundary>

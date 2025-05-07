@@ -150,18 +150,18 @@ const AdminDashboard = () => {
             <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
               }`}>
               <h2 className="text-xl font-semibold mb-2">Total Users</h2>
-              <p className={`text-3xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'
+              <div className={`text-3xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'
                 }`}>
                 {loadingCounts ? <LoadingSpinner size="small" /> : userCount}
-              </p>
+              </div>
             </div>
             <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
               }`}>
               <h2 className="text-xl font-semibold mb-2">Pending Requests</h2>
-              <p className={`text-3xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
+              <div className={`text-3xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
                 }`}>
                 {loadingCounts ? <LoadingSpinner size="small" /> : pendingRequestsCount}
-              </p>
+              </div>
             </div>
           </div>
 

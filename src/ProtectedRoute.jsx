@@ -25,12 +25,26 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
   // Effect to display authentication errors as toasts
   useEffect(() => {
     if (error) {
-      // Display a toast for any authentication-related errors from the useAuth hook
       toast.error('Authentication error: ' + error.message);
     }
-    // The 'Please log in' toast is handled below when redirecting unauthenticated users.
-    // Permission denied toasts are also handled below when redirecting unauthorized users.
-  }, [error]); // Depend on the 'error' state from auth context
+  }, [error]);
+
+  // Effect for login-related toasts
+  useEffect(() => {
+    if (!user && location.pathname !== '/login') {
+      toast.error('Please log in to access this page');
+    }
+  }, [user, location.pathname]);
+
+  // Effect for permission-related toasts
+  useEffect(() => {
+    if (user && requiredRole && !hasPermission(role, requiredRole)) {
+      toast.error('You do not have permission to access this page');
+    }
+    if (user && requiredAction && !canPerformAction(role, requiredAction)) {
+      toast.error('You do not have permission to perform this action');
+    }
+  }, [user, role, requiredRole, requiredAction]);
 
   // --- Routing and Authorization Logic ---
 
@@ -51,7 +65,6 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     }
     // If the user is not logged in and trying to access any other page,
     // show a toast and redirect them to the login page.
-    toast.error('Please log in to access this page');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -78,7 +91,6 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     if (requiredRole && !hasPermission(role, requiredRole)) {
       // If the user does not have the required role,
       // show a permission denied toast and redirect them to their dashboard.
-      toast.error('You do not have permission to access this page');
       return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
     }
 
@@ -88,7 +100,6 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     if (requiredAction && !canPerformAction(role, requiredAction)) {
       // If the user cannot perform the required action,
       // show a permission denied toast and redirect them to their dashboard.
-      toast.error('You do not have permission to perform this action');
       return <Navigate to={getDashboardPath(role)} state={{ from: location }} replace />;
     }
 

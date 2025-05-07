@@ -19,6 +19,8 @@ import useInventory from '../hooks/useInventory';
 import useSearch from '../hooks/useSearch';
 import useQRCode from '../hooks/useQRCode';
 import { toast } from 'react-toastify';
+import Papa from 'papaparse';
+import { canPerformAction } from '../utils/roleUtils';
 
 function Inventory() {
   const { isDarkMode } = useTheme();
@@ -28,8 +30,8 @@ function Inventory() {
   // Fetch inventory data and manage item state (from useInventory hook)
   const {
     items,
-    isLoading, // Loading state for inventory data
-    error, // Error state for inventory data fetch
+    isLoading,
+    error,
     deleteItem,
     bulkUpload,
     isUploading,
@@ -112,15 +114,143 @@ function Inventory() {
 
 
   // Permission check (simplified)
-  const canAddEditDelete = role === 'admin' || role === 'superadmin';
+  const canEdit = canPerformAction(role, 'edit_inventory');
+  const canDelete = canPerformAction(role, 'delete_inventory');
+  const canGenerateQr = canPerformAction(role, 'generate_reports');
+  const canAddEditDelete = canEdit || canDelete; // Either can edit or delete
 
+  // Early return for empty inventory
+  if (!isLoading && !error && (!items || items.length === 0)) {
+    // Create a reference to the file input element
+    const fileInputRef = React.useRef(null);
 
+    const handleBulkUploadClick = () => {
+      // Trigger the file input click when the Bulk Upload button is clicked
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+    };
+
+    return (
+      <ErrorBoundary>
+        <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+          <div className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+            <div className="mb-8">
+              {/* Back Button */}
+              <Button
+                onClick={() => navigate(-1)}
+                color="gray"
+                size="md"
+                className={`flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
+                aria-label="Go back to the previous page"
+              >
+                <span className="mr-2">←</span> Back
+              </Button>
+              <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
+
+              <div className={`p-8 rounded-lg text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                <h2 className="text-xl mb-4">No Inventory Items Found</h2>
+                <p className="mb-4">There are currently no items in the inventory.</p>
+                {canAddEditDelete ? (
+                  <div className="space-y-4">
+                    <p>As an administrator, you can:</p>
+                    <div className="flex justify-center gap-4">
+                      <Button
+                        onClick={() => setIsEditing(true)}
+                        color="blue"
+                        className="inline-flex items-center"
+                      >
+                        <span className="mr-2">+</span> Add New Item
+                      </Button>
+                      <Button
+                        onClick={handleBulkUploadClick}
+                        color="green"
+                        className="inline-flex items-center"
+                      >
+                        <span className="mr-2">📥</span> Bulk Upload
+                      </Button>
+                      {/* Hidden file input for CSV upload */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={(e) => {
+                          // Parse the CSV file using the same logic as in BulkUploadSection
+                          const file = e.target.files[0];
+                          if (!file) return;
+
+                          Papa.parse(file, {
+                            header: true,
+                            complete: (results) => {
+                              setCsvData(results.data);
+                              toast.success(`CSV loaded with ${results.data.length} items. Click "Upload CSV" to confirm.`);
+                            },
+                            error: (error) => {
+                              toast.error(`Error parsing CSV: ${error.message}`);
+                            }
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p>Please check back later or contact an administrator.</p>
+                )}
+              </div>
+
+              {/* CSV data display and upload button if CSV data is loaded */}
+              {csvData && csvData.length > 0 && (
+                <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-semibold">CSV Data Loaded</h3>
+                    <Button
+                      onClick={bulkUpload}
+                      disabled={isUploading}
+                      color="green"
+                      size="md"
+                    >
+                      {isUploading ? 'Uploading...' : `Upload ${csvData.length} Items`}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {csvData.length} items ready to upload. Click the button to confirm.
+                  </p>
+                </div>
+              )}
+
+              {/* Show Add Form for admins even when inventory is empty */}
+              {canAddEditDelete && (
+                <div className="mt-8">
+                  <AddEditForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    isEditing={isEditing}
+                    setIsEditing={setIsEditing}
+                    editingItem={editingItem}
+                    setEditingItem={setEditingItem}
+                    handleSaveEdit={handleSaveEdit}
+                    defaultFormData={defaultFormData}
+                    validationErrors={validationErrors}
+                    isLoading={isLoading}
+                    isDarkMode={isDarkMode}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
+  // Rest of the component for non-empty inventory
   return (
     <ErrorBoundary>
       <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Main Inventory Loading and Error Feedback */}
-        {isLoading && !error && <LoadingSpinner fullScreen />} {/* Show spinner only if loading and no error */}
-        {error && ( // Show inventory fetch error if it exists
+        {isLoading && !error && <LoadingSpinner fullScreen />}
+        {error && (
           <div className="text-red-500 text-center mb-4">
             Error loading inventory: {error.message || error}
           </div>
