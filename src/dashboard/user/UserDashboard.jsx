@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Button from "../../components/Button";
 import QRScanner from "../../components/QRScanner";
 import Inventory from "../Inventory";
@@ -21,14 +21,37 @@ function UserDashboard() {
   usePageTitle("QCheckCITE - User Dashboard");
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [inventoryCount, setInventoryCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
   const currentUser = useMemo(() => auth.currentUser, []);
 
+  // Get active component from URL
+  const getActiveComponentFromUrl = () => {
+    const path = location.pathname.split('/').pop();
+    if (path === 'inventory') return 'inventory';
+    if (path === 'my-requests') return 'requests';
+    if (path === 'scan') return 'scan';
+    return null;
+  };
+
   // Active component state
-  const [activeComponent, setActiveComponent] = useState(null);
+  const [activeComponent, setActiveComponent] = useState(getActiveComponentFromUrl);
+
+  // Update active component when URL changes
+  useEffect(() => {
+    setActiveComponent(getActiveComponentFromUrl());
+  }, [location.pathname]);
+
+  // Update URL when active component changes
+  useEffect(() => {
+    if (activeComponent && activeComponent !== getActiveComponentFromUrl()) {
+      const path = activeComponent === 'requests' ? 'my-requests' : activeComponent;
+      navigate(`/user-dashboard/${path}`);
+    }
+  }, [activeComponent, navigate]);
 
   // Consolidated effect for fetching counts
   useEffect(() => {
@@ -125,20 +148,6 @@ function UserDashboard() {
     }
   };
 
-  // Render active component
-  const renderActiveComponent = () => {
-    switch (activeComponent) {
-      case "inventory":
-        return <Inventory isInDashboard={true} />;
-      case "requests":
-        return <MyRequests isInDashboard={true} />;
-      case "scan":
-        return <QRScanner isInDashboard={true} />;
-      default:
-        return renderDashboard();
-    }
-  };
-
   // Render dashboard home
   const renderDashboard = () => (
     <>
@@ -217,53 +226,36 @@ function UserDashboard() {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
-        {/* Simple Header */}
-        <header className={`shadow-md ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center">
-              <h1
-                className="text-2xl font-bold cursor-pointer"
-                onClick={() => setActiveComponent(null)}
-              >
-                QCheckCITE
-              </h1>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
-              >
-                {isDarkMode ? '🌞' : '🌙'}
-              </button>
-              <Button
-                onClick={handleLogout}
-                color="red"
-                size="sm"
-              >
-                Logout
-              </Button>
-            </div>
-          </div>
-        </header>
+      <div className={`p-6 ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-gray-800"}`}>
+        {/* User Dashboard Header */}
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <h1 className="text-2xl font-bold" role="heading" aria-level="1">
+            User Dashboard
+          </h1>
+          {activeComponent && (
+            <Button
+              color="gray"
+              onClick={() => {
+                setActiveComponent(null);
+                navigate('/user-dashboard');
+              }}
+              className="mt-2 sm:mt-0"
+            >
+              Back to Dashboard
+            </Button>
+          )}
+        </div>
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto p-6">
-          {activeComponent && (
-            <div className="mb-4">
-              <Button
-                onClick={() => setActiveComponent(null)}
-                color="gray"
-                className="mb-4"
-              >
-                ← Back to Dashboard
-              </Button>
-            </div>
-          )}
-
-          {renderActiveComponent()}
-        </main>
+        <div className={`${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+          <Routes>
+            <Route path="/" element={renderDashboard()} />
+            <Route path="inventory" element={<Inventory isInDashboard={true} />} />
+            <Route path="my-requests" element={<MyRequests isInDashboard={true} />} />
+            <Route path="scan" element={<QRScanner isInDashboard={true} />} />
+            <Route path="*" element={<Navigate to="/user-dashboard" replace />} />
+          </Routes>
+        </div>
       </div>
     </ErrorBoundary>
   );

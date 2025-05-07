@@ -129,41 +129,18 @@ function App() {
             <Route
               path="/superadmin-dashboard/*"
               element={<ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>}
-              children={[
-                { path: "", element: <Navigate to="user-management" replace /> },
-                { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
-                { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
-                { path: "reporting", element: <UnifiedReporting /> },
-                { path: "user-management", element: <ProtectedRoute requiredAction="manage_users"><ManageUsers /></ProtectedRoute> }
-              ].map(route => <Route key={route.path} {...route} />)}
             />
 
             {/* Admin Routes */}
             <Route
               path="/admin-dashboard/*"
               element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>}
-              children={[
-                { path: "", element: <Navigate to="inventory" replace /> },
-                { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
-                { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
-                { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
-                { path: "reporting", element: <UnifiedReporting /> },
-                { path: "generate-report", element: <ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute> },
-                { path: "reports", element: <Navigate to="reporting" replace /> },
-                { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> }
-              ].map(route => <Route key={route.path} {...route} />)}
             />
 
             {/* User Routes */}
             <Route
               path="/user-dashboard/*"
               element={<ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>}
-              children={[
-                { path: "", element: <Navigate to="inventory" replace /> },
-                { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
-                { path: "my-requests", element: <ProtectedRoute requiredAction="view_requests"><MyRequests /></ProtectedRoute> },
-                { path: "scan", element: <ProtectedRoute requiredAction="view_inventory"><QRScanner /></ProtectedRoute> }
-              ].map(route => <Route key={route.path} {...route} />)}
             />
 
             {/* Direct access routes for common user actions */}

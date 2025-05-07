@@ -5,6 +5,8 @@ import ManageUsers from "./ManageUsers";
 import Inventory from "../Inventory";
 import Requests from "../admin/Requests";
 import UnifiedReporting from "../UnifiedReporting";
+import ReportTemplates from "../admin/ReportTemplates";
+import ReportGenerator from "../admin/ReportGenerator";
 import usePageTitle from "../../hooks/usePageTitle";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
@@ -31,6 +33,10 @@ function SuperAdminDashboard() {
         return 'requests';
       case 'reporting':
         return 'reporting';
+      case 'templates':
+        return 'templates';
+      case 'generate-report':
+        return 'generateReport';
       case 'user-management':
         return 'userManagement';
       default:
@@ -57,8 +63,11 @@ function SuperAdminDashboard() {
               <Route path="inventory" element={<ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute>} />
               <Route path="requests" element={<ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute>} />
               <Route path="reporting" element={<ProtectedRoute requiredAction="generate_reports"><UnifiedReporting /></ProtectedRoute>} />
+              <Route path="templates" element={<ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute>} />
+              <Route path="generate-report" element={<ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute>} />
               <Route path="user-management" element={<ProtectedRoute requiredAction="manage_users"><ManageUsers /></ProtectedRoute>} />
-              <Route path="*" element={<Navigate to="user-management" replace />} />
+              <Route path="user-management/*" element={<Navigate to="/superadmin-dashboard/user-management" replace />} />
+              <Route path="*" element={<Navigate to="/superadmin-dashboard/user-management" replace />} />
             </Routes>
           </div>
         </div>

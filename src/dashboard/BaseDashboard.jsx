@@ -14,31 +14,16 @@ import Button from '../components/Button';
 const MOBILE_BREAKPOINT = 640;
 const DEBOUNCE_WAIT = 100;
 
-// Navigation items configuration - organized by permissions rather than roles
+// Navigation items configuration - organized by role-specific paths
 const NAV_CONFIG = [
+  // User navigation
   {
     path: '/user-dashboard/inventory',
     label: 'Inventory',
     icon: '📦',
     action: 'view_inventory',
-    description: 'View and manage inventory items',
+    description: 'View available inventory items',
     roles: ['user']
-  },
-  {
-    path: '/admin-dashboard/inventory',
-    label: 'Inventory',
-    icon: '📦',
-    action: 'view_inventory',
-    description: 'Manage inventory items',
-    roles: ['admin']
-  },
-  {
-    path: '/superadmin-dashboard/inventory',
-    label: 'Inventory',
-    icon: '📦',
-    action: 'view_inventory',
-    description: 'Manage inventory items',
-    roles: ['superadmin']
   },
   {
     path: '/user-dashboard/my-requests',
@@ -48,13 +33,23 @@ const NAV_CONFIG = [
     description: 'View and manage your requests',
     roles: ['user']
   },
+
+  // Admin navigation
+  {
+    path: '/admin-dashboard/inventory',
+    label: 'Inventory',
+    icon: '📦',
+    action: 'view_inventory',
+    description: 'Manage inventory items',
+    roles: ['admin']
+  },
   {
     path: '/admin-dashboard/requests',
     label: 'Requests',
     icon: '📥',
     action: 'manage_requests',
     description: 'Manage user requests',
-    roles: ['admin', 'superadmin']
+    roles: ['admin']
   },
   {
     path: '/admin-dashboard/templates',
@@ -62,7 +57,7 @@ const NAV_CONFIG = [
     icon: '📋',
     action: 'manage_templates',
     description: 'Manage report templates',
-    roles: ['admin', 'superadmin']
+    roles: ['admin']
   },
   {
     path: '/admin-dashboard/reporting',
@@ -70,7 +65,7 @@ const NAV_CONFIG = [
     icon: '📊',
     action: 'generate_reports',
     description: 'Access consolidated reports and audit logs',
-    roles: ['admin', 'superadmin']
+    roles: ['admin']
   },
   {
     path: '/admin-dashboard/generate-report',
@@ -78,7 +73,49 @@ const NAV_CONFIG = [
     icon: '📄',
     action: 'generate_reports',
     description: 'Generate new reports',
-    roles: ['admin', 'superadmin']
+    roles: ['admin']
+  },
+
+  // Superadmin navigation
+  {
+    path: '/superadmin-dashboard/inventory',
+    label: 'Inventory',
+    icon: '📦',
+    action: 'view_inventory',
+    description: 'Manage inventory items',
+    roles: ['superadmin']
+  },
+  {
+    path: '/superadmin-dashboard/requests',
+    label: 'Requests',
+    icon: '📥',
+    action: 'manage_requests',
+    description: 'Manage user requests',
+    roles: ['superadmin']
+  },
+  {
+    path: '/superadmin-dashboard/templates',
+    label: 'Templates',
+    icon: '📋',
+    action: 'manage_templates',
+    description: 'Manage report templates',
+    roles: ['superadmin']
+  },
+  {
+    path: '/superadmin-dashboard/reporting',
+    label: 'Report/Audits',
+    icon: '📊',
+    action: 'generate_reports',
+    description: 'Access consolidated reports and audit logs',
+    roles: ['superadmin']
+  },
+  {
+    path: '/superadmin-dashboard/generate-report',
+    label: 'Generate Report',
+    icon: '📄',
+    action: 'generate_reports',
+    description: 'Generate new reports',
+    roles: ['superadmin']
   },
   {
     path: '/superadmin-dashboard/user-management',
@@ -122,7 +159,12 @@ function BaseDashboard({ children }) {
     if (isMobileView) {
       return isActive ? themeStyles.mobileActiveLink : themeStyles.mobileInactiveLink;
     }
-    return isActive ? `${themeStyles.activeLink} ${themeStyles.activeLinkBg}` : themeStyles.inactiveLink;
+
+    // Desktop styling with clear tab indicators
+    if (isActive) {
+      return `${themeStyles.activeLinkBg} text-purple-600 border-b-2 border-purple-600 font-medium`;
+    }
+    return `text-gray-600 hover:text-purple-500 hover:border-b-2 hover:border-purple-400 transition-colors duration-200`;
   };
 
   // Handle window resize with optimized debounce
@@ -204,34 +246,36 @@ function BaseDashboard({ children }) {
   // Link component with updated className logic
   const NavLink = ({ item, index, isMobile: isMobileView }) => {
     const isActive = location.pathname === item.path || location.pathname.includes(item.path);
-    const baseClass = getNavLinkClass(isActive, isMobileView);  // Use the helper
+    const baseClass = getNavLinkClass(isActive, isMobileView);
 
     const handleNavClick = (e) => {
-      e.preventDefault();
       // Close mobile menu if open
       if (isMenuOpen) {
         setIsMenuOpen(false);
       }
-      // Use navigate for programmatic navigation with a slight delay
-      setTimeout(() => {
-        navigate(item.path);
-      }, 50);
+
+      // Use navigate for programmatic navigation
+      navigate(item.path);
     };
 
+    // Different classNames for mobile vs desktop
+    const className = isMobileView
+      ? `${baseClass} block px-3 py-2 rounded-md text-base font-medium w-full text-left`
+      : `${baseClass} inline-flex items-center px-8 py-4 text-sm font-semibold h-full whitespace-nowrap`;
+
     return (
-      <a
-        href={item.path}
+      <button
         onClick={handleNavClick}
-        className={`${baseClass} block px-3 py-2 rounded-md text-base font-medium`}
+        className={className}
         ref={isMobileView && index === 0 ? firstNavItemRef : null}
         aria-current={isActive ? 'page' : undefined}
         title={item.description}
       >
-        <span className="mr-2" aria-hidden="true">
-          {isMobileView && window.innerWidth < 500 ? '📋' : item.icon}
+        <span className="mr-3" aria-hidden="true">
+          {item.icon}
         </span>
         {item.label}
-      </a>
+      </button>
     );
   };
 
@@ -248,24 +292,24 @@ function BaseDashboard({ children }) {
         </a>
 
         {/* Navigation */}
-        <nav className={`${themeStyles.nav} shadow-lg sticky top-0 z-40`}>
+        <nav className={`${themeStyles.nav} shadow-lg sticky top-0 z-40 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-between h-16">
-              <div className="flex">
+              <div className="flex items-center">
                 <div className="flex-shrink-0 flex items-center">
                   <span className={`text-xl font-bold ${themeStyles.heading}`}>
                     QCheckCITE
                   </span>
                 </div>
                 {/* Desktop Navigation */}
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <div className="hidden sm:ml-10 sm:flex sm:h-full overflow-x-auto">
                   {navItems.map((item, index) => (
                     <NavLink key={item.path} item={item} index={index} isMobile={false} />
                   ))}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {/* Mobile menu button */}
                 {isMobile && (
                   <button
@@ -295,7 +339,7 @@ function BaseDashboard({ children }) {
                 {/* Theme toggle button */}
                 <button
                   onClick={toggleTheme}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${themeStyles.themeButton}`}
+                  className={`p-2 rounded-full transition-colors duration-200 ${themeStyles.themeButton}`}
                   aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
                 >
                   {isDarkMode ? '🌞' : '🌙'}
@@ -305,7 +349,9 @@ function BaseDashboard({ children }) {
                 <Button
                   onClick={handleLogout}
                   disabled={isLoading}
-                  className={`transition-colors duration-200 ${themeStyles.logoutButton} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  color="red"
+                  size="sm"
+                  className={isLoading ? 'opacity-50 cursor-not-allowed' : ''}
                   aria-label="Logout"
                 >
                   {isLoading ? <LoadingSpinner size="sm" /> : 'Logout'}

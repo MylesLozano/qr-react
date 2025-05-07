@@ -5,7 +5,7 @@ import BaseDashboard from "../BaseDashboard";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, getCountFromServer, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -19,6 +19,7 @@ import Button from '../../components/Button';
 const AdminDashboard = () => {
   usePageTitle("QCheckCITE - Admin");
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [qrPreview, setQrPreview] = useState(null);
@@ -27,12 +28,17 @@ const AdminDashboard = () => {
   const [loadingCounts, setLoadingCounts] = useState(true);
   const [error, setError] = useState(null);
 
-  // Memoize navigation items
+  // Memoize navigation items with absolute paths
   const navigationItems = useMemo(() => [
-    { path: 'reporting', icon: 'fas fa-chart-bar', label: 'Reports' },
-    { path: 'templates', icon: 'fas fa-file-alt', label: 'Report Templates' },
-    { path: 'generate-report', icon: 'fas fa-file-export', label: 'Generate Report' }
+    { path: '/admin-dashboard/reporting', icon: 'fas fa-chart-bar', label: 'Reports' },
+    { path: '/admin-dashboard/templates', icon: 'fas fa-file-alt', label: 'Report Templates' },
+    { path: '/admin-dashboard/generate-report', icon: 'fas fa-file-export', label: 'Generate Report' }
   ], []);
+
+  // Handle navigation click
+  const handleNavigation = useCallback((path) => {
+    navigate(path);
+  }, [navigate]);
 
   // Handle QR code generation
   const handleGenerateQR = useCallback(async (item) => {
@@ -206,16 +212,16 @@ const AdminDashboard = () => {
           {/* Navigation Links */}
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
             {navigationItems.map((item) => (
-              <Link
+              <Button
                 key={item.path}
-                to={item.path}
-                className={`p-4 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
+                onClick={() => handleNavigation(item.path)}
+                className={`p-4 rounded-lg text-left shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
                   }`}
                 aria-label={item.label}
               >
                 <i className={`${item.icon} mr-2`} aria-hidden="true"></i>
                 {item.label}
-              </Link>
+              </Button>
             ))}
           </div>
 
