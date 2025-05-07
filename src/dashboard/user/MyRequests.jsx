@@ -293,62 +293,60 @@ function MyRequests() {
     },
   ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
 
-  // Add this component within the MyRequests file - it will display suggestions when no requests exist
-  const EmptyRequestsOptions = ({ isDarkMode, inventoryCount, onStartNewRequest }) => {
-    return (
-      <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
-        <h2 className="text-xl font-semibold mb-4">No Requests Found</h2>
-        <p className="mb-4">You haven't made any requests yet. Here are some options to get started:</p>
+  // Extract the EmptyRequestsOptions component to improve readability
+  const EmptyRequestsOptions = ({ isDarkMode, inventoryCount, onStartNewRequest }) => (
+    <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+      <h2 className="text-xl font-semibold mb-4">Get Started with Requests</h2>
+      <p className="mb-4">You haven't made any requests yet. Here are some ways to get started:</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <h3 className="font-bold text-lg mb-2">
-              <span className="mr-2" aria-hidden="true">📋</span>
-              Create a New Request
-            </h3>
-            <p className="mb-3">Request items directly from our inventory of {inventoryCount} available items.</p>
-            <Button
-              onClick={onStartNewRequest}
-              color="blue"
-              size="md"
-              className="w-full"
-            >
-              Start New Request
-            </Button>
-          </div>
-
-          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <h3 className="font-bold text-lg mb-2">
-              <span className="mr-2" aria-hidden="true">📱</span>
-              Scan Item QR Code
-            </h3>
-            <p className="mb-3">Need an item? Scan its QR code for quick access and requesting.</p>
-            <Button
-              onClick={() => document.getElementById('qr-scanner-section').scrollIntoView({ behavior: 'smooth' })}
-              color="green"
-              size="md"
-              className="w-full"
-            >
-              Open Scanner
-            </Button>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <h3 className="font-bold text-lg mb-2">
+            <span className="mr-2" aria-hidden="true">📋</span>
+            Create a New Request
+          </h3>
+          <p className="mb-3">Browse our inventory of {inventoryCount} available items and make a request.</p>
+          <Button
+            onClick={onStartNewRequest}
+            color="blue"
+            size="md"
+            className="w-full"
+          >
+            Start New Request
+          </Button>
         </div>
 
-        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-indigo-900/20' : 'bg-indigo-50'} border ${isDarkMode ? 'border-indigo-800' : 'border-indigo-200'}`}>
-          <h3 className="font-semibold mb-2 flex items-center">
-            <span className="mr-2 text-xl">💡</span>
-            Request Process
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <h3 className="font-bold text-lg mb-2">
+            <span className="mr-2" aria-hidden="true">📱</span>
+            Quick Request via QR Code
           </h3>
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>Create a new request or scan a QR code</li>
-            <li>Provide details about your need for the item</li>
-            <li>Submit the request for review</li>
-            <li>Check back for approval status</li>
-          </ol>
+          <p className="mb-3">Found an item with a QR code? Scan it to quickly request that item.</p>
+          <Button
+            onClick={() => document.getElementById('qr-scanner-section')?.scrollIntoView({ behavior: 'smooth' })}
+            color="green"
+            size="md"
+            className="w-full"
+          >
+            Open Scanner
+          </Button>
         </div>
       </div>
-    );
-  };
+
+      <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-indigo-900/20' : 'bg-indigo-50'} border ${isDarkMode ? 'border-indigo-800' : 'border-indigo-200'}`}>
+        <h3 className="font-semibold mb-2 flex items-center">
+          <span className="mr-2 text-xl">💡</span>
+          Request Process
+        </h3>
+        <ol className="list-decimal pl-5 space-y-1">
+          <li>Find an item through search or QR code scan</li>
+          <li>Fill in the request details</li>
+          <li>Submit your request for review</li>
+          <li>Track the approval status here</li>
+        </ol>
+      </div>
+    </div>
+  );
 
   return (
     <ErrorBoundary>

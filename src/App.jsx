@@ -11,58 +11,35 @@ import { getDashboardPath } from './utils/roleUtils';
 import SessionTimeout from "./components/SessionTimeout";
 import { useAuth } from "./context/AuthContext";
 
-// Lazy load all major components
+// Core components that are used across multiple routes
 const QRCodeManager = lazy(() => import("./components/QRCodeManager"));
 const BaseDashboard = lazy(() => import("./dashboard/BaseDashboard"));
+
+// Feature-specific components
+const Inventory = lazy(() => import("./dashboard/Inventory"));
+const UnifiedReporting = lazy(() => import("./dashboard/UnifiedReporting"));
+
+// Admin-specific components
+const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
 const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCategories'));
 const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
-const UnifiedReporting = lazy(() => import("./dashboard/UnifiedReporting"));
-const Inventory = lazy(() => import("./dashboard/Inventory"));
-const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
-const MyRequests = lazy(() => import("./dashboard/user/MyRequests"));
+const ReportGenerator = lazy(() => import("./dashboard/admin/ReportGenerator"));
 const Requests = lazy(() => import("./dashboard/admin/Requests"));
 const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
-const ReportGenerator = lazy(() => import("./dashboard/admin/ReportGenerator"));
 
-// Lazy load dashboards with preload hints
-const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
-const AdminDashboard = lazy(() => import("./dashboard/admin/AdminDashboard"));
+// User-specific components
 const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
+const MyRequests = lazy(() => import("./dashboard/user/MyRequests"));
+const QRScanner = lazy(() => import("./components/QRScanner"));
+
+// Superadmin-specific components
+const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
+const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
 
 // Constants
 const SESSION_TIMEOUT_MINUTES = 30;
 const SESSION_WARNING_MINUTES = 5;
 const TOAST_AUTO_CLOSE = 3000;
-
-// Route configurations
-const ROUTE_CONFIG = {
-  superadmin: {
-    path: "/superadmin-dashboard/*",
-    element: <ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>,
-    children: []
-  },
-  admin: {
-    path: "/admin-dashboard",
-    element: <ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>,
-    children: [
-      { path: "", element: <Navigate to="inventory" replace /> },
-      { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
-      { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
-      { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
-      { path: "reporting", element: <UnifiedReporting /> },
-      { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> },
-    ]
-  },
-  user: {
-    path: "/user-dashboard",
-    element: <ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>,
-    children: [
-      { path: "", element: <Navigate to="inventory" replace /> },
-      { path: "my-requests", element: <ProtectedRoute requiredAction="view_requests"><MyRequests /></ProtectedRoute> },
-      { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> }
-    ]
-  }
-};
 
 /**
  * App component - Main application router and layout
@@ -72,15 +49,6 @@ const ROUTE_CONFIG = {
 function App() {
   const { user, role, loading } = useAuth();
   const location = useLocation();
-
-  // Track page views and analytics
-  useEffect(() => {
-    if (user) {
-      // Here you would typically send analytics data
-      console.log(`Page view: ${location.pathname} by ${user.email}`);
-    }
-  }, [location.pathname, user]);
-
   const isAuthenticated = useMemo(() => user !== null, [user]);
 
   // Preload dashboard components based on user role
@@ -92,24 +60,38 @@ function App() {
             await Promise.all([
               import("./dashboard/superadmin/SuperAdminDashboard"),
               import("./dashboard/UnifiedReporting"),
-              import("./dashboard/superadmin/ManageUsers")
+              import("./dashboard/superadmin/ManageUsers"),
+              import("./dashboard/Inventory") // Common component likely needed
             ]);
             break;
           case 'admin':
             await Promise.all([
               import("./dashboard/admin/AdminDashboard"),
               import("./dashboard/admin/Requests"),
-              import("./dashboard/UnifiedReporting")
+              import("./dashboard/UnifiedReporting"),
+              import("./dashboard/Inventory")
             ]);
             break;
           case 'user':
-            await import("./dashboard/user/UserDashboard");
+            await Promise.all([
+              import("./dashboard/user/UserDashboard"),
+              import("./dashboard/user/MyRequests"),
+              import("./dashboard/Inventory")
+            ]);
             break;
         }
       };
       preloadComponents();
     }
   }, [role]);
+
+  // Track page views and analytics
+  useEffect(() => {
+    if (user) {
+      // Here you would typically send analytics data
+      console.log(`Page view: ${location.pathname} by ${user.email}`);
+    }
+  }, [location.pathname, user]);
 
   if (loading) {
     return (
@@ -139,57 +121,50 @@ function App() {
         )}
         <Suspense fallback={<LoadingSpinner fullScreen />}>
           <Routes>
-            {/* Login Route */}
-            <Route
-              path="/login"
-              element={isAuthenticated ? <Navigate to={getDashboardPath(role)} /> : <Login />}
-            />
+            <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={getDashboardPath(role)} replace />} />
+            <Route path="/" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} replace /> : <Navigate to="/login" replace />} />
 
-            {/* SuperAdmin Routes */}
-            <Route {...ROUTE_CONFIG.superadmin}>
-              {ROUTE_CONFIG.superadmin.children.map((route, index) => (
-                <Route key={index} {...route} />
-              ))}
-            </Route>
+            {/* Superadmin Routes */}
+            <Route
+              path="/superadmin-dashboard/*"
+              element={<ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>}
+              children={[
+                { path: "", element: <Navigate to="user-management" replace /> },
+                { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
+                { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
+                { path: "reporting", element: <UnifiedReporting /> },
+                { path: "user-management", element: <ProtectedRoute requiredAction="manage_users"><ManageUsers /></ProtectedRoute> }
+              ].map(route => <Route key={route.path} {...route} />)}
+            />
 
             {/* Admin Routes */}
-            <Route {...ROUTE_CONFIG.admin}>
-              {ROUTE_CONFIG.admin.children.map((route, index) => (
-                <Route key={index} {...route} />
-              ))}
-            </Route>
             <Route
-              path="/admin-dashboard/users"
-              element={
-                <ProtectedRoute requiredAction="manage_users">
-                  <UserManagement />
-                </ProtectedRoute>
-              }
+              path="/admin-dashboard/*"
+              element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>}
+              children={[
+                { path: "", element: <Navigate to="inventory" replace /> },
+                { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
+                { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
+                { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
+                { path: "reporting", element: <UnifiedReporting /> },
+                { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> }
+              ].map(route => <Route key={route.path} {...route} />)}
             />
-            <Route path="/admin-dashboard/generate-report" element={<ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute>} />
-
-            {/* Shared Routes */}
-            {/* Example: A shared Inventory view if roles have different permissions for it */}
-            {/* The specific Inventory route within admin dashboard is already permissioned */}
-            {/* Add other shared routes here if necessary */}
 
             {/* User Routes */}
-            <Route {...ROUTE_CONFIG.user}>
-              {ROUTE_CONFIG.user.children.map((route, index) => (
-                <Route key={index} {...route} />
-              ))}
-            </Route>
-
-            {/* Catch-All Redirect */}
             <Route
-              path="*"
-              element={
-                <Navigate
-                  to={isAuthenticated ? getDashboardPath(role) : "/login"}
-                  replace
-                />
-              }
+              path="/user-dashboard/*"
+              element={<ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>}
+              children={[
+                { path: "", element: <Navigate to="inventory" replace /> },
+                { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
+                { path: "my-requests", element: <ProtectedRoute requiredAction="view_requests"><MyRequests /></ProtectedRoute> },
+                { path: "scan", element: <ProtectedRoute requiredAction="view_inventory"><QRScanner /></ProtectedRoute> }
+              ].map(route => <Route key={route.path} {...route} />)}
             />
+
+            {/* Catch-all redirect */}
+            <Route path="*" element={<Navigate to={isAuthenticated ? getDashboardPath(role) : "/login"} replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

@@ -69,7 +69,6 @@ function Inventory() {
     generatedQrData, // The actual generated data for the QR code
     isGeneratingQr, // Loading state during QR data generation
     qrError, // Error state specific to QR operations
-    // generateQrCode, // Removed from hook's return, logic integrated into previewQrCode
     previewQrCode, // Handler to trigger the QR preview process
     closeQrPreview // Handler to close the QR preview modal and clear state
   } = useQRCode(items, user); // Pass items and user to the hook
@@ -97,7 +96,6 @@ function Inventory() {
     // Add logic here to show/scroll to the form if needed
   }, [setEditingItem, setIsEditing]);
 
-
   // Handler for deleting an item
   const handleDeleteItem = useCallback(async (itemId, itemName) => {
     try {
@@ -112,7 +110,6 @@ function Inventory() {
     }
   }, [deleteItem]);
 
-
   // Permission check (simplified)
   const canEdit = canPerformAction(role, 'edit_inventory');
   const canDelete = canPerformAction(role, 'delete_inventory');
@@ -121,22 +118,11 @@ function Inventory() {
 
   // Early return for empty inventory
   if (!isLoading && !error && (!items || items.length === 0)) {
-    // Create a reference to the file input element
-    const fileInputRef = React.useRef(null);
-
-    const handleBulkUploadClick = () => {
-      // Trigger the file input click when the Bulk Upload button is clicked
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
-      }
-    };
-
     return (
       <ErrorBoundary>
         <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
           <div className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
             <div className="mb-8">
-              {/* Back Button */}
               <Button
                 onClick={() => navigate(-1)}
                 color="gray"
@@ -162,81 +148,30 @@ function Inventory() {
                       >
                         <span className="mr-2">+</span> Add New Item
                       </Button>
-                      <Button
-                        onClick={handleBulkUploadClick}
-                        color="green"
-                        className="inline-flex items-center"
-                      >
-                        <span className="mr-2">📥</span> Bulk Upload
-                      </Button>
-                      {/* Hidden file input for CSV upload */}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        className="hidden"
-                        onChange={(e) => {
-                          // Parse the CSV file using the same logic as in BulkUploadSection
-                          const file = e.target.files[0];
-                          if (!file) return;
-
-                          Papa.parse(file, {
-                            header: true,
-                            complete: (results) => {
-                              setCsvData(results.data);
-                              toast.success(`CSV loaded with ${results.data.length} items. Click "Upload CSV" to confirm.`);
-                            },
-                            error: (error) => {
-                              toast.error(`Error parsing CSV: ${error.message}`);
-                            }
-                          });
-                        }}
-                      />
+                      {isEditing && (
+                        <AddEditForm
+                          formData={formData}
+                          setFormData={setFormData}
+                          isEditing={isEditing}
+                          setIsEditing={setIsEditing}
+                          editingItem={editingItem}
+                          setEditingItem={setEditingItem}
+                          handleSaveEdit={handleSaveEdit}
+                          defaultFormData={defaultFormData}
+                          validationErrors={validationErrors}
+                          isLoading={isLoading}
+                          isDarkMode={isDarkMode}
+                        />
+                      )}
                     </div>
                   </div>
                 ) : (
-                  <p>Please check back later or contact an administrator.</p>
+                  <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <p className="text-lg mb-2">No items are currently available.</p>
+                    <p>Please check back later or contact an administrator.</p>
+                  </div>
                 )}
               </div>
-
-              {/* CSV data display and upload button if CSV data is loaded */}
-              {csvData && csvData.length > 0 && (
-                <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold">CSV Data Loaded</h3>
-                    <Button
-                      onClick={bulkUpload}
-                      disabled={isUploading}
-                      color="green"
-                      size="md"
-                    >
-                      {isUploading ? 'Uploading...' : `Upload ${csvData.length} Items`}
-                    </Button>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    {csvData.length} items ready to upload. Click the button to confirm.
-                  </p>
-                </div>
-              )}
-
-              {/* Show Add Form for admins even when inventory is empty */}
-              {canAddEditDelete && (
-                <div className="mt-8">
-                  <AddEditForm
-                    formData={formData}
-                    setFormData={setFormData}
-                    isEditing={isEditing}
-                    setIsEditing={setIsEditing}
-                    editingItem={editingItem}
-                    setEditingItem={setEditingItem}
-                    handleSaveEdit={handleSaveEdit}
-                    defaultFormData={defaultFormData}
-                    validationErrors={validationErrors}
-                    isLoading={isLoading}
-                    isDarkMode={isDarkMode}
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -361,7 +296,6 @@ function Inventory() {
                 onClose={closeQrPreview} // Pass the handler to close the modal
                 isGenerating={isGeneratingQr} // Pass loading state from hook
                 qrError={qrError} // Pass error state from hook
-              // No need to pass onGenerate or previewQrCode here anymore
               />
             )}
           </div>
