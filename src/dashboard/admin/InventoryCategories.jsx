@@ -65,7 +65,6 @@ const InventoryCategories = () => {
         } catch (error) {
             console.error('Error deleting category:', error);
             toast.error('Failed to delete category');
-            setError(error.message);
         }
     }, []);
 
@@ -207,4 +206,4 @@ const InventoryCategories = () => {
     );
 };
 
-export default InventoryCategories; 
+export default InventoryCategories;

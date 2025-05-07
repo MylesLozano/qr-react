@@ -241,7 +241,7 @@ const ReportGenerator = () => {
                                 >
                                     <option value="">Select a template</option>
                                     {templates.map(template => (
-                                        <option key={template.id} value={template.id}>
+                                        <option key={template.id} value={template.id} className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>
                                             {template.name}
                                         </option>
                                     ))}
@@ -295,10 +295,10 @@ const ReportGenerator = () => {
                                         : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Filter by status"
                                 >
-                                    <option value="">All Statuses</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="maintenance">Maintenance</option>
+                                    <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>All Statuses</option>
+                                    <option value="active" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>Active</option>
+                                    <option value="inactive" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>Inactive</option>
+                                    <option value="maintenance" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>Maintenance</option>
                                 </select>
                             </div>
                             {/* Category select */}
@@ -315,10 +315,10 @@ const ReportGenerator = () => {
                                         : 'bg-white border-gray-300 focus:ring-offset-white'}`}
                                     aria-label="Filter by category"
                                 >
-                                    <option value="">All Categories</option>
-                                    <option value="equipment">Equipment</option>
-                                    <option value="supplies">Supplies</option>
-                                    <option value="furniture">Furniture</option>
+                                    <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>All Categories</option>
+                                    <option value="equipment" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>Equipment</option>
+                                    <option value="supplies" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>Supplies</option>
+                                    <option value="furniture" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}>Furniture</option>
                                 </select>
                             </div>
 
@@ -383,4 +383,4 @@ const ReportGenerator = () => {
     );
 };
 
-export default ReportGenerator; 
+export default ReportGenerator;

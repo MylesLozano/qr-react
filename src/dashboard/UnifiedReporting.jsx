@@ -528,12 +528,20 @@ const UnifiedReporting = () => {
                                     </thead>
                                     <tbody className={isDarkMode ? 'divide-gray-700 bg-gray-900' : 'divide-gray-200 bg-white'}>
                                         {logs.length ? logs.map(l => (
-                                            <tr key={l.id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                                            <tr key={l.id} className={`hover:bg-gray-100 dark:hover:bg-gray-800`}>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">{l.timestamp}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 py-1 rounded text-white ${getActionColor(l.action)}`}>{l.action}</span></td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <span className={`px-2 py-1 rounded text-white ${getActionColor(l.action)}`}>
+                                                        {l.action}
+                                                    </span>
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">{l.entityType}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">{l.userEmail}</td>
-                                                <td className="px-6 py-4 text-sm"><pre className="text-xs overflow-x-auto">{renderDetails(l.details)}</pre></td>
+                                                <td className="px-6 py-4 text-sm">
+                                                    <pre className={`text-xs overflow-x-auto ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}>
+                                                        {renderDetails(l.details)}
+                                                    </pre>
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">{l.userAgent}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">{l.platform}</td>
                                             </tr>

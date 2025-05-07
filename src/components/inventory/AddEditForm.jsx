@@ -206,7 +206,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               name="itemCondition"
               value={formData.itemCondition}
               onChange={handleChange}
-              className={`${inputClass} w-full`}
+              className={`${inputClass} w-full ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}
             >
               <option value="New">New</option>
               <option value="Used">Used</option>
@@ -219,12 +219,20 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               name="lab"
               value={formData.lab}
               onChange={handleChange}
-              className={`${inputClass} w-full`}
+              className={`${inputClass} w-full ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}
             >
-              <option value="">Select Lab</option>
-              <option value="Mac Lab">Mac Lab</option>
-              <option value="EMC Lab">EMC Lab</option>
-              <option value="Others">Others</option>
+              <option value="" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
+                Select Lab
+              </option>
+              <option value="Mac Lab" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
+                Mac Lab
+              </option>
+              <option value="EMC Lab" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
+                EMC Lab
+              </option>
+              <option value="Others" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
+                Others
+              </option>
             </select>
           </div>
 

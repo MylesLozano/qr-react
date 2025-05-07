@@ -1,143 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { auth } from '../firebase';
+import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../context/ThemeContext';
-import { toast } from 'react-toastify';
-import Button from '../components/Button';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import Button from './Button';
 
-/**
- * SessionTimeout component - Handles session expiration and provides user feedback
- * @component
- * @param {number} timeoutMinutes - Number of minutes before session timeout
- * @param {number} warningMinutes - Number of minutes before showing warning
- * @returns {JSX.Element} The rendered SessionTimeout component
- */
+function SessionTimeout({ 
+  timeoutMinutes = 30,
+  warningMinutes = 5,
+  onTimeout = () => {},
+  onWarning = () => {} 
+}) {
+  const { isDarkMode } = useTheme();
+  const [showWarning, setShowWarning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [lastActivity, setLastActivity] = useState(Date.now());
 
-const DEFAULT_TIMEOUT_MINUTES = 30;
-const DEFAULT_WARNING_MINUTES = 5;
+  // Function to format remaining time
+  const formatTimeLeft = useCallback((seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }, []);
 
-function SessionTimeout({ timeoutMinutes = DEFAULT_TIMEOUT_MINUTES, warningMinutes = DEFAULT_WARNING_MINUTES }) {
-    const navigate = useNavigate();
-    const { isDarkMode } = useTheme();
-    const [showWarning, setShowWarning] = useState(false);
-    const [timeLeft, setTimeLeft] = useState(warningMinutes * 60);
+  // Reset timer on user activity
+  const resetTimer = useCallback(() => {
+    setLastActivity(Date.now());
+    setShowWarning(false);
+  }, []);
 
-    useEffect(() => {
-        let warningTimer;
-        let timeoutTimer;
+  // Handle session timeout
+  const handleTimeout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      onTimeout();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  }, [onTimeout]);
 
-        const resetTimers = () => {
-            // Clear existing timers
-            if (warningTimer) clearTimeout(warningTimer);
-            if (timeoutTimer) clearTimeout(timeoutTimer);
+  // Monitor user activity
+  useEffect(() => {
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => document.addEventListener(event, resetTimer));
 
-            // Set new timers
-            warningTimer = setTimeout(() => {
-                setShowWarning(true);
-                setTimeLeft(warningMinutes * 60);
-            }, (timeoutMinutes - warningMinutes) * 60 * 1000);
+    return () => {
+      events.forEach(event => document.removeEventListener(event, resetTimer));
+    };
+  }, [resetTimer]);
 
-            timeoutTimer = setTimeout(() => {
-                handleTimeout();
-            }, timeoutMinutes * 60 * 1000);
-        };
+  // Timer logic
+  useEffect(() => {
+    const warningTime = timeoutMinutes - warningMinutes;
+    const interval = setInterval(() => {
+      const timeSinceLastActivity = (Date.now() - lastActivity) / 1000;
+      const timeLeftInSeconds = Math.max(0, timeoutMinutes * 60 - timeSinceLastActivity);
+      
+      setTimeLeft(Math.round(timeLeftInSeconds));
 
-        const handleTimeout = () => {
-            auth.signOut();
-            toast.info('Your session has expired. Please log in again.');
-            navigate('/login');
-        };
+      if (timeLeftInSeconds <= warningMinutes * 60 && !showWarning && timeLeftInSeconds > 0) {
+        setShowWarning(true);
+        onWarning(Math.round(timeLeftInSeconds));
+      }
 
-        // Reset timers on user activity
-        const handleUserActivity = () => {
-            if (showWarning) {
-                setShowWarning(false);
-                toast.success('Session extended');
-            }
-            resetTimers();
-        };
+      if (timeLeftInSeconds <= 0) {
+        handleTimeout();
+      }
+    }, 1000);
 
-        // Add event listeners for user activity
-        const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-        events.forEach(event => {
-            window.addEventListener(event, handleUserActivity);
-        });
+    return () => clearInterval(interval);
+  }, [timeoutMinutes, warningMinutes, lastActivity, showWarning, handleTimeout, onWarning]);
 
-        // Initial timer setup
-        resetTimers();
+  if (!showWarning) return null;
 
-        // Cleanup
-        return () => {
-            if (warningTimer) clearTimeout(warningTimer);
-            if (timeoutTimer) clearTimeout(timeoutTimer);
-            events.forEach(event => {
-                window.removeEventListener(event, handleUserActivity);
-            });
-        };
-    }, [navigate, timeoutMinutes, warningMinutes, showWarning]);
-
-    useEffect(() => {
-        let countdownTimer;
-        if (showWarning) {
-            countdownTimer = setInterval(() => {
-                setTimeLeft(prev => {
-                    if (prev <= 1) {
-                        clearInterval(countdownTimer);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => {
-            if (countdownTimer) clearInterval(countdownTimer);
-        };
-    }, [showWarning]);
-
-    if (!showWarning) return null;
-
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-
-    return (
-        <div className={`fixed inset-0 flex items-center justify-center p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-900/80' : 'bg-white/80'
-            }`}>
-            <div className={`p-6 rounded-xl shadow-lg max-w-md w-full transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}>
-                <h2 className="text-xl font-bold mb-4">Session Timeout Warning</h2>
-                <p className="mb-4">
-                    Your session will expire in {minutes}:{seconds.toString().padStart(2, '0')}.
-                    Would you like to extend your session?
-                </p>
-                <div className="flex justify-end space-x-4">
-                    <Button
-                        onClick={() => {
-                            setShowWarning(false);
-                            toast.success('Session extended');
-                        }}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                            : 'bg-blue-500 hover:bg-blue-600 text-white'
-                            }`}
-                    >
-                        Extend Session
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            auth.signOut();
-                            navigate('/login');
-                        }}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-                            ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                            : 'bg-gray-500 hover:bg-gray-600 text-white'
-                            }`}
-                    >
-                        Log Out
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
+  return (
+    <div 
+      role="alertdialog"
+      aria-labelledby="timeout-title"
+      aria-describedby="timeout-description"
+      className={`
+        fixed bottom-4 right-4 p-4 rounded-lg shadow-lg
+        transition-all duration-300 transform
+        ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+        ${timeLeft <= 60 ? 'animate-pulse' : ''}
+      `}
+    >
+      <h3 
+        id="timeout-title"
+        className="text-lg font-semibold mb-2"
+      >
+        Session Timeout Warning
+      </h3>
+      <p 
+        id="timeout-description"
+        className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+      >
+        Your session will expire in {formatTimeLeft(timeLeft)}
+      </p>
+      <div className="flex gap-2">
+        <Button
+          onClick={resetTimer}
+          color="blue"
+          size="sm"
+          aria-label="Stay logged in"
+        >
+          Stay Logged In
+        </Button>
+        <Button
+          onClick={handleTimeout}
+          color="gray"
+          size="sm"
+          aria-label="Log out now"
+        >
+          Log Out
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-export default SessionTimeout; 
+SessionTimeout.propTypes = {
+  timeoutMinutes: PropTypes.number,
+  warningMinutes: PropTypes.number,
+  onTimeout: PropTypes.func,
+  onWarning: PropTypes.func
+};
+
+export default SessionTimeout;

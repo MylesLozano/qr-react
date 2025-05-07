@@ -35,6 +35,22 @@ function QRCodeManager({
     const [qrGenerated, setQrGenerated] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Add input validation for item prop
+    const validateItem = useCallback((item) => {
+        if (!item) throw new Error("No item provided");
+        if (!item.id) throw new Error("Item missing ID");
+        if (!item.name) throw new Error("Item missing name");
+        return true;
+    }, []);
+
+    // Add QR data validation
+    const validateQrData = useCallback((data) => {
+        if (!data) throw new Error("No QR data provided");
+        if (typeof data !== 'object') throw new Error("Invalid QR data format");
+        if (JSON.stringify(data).length > 1000) throw new Error("QR data exceeds size limit");
+        return true;
+    }, []);
+
     // Effect to check for existing QR code
     useEffect(() => {
         if (item?.id) {
@@ -50,14 +66,24 @@ function QRCodeManager({
     }, [localQrData]);
 
     const checkExistingQR = async () => {
+        if (!item?.id) {
+            setError("Cannot check QR code: Invalid item");
+            return;
+        }
+
         try {
             const existingQR = await getQRCodeFromFirestore(item.id);
             if (existingQR) {
-                setLocalQrData(JSON.parse(existingQR.qrData));
+                const parsedData = JSON.parse(existingQR.qrData);
+                validateQrData(parsedData);
+                setLocalQrData(parsedData);
                 setQrGenerated(true);
             }
         } catch (err) {
+            const message = err.message || 'Error checking existing QR code';
             console.error('Error checking existing QR:', err);
+            setError(message);
+            setQrGenerated(false);
         }
     };
 
@@ -71,7 +97,13 @@ function QRCodeManager({
         if (!item?.id || !qrElementRef.current || isSaving) return;
         
         setIsSaving(true);
+        setError(null);
+
         try {
+            // Validate inputs
+            validateItem(item);
+            if (qrData) validateQrData(qrData);
+
             // Convert SVG to canvas, then to PNG data URL
             const svgElement = qrElementRef.current.querySelector('svg');
             const canvas = document.createElement('canvas');
@@ -118,21 +150,28 @@ function QRCodeManager({
             setQrGenerated(true);
             toast.success('QR code saved successfully');
         } catch (err) {
-            const message = 'Failed to save QR code';
+            const message = err.message || 'Failed to save QR code';
             handleError(err, message);
             setError(message);
+            setQrGenerated(false);
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDownload = async () => {
-        if (!localQrData || !qrElementRef.current) return;
+        if (!localQrData || !qrElementRef.current) {
+            setError("No QR code data available to download");
+            return;
+        }
 
         setIsDownloading(true);
         setError(null);
 
         try {
+            // Validate QR data before download
+            validateQrData(localQrData);
+
             // Create SVG data URL
             const svgElement = qrElementRef.current.querySelector('svg');
             if (!svgElement) throw new Error('QR code element not found');
@@ -180,13 +219,22 @@ function QRCodeManager({
 
             toast.success('QR code downloaded successfully');
         } catch (err) {
-            const message = 'Failed to download QR code';
+            const message = err.message || 'Failed to download QR code';
             handleError(err, message);
             setError(message);
         } finally {
             setIsDownloading(false);
         }
     };
+
+    // Add cleanup effect
+    useEffect(() => {
+        return () => {
+            setError(null);
+            setQrGenerated(false);
+            setLocalQrData(null);
+        };
+    }, []);
 
     return (
         <ErrorBoundary>

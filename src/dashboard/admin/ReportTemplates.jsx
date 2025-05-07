@@ -325,8 +325,7 @@ const ReportTemplates = () => {
                                             id="outputFormat"
                                             value={formData.outputFormat}
                                             onChange={(e) => setFormData(prev => ({ ...prev, outputFormat: e.target.value }))}
-                                            className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                                                }`}
+                                            className={`w-full p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
                                             aria-label="Output format"
                                         >
                                             <option value="pdf">PDF</option>

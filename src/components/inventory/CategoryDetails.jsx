@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import Button from '../Button';
 import InventoryList from './InventoryList';
+import LoadingSpinner from '../LoadingSpinner';
 
 function CategoryDetails({
   category,
@@ -17,19 +18,52 @@ function CategoryDetails({
   const { isDarkMode: componentDarkMode } = useTheme();
   const currentIsDarkMode = isDarkMode !== undefined ? isDarkMode : componentDarkMode;
 
-  if (!category) return null;
+  // Validate category
+  if (!category) {
+    console.error("CategoryDetails: No category provided");
+    return null;
+  }
 
-  // Filter items for selected category
+  // Validate items array
+  if (!Array.isArray(items)) {
+    console.error("CategoryDetails received invalid items:", items);
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className={`p-6 rounded-lg ${currentIsDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'}`}>
+          <p>Error: Invalid items data</p>
+          <Button onClick={onClose} color="gray" className="mt-4">Close</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter and memoize category items with error handling
   const categoryItems = useMemo(() => {
-    if (!Array.isArray(items)) {
-      console.error("CategoryDetails received non-array items:", items);
+    try {
+      return items.filter(item => {
+        if (!item || typeof item !== 'object') {
+          console.warn("Invalid item in category items:", item);
+          return false;
+        }
+        return item.category === category;
+      });
+    } catch (error) {
+      console.error("Error filtering category items:", error);
       return [];
     }
-    return items.filter(item => item.category === category);
   }, [items, category]);
 
+  // Calculate total quantity with error handling
   const totalQuantity = useMemo(() => {
-    return categoryItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    try {
+      return categoryItems.reduce((sum, item) => {
+        const quantity = Number(item?.quantity);
+        return sum + (isNaN(quantity) ? 0 : quantity);
+      }, 0);
+    } catch (error) {
+      console.error("Error calculating total quantity:", error);
+      return 0;
+    }
   }, [categoryItems]);
 
   return (
@@ -39,7 +73,7 @@ function CategoryDetails({
         {/* Header - Fixed */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700/50">
           <div>
-            <h2 className="text-2xl font-bold">{category}</h2>
+            <h2 className="text-2xl font-bold" role="heading" aria-level="2">{category}</h2>
             <p className={`text-sm ${currentIsDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               {categoryItems.length} {categoryItems.length === 1 ? 'item' : 'items'} •
               Total Quantity: {totalQuantity}
