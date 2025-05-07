@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import Button from '../../components/Button';
 
 /**
  * AdminDashboard component - Main dashboard for admin users
@@ -28,7 +29,7 @@ const AdminDashboard = () => {
 
   // Memoize navigation items
   const navigationItems = useMemo(() => [
-    { path: 'reports', icon: 'fas fa-chart-bar', label: 'Reports' },
+    { path: 'reporting', icon: 'fas fa-chart-bar', label: 'Reports' },
     { path: 'templates', icon: 'fas fa-file-alt', label: 'Report Templates' },
     { path: 'generate-report', icon: 'fas fa-file-export', label: 'Generate Report' }
   ], []);

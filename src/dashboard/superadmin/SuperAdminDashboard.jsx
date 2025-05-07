@@ -9,6 +9,7 @@ import usePageTitle from "../../hooks/usePageTitle";
 import { useTheme } from "../../context/ThemeContext";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import ProtectedRoute from "../../ProtectedRoute";
 
 /**
  * SuperAdminDashboard component - Main dashboard for superadmin users
@@ -53,10 +54,10 @@ function SuperAdminDashboard() {
           <div className={`rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
             <Routes>
               <Route path="/" element={<Navigate to="user-management" replace />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="requests" element={<Requests />} />
-              <Route path="reporting" element={<UnifiedReporting />} />
-              <Route path="user-management" element={<ManageUsers />} />
+              <Route path="inventory" element={<ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute>} />
+              <Route path="requests" element={<ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute>} />
+              <Route path="reporting" element={<ProtectedRoute requiredAction="generate_reports"><UnifiedReporting /></ProtectedRoute>} />
+              <Route path="user-management" element={<ProtectedRoute requiredAction="manage_users"><ManageUsers /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="user-management" replace />} />
             </Routes>
           </div>

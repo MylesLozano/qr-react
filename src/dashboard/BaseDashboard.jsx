@@ -73,6 +73,14 @@ const NAV_CONFIG = [
     roles: ['admin', 'superadmin']
   },
   {
+    path: '/admin-dashboard/generate-report',
+    label: 'Generate Report',
+    icon: '📄',
+    action: 'generate_reports',
+    description: 'Generate new reports',
+    roles: ['admin', 'superadmin']
+  },
+  {
     path: '/superadmin-dashboard/user-management',
     label: 'User Management',
     icon: '👥',

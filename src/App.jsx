@@ -68,6 +68,7 @@ function App() {
             await Promise.all([
               import("./dashboard/admin/AdminDashboard"),
               import("./dashboard/admin/Requests"),
+              import("./dashboard/admin/ReportGenerator"),
               import("./dashboard/UnifiedReporting"),
               import("./dashboard/Inventory")
             ]);
@@ -147,6 +148,8 @@ function App() {
                 { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
                 { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
                 { path: "reporting", element: <UnifiedReporting /> },
+                { path: "generate-report", element: <ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute> },
+                { path: "reports", element: <Navigate to="reporting" replace /> },
                 { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> }
               ].map(route => <Route key={route.path} {...route} />)}
             />
