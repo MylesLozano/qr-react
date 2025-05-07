@@ -46,7 +46,7 @@ const NAV_CONFIG = [
     icon: '📄',
     action: 'view_requests',
     description: 'View and manage your requests',
-    roles: ['user', 'admin', 'superadmin']
+    roles: ['user']
   },
   {
     path: '/admin-dashboard/requests',
@@ -57,20 +57,20 @@ const NAV_CONFIG = [
     roles: ['admin', 'superadmin']
   },
   {
+    path: '/admin-dashboard/templates',
+    label: 'Templates',
+    icon: '📋',
+    action: 'manage_templates',
+    description: 'Manage report templates',
+    roles: ['admin', 'superadmin']
+  },
+  {
     path: '/admin-dashboard/reporting',
-    label: 'Reports',
+    label: 'Report/Audits',
     icon: '📊',
     action: 'generate_reports',
     description: 'Access consolidated reports and audit logs',
     roles: ['admin', 'superadmin']
-  },
-  {
-    path: '/superadmin-dashboard/reporting',
-    label: 'Audit Logs',
-    icon: '📝',
-    action: 'view_audit_logs',
-    description: 'View system audit logs',
-    roles: ['superadmin']
   },
   {
     path: '/superadmin-dashboard/user-management',
@@ -144,18 +144,25 @@ function BaseDashboard({ children }) {
   const handleLogout = async () => {
     try {
       setIsLoading(true);
-      const userEmail = user?.email; // Capture email before logout
-      await auth.signOut();
+      // Capture user info before logout
+      const userEmail = user?.email;
+      const userId = user?.uid;
 
-      // Log the logout action to audit logs
+      // Log the logout action to audit logs before signing out
       try {
-        await logAudit('user_signed_out', userEmail, 'user', {
-          timestamp: new Date().toISOString()
+        console.log("Logging user sign-out event before auth.signOut()");
+        const auditLogId = await logAudit('user_signed_out', userEmail, 'user', {
+          timestamp: new Date().toISOString(),
+          userId: userId
         });
+        console.log(`Sign-out audit logged with ID: ${auditLogId}`);
       } catch (auditError) {
-        console.error("Error logging audit for logout:", auditError);
+        console.error("Error logging sign-out audit:", auditError);
+        // Continue with logout even if audit logging fails
       }
 
+      // Proceed with logout
+      await auth.signOut();
       toast.success("Logged out successfully");
       navigate('/login');
     } catch (error) {

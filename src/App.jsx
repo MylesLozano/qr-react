@@ -48,16 +48,17 @@ const ROUTE_CONFIG = {
       { path: "", element: <Navigate to="inventory" replace /> },
       { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> },
       { path: "requests", element: <ProtectedRoute requiredAction="manage_requests"><Requests /></ProtectedRoute> },
+      { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
       { path: "reporting", element: <UnifiedReporting /> },
       { path: "categories", element: <ProtectedRoute requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute> },
-      { path: "templates", element: <ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute> },
     ]
   },
   user: {
     path: "/user-dashboard",
     element: <ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>,
     children: [
-      { path: "my-requests", element: <MyRequests /> },
+      { path: "", element: <Navigate to="inventory" replace /> },
+      { path: "my-requests", element: <ProtectedRoute requiredAction="view_requests"><MyRequests /></ProtectedRoute> },
       { path: "inventory", element: <ProtectedRoute requiredAction="view_inventory"><Inventory /></ProtectedRoute> }
     ]
   }

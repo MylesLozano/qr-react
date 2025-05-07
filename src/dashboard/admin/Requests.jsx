@@ -261,6 +261,111 @@ function Requests() {
     }
   }, [canExportRequests, filteredRequests, user?.email]);
 
+  // Add this component inside the Requests file for when no requests are found
+  const EmptyRequestsOptions = ({ isDarkMode, onExportSample, onToggleFilter }) => {
+    return (
+      <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+        <h2 className="text-xl font-semibold mb-4">No Requests Found</h2>
+        <p className="mb-4">There are currently no requests that match your filters, or no requests have been submitted yet.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <h3 className="font-bold text-lg mb-2">
+              <span className="mr-2" aria-hidden="true">🔍</span>
+              Adjust Filters
+            </h3>
+            <p className="mb-3">Try changing your filter settings to see more requests.</p>
+            <Button
+              onClick={onToggleFilter}
+              color="blue"
+              size="md"
+              className="w-full"
+            >
+              Show All Requests
+            </Button>
+          </div>
+
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <h3 className="font-bold text-lg mb-2">
+              <span className="mr-2" aria-hidden="true">📋</span>
+              Request Template
+            </h3>
+            <p className="mb-3">Download a sample CSV of request data for reference.</p>
+            <Button
+              onClick={onExportSample}
+              color="green"
+              size="md"
+              className="w-full"
+            >
+              Download Sample
+            </Button>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-indigo-900/20' : 'bg-indigo-50'} border ${isDarkMode ? 'border-indigo-800' : 'border-indigo-200'}`}>
+          <h3 className="font-semibold mb-2 flex items-center">
+            <span className="mr-2 text-xl">💡</span>
+            Request Management Process
+          </h3>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>Wait for users to submit inventory requests</li>
+            <li>Review the request details and purpose</li>
+            <li>Approve or reject requests based on availability and policy</li>
+            <li>Add notes for users when necessary</li>
+            <li>Export request data for record-keeping</li>
+          </ol>
+        </div>
+      </div>
+    );
+  };
+
+  // Function to generate sample CSV data
+  const generateSampleRequestData = () => {
+    return [
+      {
+        ID: 'sample-001',
+        Item: 'MacBook Pro 16"',
+        Quantity: 1,
+        Lab: 'Mac Lab',
+        Status: 'pending',
+        'Requested By': 'student@jmc.edu.ph',
+        'Request Date': new Date().toLocaleString(),
+        'Last Updated': new Date().toLocaleString(),
+        'Updated By': 'admin@jmc.edu.ph',
+        Reason: 'For Final year project',
+        'Usage Location': 'Computer Lab 2'
+      },
+      {
+        ID: 'sample-002',
+        Item: 'HDMI Cable',
+        Quantity: 5,
+        Lab: 'EMC Lab',
+        Status: 'approved',
+        'Requested By': 'faculty@jmc.edu.ph',
+        'Request Date': new Date(Date.now() - 86400000).toLocaleString(),
+        'Last Updated': new Date(Date.now() - 43200000).toLocaleString(),
+        'Updated By': 'admin@jmc.edu.ph',
+        Reason: 'For classroom presentations',
+        'Usage Location': 'Room 305'
+      }
+    ];
+  };
+
+  // Then in your existing component code, add the handler function:
+  // Add this to your existing handlers section
+  const exportSampleCSV = useCallback(() => {
+    try {
+      const sampleData = generateSampleRequestData();
+      const csv = Papa.unparse(sampleData);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      saveAs(blob, `request_template_sample.csv`);
+      toast.success('Sample template downloaded');
+    } catch (error) {
+      console.error('Error exporting sample data:', error);
+      toast.error('Failed to generate sample data');
+    }
+  }, []);
+
   // Row component for virtual list
   const Row = useCallback(({ index, style }) => {
     const request = filteredRequests[index];
@@ -462,20 +567,29 @@ function Requests() {
             <div className={`p-6 rounded-lg border transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
               }`}>
               <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Requests</h2>
-              <div className="h-[600px]">
-                <AutoSizer>
-                  {({ height, width }) => (
-                    <List
-                      height={height}
-                      itemCount={filteredRequests.length}
-                      itemSize={100}
-                      width={width}
-                    >
-                      {Row}
-                    </List>
-                  )}
-                </AutoSizer>
-              </div>
+
+              {filteredRequests.length === 0 ? (
+                <EmptyRequestsOptions
+                  isDarkMode={isDarkMode}
+                  onExportSample={exportSampleCSV}
+                  onToggleFilter={() => setFilter('all')}
+                />
+              ) : (
+                <div className="h-[600px]">
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <List
+                        height={height}
+                        itemCount={filteredRequests.length}
+                        itemSize={100}
+                        width={width}
+                      >
+                        {Row}
+                      </List>
+                    )}
+                  </AutoSizer>
+                </div>
+              )}
             </div>
           </div>
         )}

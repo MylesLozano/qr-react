@@ -293,6 +293,63 @@ function MyRequests() {
     },
   ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
 
+  // Add this component within the MyRequests file - it will display suggestions when no requests exist
+  const EmptyRequestsOptions = ({ isDarkMode, inventoryCount, onStartNewRequest }) => {
+    return (
+      <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+        <h2 className="text-xl font-semibold mb-4">No Requests Found</h2>
+        <p className="mb-4">You haven't made any requests yet. Here are some options to get started:</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <h3 className="font-bold text-lg mb-2">
+              <span className="mr-2" aria-hidden="true">📋</span>
+              Create a New Request
+            </h3>
+            <p className="mb-3">Request items directly from our inventory of {inventoryCount} available items.</p>
+            <Button
+              onClick={onStartNewRequest}
+              color="blue"
+              size="md"
+              className="w-full"
+            >
+              Start New Request
+            </Button>
+          </div>
+
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <h3 className="font-bold text-lg mb-2">
+              <span className="mr-2" aria-hidden="true">📱</span>
+              Scan Item QR Code
+            </h3>
+            <p className="mb-3">Need an item? Scan its QR code for quick access and requesting.</p>
+            <Button
+              onClick={() => document.getElementById('qr-scanner-section').scrollIntoView({ behavior: 'smooth' })}
+              color="green"
+              size="md"
+              className="w-full"
+            >
+              Open Scanner
+            </Button>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-indigo-900/20' : 'bg-indigo-50'} border ${isDarkMode ? 'border-indigo-800' : 'border-indigo-200'}`}>
+          <h3 className="font-semibold mb-2 flex items-center">
+            <span className="mr-2 text-xl">💡</span>
+            Request Process
+          </h3>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>Create a new request or scan a QR code</li>
+            <li>Provide details about your need for the item</li>
+            <li>Submit the request for review</li>
+            <li>Check back for approval status</li>
+          </ol>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ErrorBoundary>
       <BaseDashboard role="user">
@@ -361,110 +418,111 @@ function MyRequests() {
           </div>
 
           {/* Request Form */}
-          <form onSubmit={handleSubmit} className="mb-8 space-y-4 max-w-xl">
-            <div>
-              <label htmlFor="itemName" className="block text-sm font-medium mb-1">
-                Item Name
-              </label>
-              <input
-                id="itemName"
-                name="itemName"
-                type="text"
-                value={formData.itemName}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 rounded border ${errors.itemName ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
-                aria-invalid={!!errors.itemName}
-                aria-describedby={errors.itemName ? "itemName-error" : undefined}
-                disabled={!!selectedItem}
-              />
-              {errors.itemName && (
-                <p id="itemName-error" className="text-red-500 text-sm mt-1">
-                  {errors.itemName}
-                </p>
-              )}
-            </div>
+          <div id="request-form" className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+            <form onSubmit={handleSubmit} className="mb-8 space-y-4 max-w-xl">
+              <div>
+                <label htmlFor="itemName" className="block text-sm font-medium mb-1">
+                  Item Name
+                </label>
+                <input
+                  id="itemName"
+                  name="itemName"
+                  type="text"
+                  value={formData.itemName}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 rounded border ${errors.itemName ? "border-red-500" : "border-gray-300"
+                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  aria-invalid={!!errors.itemName}
+                  aria-describedby={errors.itemName ? "itemName-error" : undefined}
+                  disabled={!!selectedItem}
+                />
+                {errors.itemName && (
+                  <p id="itemName-error" className="text-red-500 text-sm mt-1">
+                    {errors.itemName}
+                  </p>
+                )}
+              </div>
 
-            <div>
-              <label htmlFor="quantity" className="block text-sm font-medium mb-1">
-                Quantity
-              </label>
-              <input
-                id="quantity"
-                name="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={handleInputChange}
-                min="1"
-                className={`w-full px-3 py-2 rounded border ${errors.quantity ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
-                aria-invalid={!!errors.quantity}
-                aria-describedby={errors.quantity ? "quantity-error" : undefined}
-              />
-              {errors.quantity && (
-                <p id="quantity-error" className="text-red-500 text-sm mt-1">
-                  {errors.quantity}
-                </p>
-              )}
-            </div>
+              <div>
+                <label htmlFor="quantity" className="block text-sm font-medium mb-1">
+                  Quantity
+                </label>
+                <input
+                  id="quantity"
+                  name="quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  min="1"
+                  className={`w-full px-3 py-2 rounded border ${errors.quantity ? "border-red-500" : "border-gray-300"
+                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  aria-invalid={!!errors.quantity}
+                  aria-describedby={errors.quantity ? "quantity-error" : undefined}
+                />
+                {errors.quantity && (
+                  <p id="quantity-error" className="text-red-500 text-sm mt-1">
+                    {errors.quantity}
+                  </p>
+                )}
+              </div>
 
-            <div>
-              <label htmlFor="reason" className="block text-sm font-medium mb-1">
-                Reason
-              </label>
-              <textarea
-                id="reason"
-                name="reason"
-                value={formData.reason}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 rounded border ${errors.reason ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
-                aria-invalid={!!errors.reason}
-                aria-describedby={errors.reason ? "reason-error" : undefined}
-              />
-              {errors.reason && (
-                <p id="reason-error" className="text-red-500 text-sm mt-1">
-                  {errors.reason}
-                </p>
-              )}
-            </div>
+              <div>
+                <label htmlFor="reason" className="block text-sm font-medium mb-1">
+                  Reason
+                </label>
+                <textarea
+                  id="reason"
+                  name="reason"
+                  value={formData.reason}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 rounded border ${errors.reason ? "border-red-500" : "border-gray-300"
+                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  aria-invalid={!!errors.reason}
+                  aria-describedby={errors.reason ? "reason-error" : undefined}
+                />
+                {errors.reason && (
+                  <p id="reason-error" className="text-red-500 text-sm mt-1">
+                    {errors.reason}
+                  </p>
+                )}
+              </div>
 
-            <div>
-              <label htmlFor="usageLocation" className="block text-sm font-medium mb-1">
-                Usage Location
-              </label>
-              <input
-                id="usageLocation"
-                name="usageLocation"
-                type="text"
-                value={formData.usageLocation}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 rounded border ${errors.usageLocation ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
-                aria-invalid={!!errors.usageLocation}
-                aria-describedby={errors.usageLocation ? "usageLocation-error" : undefined}
-              />
-              {errors.usageLocation && (
-                <p id="usageLocation-error" className="text-red-500 text-sm mt-1">
-                  {errors.usageLocation}
-                </p>
-              )}
-            </div>
+              <div>
+                <label htmlFor="usageLocation" className="block text-sm font-medium mb-1">
+                  Usage Location
+                </label>
+                <input
+                  id="usageLocation"
+                  name="usageLocation"
+                  type="text"
+                  value={formData.usageLocation}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 rounded border ${errors.usageLocation ? "border-red-500" : "border-gray-300"
+                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  aria-invalid={!!errors.usageLocation}
+                  aria-describedby={errors.usageLocation ? "usageLocation-error" : undefined}
+                />
+                {errors.usageLocation && (
+                  <p id="usageLocation-error" className="text-red-500 text-sm mt-1">
+                    {errors.usageLocation}
+                  </p>
+                )}
+              </div>
 
-            <Button
-              type="submit"
-              disabled={submitting}
-              color="blue"
-              className={`px-4 py-2 rounded transition-colors duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
-              aria-label="Submit request"
-            >
-              {submitting ? <LoadingSpinner size="small" /> : "Submit Request"}
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                disabled={submitting}
+                color="blue"
+                className={`px-4 py-2 rounded transition-colors duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                aria-label="Submit request"
+              >
+                {submitting ? <LoadingSpinner size="small" /> : "Submit Request"}
+              </Button>
+            </form>
+          </div>
 
           {/* QR Scanner Section */}
-          <div className={`p-6 rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"
-            }`}>
+          <div id="qr-scanner-section" className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
             <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
               QR Code Scanner
             </h2>
@@ -508,10 +566,12 @@ function MyRequests() {
           </div>
 
           {/* Requests Table */}
-          {loading ? (
-            <LoadingSpinner />
-          ) : requests.length === 0 ? (
-            <p className="text-gray-500">You have no requests yet.</p>
+          {!loading && requests.length === 0 ? (
+            <EmptyRequestsOptions
+              isDarkMode={isDarkMode}
+              inventoryCount={inventoryCount}
+              onStartNewRequest={() => document.getElementById('request-form').scrollIntoView({ behavior: 'smooth' })}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table

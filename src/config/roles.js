@@ -14,4 +14,5 @@ export const ACTION_PERMISSIONS = {
   manage_templates: ['admin', 'superadmin'],
   manage_categories: ['admin', 'superadmin'],
   manage_requests: ['admin', 'superadmin'],
+  view_requests: ['user', 'admin', 'superadmin'],
 };

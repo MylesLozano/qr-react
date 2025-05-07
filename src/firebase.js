@@ -125,8 +125,15 @@ try {
       console.warn("Attempted to log audit without action or user email.");
       return;
     }
+    
+    // Special handling for sign-out events to ensure they're properly captured
+    const isSignOut = action === 'user_signed_out';
+    if (isSignOut) {
+      console.log(`📝 Logging sign-out event for: ${userEmail}`);
+    }
+    
     try {
-      const auditRef = await addDoc(collection(db, AUDIT_COLLECTION), {
+      const auditData = {
         action,
         userEmail,
         entityType,
@@ -136,13 +143,34 @@ try {
           typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
         platform:
           typeof navigator !== "undefined" ? navigator.platform : "unknown",
-      });
+      };
+      
+      // For sign-out events, use clientTimestamp instead of serverTimestamp to ensure capture
+      if (isSignOut) {
+        auditData.clientTimestamp = new Date().toISOString();
+      }
+      
+      const auditRef = await addDoc(collection(db, AUDIT_COLLECTION), auditData);
+      
       console.log(
         `✅ Audit log added: ${userEmail} - ${action} (ID: ${auditRef.id})`
       );
+      
+      // Additional logging for sign-out events
+      if (isSignOut) {
+        console.log(`✅ Sign-out successfully logged for: ${userEmail}`);
+      }
+      
+      return auditRef.id; // Return the ID for confirmation
     } catch (error) {
-      console.error("🚨 Error logging audit event:", error);
-      throw error;
+      console.error(`🚨 Error logging audit event (${action}):`, error);
+      if (isSignOut) {
+        console.error("🚨 Failed to log sign-out event. Details:", { userEmail, entityType, details });
+      }
+      // Don't throw the error for sign-out events to prevent disrupting the logout flow
+      if (!isSignOut) {
+        throw error;
+      }
     }
   };
 

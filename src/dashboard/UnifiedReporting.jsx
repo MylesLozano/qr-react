@@ -32,6 +32,8 @@ const getActionColor = (action) => {
         case 'user_role_assigned':
         case 'user_role_verified':
             return 'text-blue-500';
+        case 'user_signed_out':
+            return 'text-purple-800';
         case 'inventory_added':
         case 'inventory_updated':
         case 'qr_code_generated':
@@ -116,6 +118,7 @@ const UnifiedReporting = () => {
         { value: '', label: 'All Actions' },
         { value: 'user_created', label: 'User Created' },
         { value: 'user_signed_in', label: 'User Signed In' },
+        { value: 'user_signed_out', label: 'User Signed Out' },
         { value: 'user_role_assigned', label: 'User Role Assigned' },
         { value: 'user_role_verified', label: 'User Role Verified' },
         { value: 'user_role_updated', label: 'User Role Updated' },
@@ -257,7 +260,7 @@ const UnifiedReporting = () => {
         const d = doc.data();
         return {
             id: doc.id,
-            timestamp: d.timestamp?.toDate().toLocaleString() || 'N/A',
+            timestamp: d.timestamp?.toDate().toLocaleString() || d.clientTimestamp || 'N/A',
             action: safeToString(d.action),
             entityType: safeToString(d.entityType),
             userEmail: safeToString(d.userEmail),
@@ -324,6 +327,40 @@ const UnifiedReporting = () => {
             console.error(err); toast.error('Export failed');
         } finally { setExporting(false); }
     }, [canExportReports, logs, user, filters, dateRange]);
+
+    // Function to filter for sign-out events specifically
+    const fetchSignOutLogs = useCallback(async () => {
+        if (!canViewAuditLogs) return;
+        try {
+            setLogsLoading(true);
+            const signOutQuery = query(
+                collection(db, 'auditLogs'),
+                where('action', '==', 'user_signed_out'),
+                orderBy('timestamp', 'desc'),
+                limit(20)
+            );
+            const snap = await getDocs(signOutQuery);
+            const signOutLogs = snap.docs.map(processLogData);
+
+            if (signOutLogs.length > 0) {
+                console.log(`Found ${signOutLogs.length} sign-out logs:`, signOutLogs);
+                toast.info(`${signOutLogs.length} sign-out events found`);
+            } else {
+                console.log('No sign-out logs found');
+                toast.info('No sign-out logs found');
+            }
+
+            // Add a tab option to view only sign-out logs
+            setLogs(signOutLogs);
+            setLastDoc(snap.docs[snap.docs.length - 1] || null);
+            setHasMore(snap.docs.length === 20);
+        } catch (err) {
+            console.error('Error fetching sign-out logs:', err);
+            toast.error('Failed to fetch sign-out logs');
+        } finally {
+            setLogsLoading(false);
+        }
+    }, [canViewAuditLogs, processLogData]);
 
     // fetch audit logs on tab switch
     useEffect(() => { if (activeTab === 'auditLogs') fetchLogs(); }, [activeTab, fetchLogs]);
@@ -466,9 +503,14 @@ const UnifiedReporting = () => {
                                 <input type="date" value={dateRange.end} onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} className="p-2 rounded border" />
                                 <Button onClick={fetchLogs} className="px-4 py-2 rounded">Filter</Button>
                             </div>
-                            <Button onClick={exportLogsToCsv} disabled={exporting || !logs.length} className="px-4 py-2 rounded">
-                                {exporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button onClick={fetchSignOutLogs} disabled={logsLoading} className="px-4 py-2 rounded">
+                                    {logsLoading ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
+                                </Button>
+                                <Button onClick={exportLogsToCsv} disabled={exporting || !logs.length} className="px-4 py-2 rounded">
+                                    {exporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
+                                </Button>
+                            </div>
                         </div>
                         {logsLoading && !logs.length ? <LoadingSpinner /> : (
                             <div className="overflow-auto rounded-lg border mb-4">
