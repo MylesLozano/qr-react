@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   initializeFirestore,
   persistentLocalCache,
+  updateDoc,
 } from "firebase/firestore";
 
 const EMAIL_DOMAIN = "@jmc.edu.ph";
@@ -46,7 +47,7 @@ const validateFirebaseConfig = (config) => {
   }
 };
 
-let auth, db, logAudit, getUserRole, checkAndAssignUserRole, firebaseApp, saveQRCodeToFirestore, getQRCodeFromFirestore;
+let auth, db, logAudit, getUserRole, checkAndAssignUserRole, firebaseApp, saveQRCodeToFirestore, getQRCodeFromFirestore, updateQRCodeLockStatus;
 
 try {
   validateFirebaseConfig(firebaseConfig);
@@ -152,6 +153,7 @@ try {
       await setDoc(qrRef, {
         qrCode: qrDataUrl,
         createdAt: serverTimestamp(),
+        isLocked: false,
         ...metadata,
       });
       return true;
@@ -175,6 +177,21 @@ try {
       throw error;
     }
   };
+
+  // Add function to update QR code lock status
+  updateQRCodeLockStatus = async (itemId, isLocked) => {
+    try {
+      const qrRef = doc(db, QR_COLLECTION, itemId);
+      await updateDoc(qrRef, {
+        isLocked: isLocked,
+      });
+      console.log(`✅ QR code lock status updated for item ${itemId}: ${isLocked}`);
+      return true;
+    } catch (error) {
+      console.error("Error updating QR code lock status:", error);
+      throw error;
+    }
+  };
 } catch (error) {
   console.error("🚨 Firebase initialization failed:", error);
   throw error;
@@ -189,4 +206,5 @@ export {
   firebaseApp,
   saveQRCodeToFirestore,
   getQRCodeFromFirestore,
+  updateQRCodeLockStatus,
 };

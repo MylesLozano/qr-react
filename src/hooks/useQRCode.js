@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
-import { logAudit, saveQRCodeToFirestore, db } from "../firebase";
+import { logAudit, db, getQRCodeFromFirestore, updateQRCodeLockStatus } from "../firebase";
 import { calculateQrStats } from "../utils/inventoryUtils";
 import {
   doc,
@@ -23,6 +23,7 @@ export default function useQRCode(items, user) {
     lastGenerated: null,
   });
   const [qrError, setQrError] = useState(null);
+  const [isQrLocked, setIsQrLocked] = useState(false);
 
   // Calculate QR stats whenever items change
   useEffect(() => {
@@ -99,6 +100,7 @@ export default function useQRCode(items, user) {
       setGeneratedQrData(null);
       setIsGeneratingQr(true);
       setQrError(null);
+      setIsQrLocked(false);
 
       try {
         // Check for existing requests first
@@ -110,6 +112,24 @@ export default function useQRCode(items, user) {
             toast.error("Item has already been requested. Choose another one.");
           }
           setQrPreview(null);
+          setIsGeneratingQr(false);
+          return;
+        }
+
+        // Check if QR is locked before generating
+        const existingQRDoc = await getQRCodeFromFirestore(item.id);
+        if (existingQRDoc && existingQRDoc.isLocked) {
+          toast.info("This item's QR code is currently locked.");
+          if (existingQRDoc.qrData) {
+            try {
+              setGeneratedQrData(JSON.parse(existingQRDoc.qrData));
+              setIsQrLocked(true);
+            } catch (parseError) {
+              console.error("Failed to parse existing QR data:", parseError);
+              setQrError("Failed to load existing QR data.");
+              toast.error("Failed to load existing QR data.");
+            }
+          }
           setIsGeneratingQr(false);
           return;
         }
@@ -134,6 +154,7 @@ export default function useQRCode(items, user) {
         });
 
         setGeneratedQrData(data);
+        setIsQrLocked(existingQRDoc?.isLocked || false);
 
         await logAudit("qr_code_generated", user.email, "inventory", {
           itemName: item.name,
@@ -149,14 +170,40 @@ export default function useQRCode(items, user) {
         setIsGeneratingQr(false);
       }
     },
-    [generateQrCodeData, validateQRData, user]
+    [generateQrCodeData, validateQRData, user, checkExistingRequest, createRequest]
   );
 
   const closeQrPreview = useCallback(() => {
     setQrPreview(null);
     setGeneratedQrData(null);
     setQrError(null);
+    setIsQrLocked(false);
   }, []);
+
+  const toggleLockQR = useCallback(async (itemId) => {
+    if (!itemId || !user) return;
+
+    const newLockStatus = !isQrLocked;
+    setIsGeneratingQr(true);
+    setQrError(null);
+
+    try {
+      await updateQRCodeLockStatus(itemId, newLockStatus);
+      setIsQrLocked(newLockStatus);
+
+      await logAudit(newLockStatus ? "qr_code_locked" : "qr_code_unlocked", user.email, "qr_code", {
+        itemId: itemId,
+      });
+
+      toast.success(`QR code successfully ${newLockStatus ? 'locked' : 'unlocked'}.`);
+    } catch (error) {
+      console.error("Error toggling QR lock status:", error);
+      setQrError("Failed to update QR code lock status.");
+      toast.error("Failed to update QR code lock status.");
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  }, [isQrLocked, user, updateQRCodeLockStatus, logAudit]);
 
   return {
     qrStats,
@@ -165,7 +212,9 @@ export default function useQRCode(items, user) {
     generatedQrData,
     isGeneratingQr,
     qrError,
+    isQrLocked,
     previewQrCode,
     closeQrPreview,
+    toggleLockQR,
   };
 }
