@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../context/ThemeContext';
@@ -143,28 +143,8 @@ function BaseDashboard({ children }) {
     container: isDarkMode ? 'bg-gray-900' : 'bg-gray-100',
     nav: isDarkMode ? 'bg-gray-800' : 'bg-white',
     heading: isDarkMode ? 'text-white' : 'text-gray-900',
-    activeLink: isDarkMode ? 'border-blue-500 text-blue-500' : 'border-blue-600 text-blue-600',
-    activeLinkBg: isDarkMode ? 'bg-gray-800' : 'bg-white',
-    inactiveLink: isDarkMode ? 'border-transparent text-gray-300 hover:text-gray-100 hover:border-gray-300' :
-      'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-    mobileActiveLink: isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900',
-    mobileInactiveLink: isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' :
-      'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
     themeButton: isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
     logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
-  };
-
-  // Add a helper function for className to reduce redundancy
-  const getNavLinkClass = (isActive, isMobileView) => {
-    if (isMobileView) {
-      return isActive ? themeStyles.mobileActiveLink : themeStyles.mobileInactiveLink;
-    }
-
-    // Desktop styling with clear tab indicators
-    if (isActive) {
-      return `${themeStyles.activeLinkBg} text-purple-600 border-b-2 border-purple-600 font-medium`;
-    }
-    return `text-gray-600 hover:text-purple-500 hover:border-b-2 hover:border-purple-400 transition-colors duration-200`;
   };
 
   // Handle window resize with optimized debounce
@@ -243,37 +223,51 @@ function BaseDashboard({ children }) {
     }
   }, [isMenuOpen]);
 
-  // Link component with updated className logic
-  const NavLink = ({ item, index, isMobile: isMobileView }) => {
-    const isActive = location.pathname === item.path || location.pathname.includes(item.path);
-    const baseClass = getNavLinkClass(isActive, isMobileView);
-
-    const handleNavClick = (e) => {
-      // Close mobile menu if open
-      if (isMenuOpen) {
-        setIsMenuOpen(false);
-      }
-
-      // Use navigate for programmatic navigation
-      navigate(item.path);
-    };
-
-    // Different classNames for mobile vs desktop
-    const className = isMobileView
-      ? `${baseClass} block px-3 py-2 rounded-md text-base font-medium w-full text-left`
-      : `${baseClass} inline-flex items-center px-8 py-4 text-sm font-semibold h-full whitespace-nowrap`;
-
+  // Navigation Tab Component
+  const NavTab = ({ item, index }) => {
+    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
+    
+    // Desktop tab styling
+    const tabClasses = isActive
+      ? `text-blue-600 border-b-2 border-blue-600 font-medium ${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-800'}`
+      : `text-gray-500 border-b-2 border-transparent ${isDarkMode ? 'hover:text-gray-300 hover:border-gray-600' : 'hover:text-gray-700 hover:border-gray-300'}`;
+    
     return (
       <button
-        onClick={handleNavClick}
-        className={className}
-        ref={isMobileView && index === 0 ? firstNavItemRef : null}
+        onClick={() => {
+          navigate(item.path);
+          if (isMenuOpen) setIsMenuOpen(false);
+        }}
+        className={`flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${tabClasses}`}
+        ref={isMobile && index === 0 ? firstNavItemRef : null}
         aria-current={isActive ? 'page' : undefined}
         title={item.description}
       >
-        <span className="mr-3" aria-hidden="true">
-          {item.icon}
-        </span>
+        <span className="mr-2" aria-hidden="true">{item.icon}</span>
+        {item.label}
+      </button>
+    );
+  };
+
+  // Mobile Navigation Link Component
+  const MobileNavLink = ({ item, index }) => {
+    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
+    
+    const linkClasses = isActive
+      ? `bg-blue-50 text-blue-700 ${isDarkMode ? 'bg-blue-900 text-blue-200' : ''}`
+      : `text-gray-600 ${isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'hover:bg-gray-50 hover:text-gray-900'}`;
+    
+    return (
+      <button
+        onClick={() => {
+          navigate(item.path);
+          setIsMenuOpen(false);
+        }}
+        className={`flex items-center px-3 py-2 rounded-md text-base font-medium w-full text-left ${linkClasses}`}
+        ref={index === 0 ? firstNavItemRef : null}
+        aria-current={isActive ? 'page' : undefined}
+      >
+        <span className="mr-3" aria-hidden="true">{item.icon}</span>
         {item.label}
       </button>
     );
@@ -292,8 +286,8 @@ function BaseDashboard({ children }) {
         </a>
 
         {/* Navigation */}
-        <nav className={`${themeStyles.nav} shadow-lg sticky top-0 z-40 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <div className="max-w-7xl mx-auto px-4">
+        <nav className={`${themeStyles.nav} shadow-md sticky top-0 z-40 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
                 <div className="flex-shrink-0 flex items-center">
@@ -301,10 +295,11 @@ function BaseDashboard({ children }) {
                     QCheckCITE
                   </span>
                 </div>
-                {/* Desktop Navigation */}
-                <div className="hidden sm:ml-10 sm:flex sm:h-full overflow-x-auto">
+                
+                {/* Desktop Navigation Tabs */}
+                <div className="hidden sm:ml-6 sm:flex sm:space-x-2 overflow-x-auto">
                   {navItems.map((item, index) => (
-                    <NavLink key={item.path} item={item} index={index} isMobile={false} />
+                    <NavTab key={item.path} item={item} index={index} />
                   ))}
                 </div>
               </div>
@@ -365,13 +360,14 @@ function BaseDashboard({ children }) {
         {isMenuOpen && (
           <div
             className={`sm:hidden fixed inset-x-0 top-16 z-30 transform transition-transform duration-200 ease-in-out
-              ${isMenuOpen ? 'translate-y-0' : '-translate-y-full'}
-              ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
+              ${isMenuOpen ? 'translate-y-0' : '-translate-y-full'} 
+              ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} 
+              shadow-lg border-b`}
             id="mobile-menu"
           >
             <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-2 pt-2 pb-3 space-y-1">
               {navItems.map((item, index) => (
-                <NavLink key={item.path} item={item} index={index} isMobile={true} />
+                <MobileNavLink key={item.path} item={item} index={index} />
               ))}
             </div>
           </div>
@@ -380,7 +376,7 @@ function BaseDashboard({ children }) {
         {/* Main content */}
         <main
           id="main-content"
-          className={`max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)] ${isMenuOpen ? 'pt-[calc(4rem+1px)]' : ''}`}
+          className={`max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]`}
         >
           <ErrorBoundary>
             {children}

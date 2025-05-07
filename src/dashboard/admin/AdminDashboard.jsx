@@ -21,107 +21,60 @@ const AdminDashboard = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [qrPreview, setQrPreview] = useState(null);
   const [userCount, setUserCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
   const [error, setError] = useState(null);
 
-  // Memoize navigation items with absolute paths
+  const [showSampleQrPreview, setShowSampleQrPreview] = useState(false);
+
   const navigationItems = useMemo(() => [
-    { path: '/admin-dashboard/reporting', icon: 'fas fa-chart-bar', label: 'Reports' },
+    { path: '/admin-dashboard/inventory', icon: 'fas fa-boxes', label: 'Manage Inventory' },
+    { path: '/admin-dashboard/requests', icon: 'fas fa-inbox', label: 'Manage Requests' },
     { path: '/admin-dashboard/templates', icon: 'fas fa-file-alt', label: 'Report Templates' },
-    { path: '/admin-dashboard/generate-report', icon: 'fas fa-file-export', label: 'Generate Report' }
+    { path: '/admin-dashboard/reporting', icon: 'fas fa-chart-bar', label: 'View Reports/Audits' },
+    { path: '/admin-dashboard/generate-report', icon: 'fas fa-file-export', label: 'Generate New Report' }
   ], []);
 
-  // Handle navigation click
   const handleNavigation = useCallback((path) => {
     navigate(path);
   }, [navigate]);
 
-  // Handle QR code generation
-  const handleGenerateQR = useCallback(async (item) => {
-    setIsGenerating(true);
-    setError(null); // Clear previous errors when starting a new operation
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setQrPreview({
-        item,
-        data: {
-          id: item.id,
-          name: item.name,
-          unitNumber: item.unitNumber,
-          lab: item.lab,
-          condition: item.itemCondition,
-          lastUpdated: new Date().toISOString()
-        }
-      });
-      toast.success('QR code generated successfully!');
-    } catch (error) {
-      console.error('Error generating QR:', error);
-      toast.error('Failed to generate QR code');
-      setError(error.message || 'Unknown error occurred');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, []);
-
-  // Handle QR code preview
-  const handlePreviewQR = useCallback((item) => {
-    setQrPreview({
-      item,
-      data: {
-        id: item.id,
-        name: item.name,
-        unitNumber: item.unitNumber,
-        lab: item.lab,
-        condition: item.itemCondition,
-        lastUpdated: new Date().toISOString()
-      }
-    });
-  }, []);
-
-  // Fetch and subscribe to counts - fixed to prevent memory leaks
   useEffect(() => {
     let unsubscribeUsers = null;
     let unsubscribeRequests = null;
     setLoadingCounts(true);
-    setError(null); // Clear previous errors
+    setError(null);
 
     const fetchCounts = async () => {
       try {
         const usersCol = collection(db, "users");
         const requestsCol = collection(db, "requests");
 
-        // Fetch total users
         const userSnapshot = await getCountFromServer(usersCol);
         setUserCount(userSnapshot.data().count);
 
-        // Fetch pending requests
         const pendingQuery = query(requestsCol, where("status", "==", "pending"));
         const pendingSnapshot = await getCountFromServer(pendingQuery);
         setPendingRequestsCount(pendingSnapshot.data().count);
 
-        // Set up real-time listeners
         unsubscribeUsers = onSnapshot(usersCol, (snapshot) => {
           setUserCount(snapshot.size);
-        }, (error) => {
-          console.error("Error in users snapshot:", error);
-          setError(error.message || "Failed to subscribe to users updates");
+        }, (err) => {
+          console.error("Error in users snapshot:", err);
+          setError(err.message || "Failed to subscribe to users updates");
         });
 
         unsubscribeRequests = onSnapshot(pendingQuery, (snapshot) => {
           setPendingRequestsCount(snapshot.size);
-        }, (error) => {
-          console.error("Error in requests snapshot:", error);
-          setError(error.message || "Failed to subscribe to requests updates");
+        }, (err) => {
+          console.error("Error in requests snapshot:", err);
+          setError(err.message || "Failed to subscribe to requests updates");
         });
-      } catch (error) {
-        console.error("Error fetching dashboard counts:", error);
+      } catch (fetchError) {
+        console.error("Error fetching dashboard counts:", fetchError);
         toast.error("Failed to load dashboard statistics");
-        setError(error.message || "Failed to fetch dashboard data");
+        setError(fetchError.message || "Failed to fetch dashboard data");
       } finally {
         setLoadingCounts(false);
       }
@@ -129,22 +82,28 @@ const AdminDashboard = () => {
 
     fetchCounts();
 
-    // Proper cleanup function
     return () => {
       if (unsubscribeUsers) unsubscribeUsers();
       if (unsubscribeRequests) unsubscribeRequests();
     };
   }, []);
 
-  // Memoize the QR sample item to prevent unnecessary re-renders
-  const sampleItem = useMemo(() => ({
-    id: 'sample',
-    name: 'Sample Item',
-    unitNumber: '123',
-    lab: 'Main Lab',
-    itemCondition: 'Good',
-    uniqueQR: true
+  const sampleItemForDisplay = useMemo(() => ({
+    id: 'sample-display-only',
+    name: 'Sample QR Code',
+    serialNumber: 'N/A',
+    unitNumber: 'N/A',
+    category: 'Sample',
+    lab: 'N/A',
+    itemCondition: 'N/A',
   }), []);
+
+  const sampleQrDataToEncode = useMemo(() => ({
+    id: sampleItemForDisplay.id,
+    name: sampleItemForDisplay.name,
+    info: "This is a sample QR code from the Admin Dashboard.",
+    timestamp: new Date().toISOString(),
+  }), [sampleItemForDisplay]);
 
   return (
     <ErrorBoundary>
@@ -152,80 +111,74 @@ const AdminDashboard = () => {
         <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
           <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">Admin Dashboard</h1>
 
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-              }`}>
+            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}>
               <h2 className="text-xl font-semibold mb-2">Total Users</h2>
-              <div className={`text-3xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'
-                }`}>
+              <div className={`text-3xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                 {loadingCounts ? <LoadingSpinner size="small" /> : userCount}
               </div>
             </div>
-            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-              }`}>
+            <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}>
               <h2 className="text-xl font-semibold mb-2">Pending Requests</h2>
-              <div className={`text-3xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
-                }`}>
+              <div className={`text-3xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
                 {loadingCounts ? <LoadingSpinner size="small" /> : pendingRequestsCount}
               </div>
             </div>
           </div>
 
-          {/* QR Code Generator Section */}
-          <div className={`p-6 rounded-lg shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-            }`}>
-            <h2 className="text-xl font-semibold mb-4">QR Code Generator</h2>
-
-            <QRCodeManager
-              item={sampleItem}
-              onGenerate={handleGenerateQR}
-              onPreview={handlePreviewQR}
-              isGenerating={isGenerating}
-            />
-
-            {/* QR Preview Modal */}
-            {qrPreview && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-                <div className={`p-6 rounded-lg shadow-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-                  }`}>
-                  <h3 className="text-xl font-semibold mb-4">QR Code Preview</h3>
-                  <QRCodeManager
-                    item={qrPreview.item}
-                    onPreview={handlePreviewQR}
-                    isGenerating={isGenerating}
-                    showActions={false}
-                  />
-                  <Button
-                    onClick={() => setQrPreview(null)}
-                    className={`mt-4 px-4 py-2 rounded transition-colors duration-200 ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-500 hover:bg-gray-600'
-                      } text-white`}
-                    aria-label="Close QR preview"
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
+          <div className={`p-6 rounded-lg shadow ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className="text-xl font-semibold mb-4">Sample QR Code Display</h2>
+            <div className="flex flex-col items-center">
+              <QRCodeManager
+                item={sampleItemForDisplay}
+                qrData={sampleQrDataToEncode}
+                showActions={false}
+              />
+              <Button
+                onClick={() => setShowSampleQrPreview(true)}
+                className="mt-4"
+                size="sm"
+              >
+                Show Sample Preview Modal
+              </Button>
+            </div>
           </div>
 
-          {/* Navigation Links */}
+          {showSampleQrPreview && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+              <div className={`p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                <h3 className="text-xl font-semibold mb-4">Sample QR Code Preview</h3>
+                <QRCodeManager
+                  item={sampleItemForDisplay}
+                  qrData={sampleQrDataToEncode}
+                  showActions={true}
+                />
+                <Button
+                  onClick={() => setShowSampleQrPreview(false)}
+                  className={`mt-4 px-4 py-2 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-500 hover:bg-gray-600'} text-white`}
+                  aria-label="Close QR preview"
+                  color="gray"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {navigationItems.map((item) => (
+            {navigationItems.map((navItem) => (
               <Button
-                key={item.path}
-                onClick={() => handleNavigation(item.path)}
-                className={`p-4 rounded-lg text-left shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-                  }`}
-                aria-label={item.label}
+                key={navItem.path}
+                onClick={() => handleNavigation(navItem.path)}
+                className={`p-4 rounded-lg text-left shadow transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}
+                aria-label={navItem.label}
               >
-                <i className={`${item.icon} mr-2`} aria-hidden="true"></i>
-                {item.label}
+                {navItem.icon && <span className="mr-2" aria-hidden="true">{/* Consider rendering icon components or emojis */}</span>}
+                {navItem.label}
               </Button>
             ))}
           </div>
 
-          {/* Error Display */}
           {error && (
             <div className="mt-4 p-4 rounded-lg bg-red-100 text-red-700" role="alert">
               <p>Error: {error}</p>

@@ -140,16 +140,15 @@ export const calculateQrStats = (items) => {
 
   const stats = items.reduce(
     (acc, item) => {
-      if (item.qrCodeGenerated) {
+      if (item.hasQR) {
         acc.totalWithQr++;
 
-        // Track the most recently generated QR code
+        const generatedDate = item.lastQRGenerated?.toDate();
         if (
-          !acc.lastGenerated ||
-          (item.qrGeneratedDate &&
-            new Date(item.qrGeneratedDate) > new Date(acc.lastGenerated))
+          generatedDate &&
+          (!acc.lastGenerated || generatedDate > acc.lastGenerated)
         ) {
-          acc.lastGenerated = item.qrGeneratedDate;
+          acc.lastGenerated = generatedDate;
         }
       } else {
         acc.totalWithoutQr++;
@@ -218,7 +217,10 @@ export const formatItemsForExport = (items) => {
     itemCondition: item.itemCondition || "",
     description: item.description || "",
     remarks: item.remarks || "",
-    qrCodeGenerated: item.qrCodeGenerated ? "Yes" : "No",
+    hasQR: item.hasQR ? "Yes" : "No",
+    lastQRGenerated: item.lastQRGenerated
+      ? new Date(item.lastQRGenerated.toDate()).toLocaleString()
+      : "",
     lastUpdated: item.updatedAt
       ? new Date(item.updatedAt.toDate()).toLocaleString()
       : "",

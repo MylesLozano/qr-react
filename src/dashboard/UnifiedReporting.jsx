@@ -91,8 +91,8 @@ const UnifiedReporting = () => {
 
     // === PERMISSION CHECKS ===
     const canGenerateReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
-    const canExportReports = useMemo(() => canPerformAction(role, 'export_reports'), [role]);
-    const canSaveReports = useMemo(() => canPerformAction(role, 'save_reports'), [role]);
+    const canExportReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
+    const canSaveReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
     const canViewAuditLogs = useMemo(() => canPerformAction(role, 'view_audit_logs'), [role]);
 
     // === OPTIONS ===
@@ -186,28 +186,86 @@ const UnifiedReporting = () => {
         if (!canGenerateReports) return toast.error("No permission to generate");
         if (!validateReportParams()) return;
         setIsGenerating(true);
+        setReportData([]); // Clear previous data
+        setError(null); // Clear previous errors
         try {
-            let collectionName = reportType === 'audit' ? 'auditLogs' : reportType;
-            let q = query(collection(db, collectionName));
-            if (dateRange.start && dateRange.end) {
-                const start = new Date(dateRange.start); start.setHours(0, 0, 0, 0);
-                const end = new Date(dateRange.end); end.setHours(23, 59, 59, 999);
-                q = query(q, where('createdAt', '>=', start), where('createdAt', '<=', end));
+            let collectionName = reportType;
+            let dateFieldName = 'createdAt'; // Default date field
+
+            if (reportType === 'audit') {
+                collectionName = 'auditLogs';
+                dateFieldName = 'timestamp'; // Audit logs use 'timestamp'
+            } else if (reportType === 'users') {
+                collectionName = 'users';
+                // dateFieldName = 'createdAt'; // Or 'lastLogin' depending on report needs
+            } else if (reportType === 'requests') {
+                collectionName = 'requests';
+                // dateFieldName = 'createdAt'; // Assuming requests use createdAt
+            } else if (reportType === 'inventory') {
+                collectionName = 'inventory';
+                // dateFieldName = 'createdAt'; // Assuming inventory uses createdAt
             }
-            if (reportType === 'requests' && filterStatus !== 'all') q = query(q, where('status', '==', filterStatus));
-            if (reportType === 'inventory' && filterLab !== 'all') q = query(q, where('lab', '==', filterLab));
+
+            let q = query(collection(db, collectionName));
+
+            // Apply date range filter using the correct field name
+            if (dateRange.start) {
+                const start = new Date(dateRange.start); start.setHours(0, 0, 0, 0);
+                q = query(q, where(dateFieldName, '>=', start));
+            }
+            if (dateRange.end) {
+                const end = new Date(dateRange.end); end.setHours(23, 59, 59, 999);
+                q = query(q, where(dateFieldName, '<=', end));
+            }
+
+            // Apply report-specific filters
+            if (reportType === 'requests' && filterStatus !== 'all') {
+                q = query(q, where('status', '==', filterStatus));
+            }
+            if (reportType === 'inventory' && filterLab !== 'all') {
+                q = query(q, where('lab', '==', filterLab));
+            }
+
+            // Consider adding orderBy for consistency, e.g., orderBy(dateFieldName, 'desc')
+            // Note: This might require composite indexes in Firestore
+            // q = query(q, orderBy(dateFieldName, 'desc')); 
+
             const snap = await getDocs(q);
-            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const data = snap.docs.map(d => ({
+                id: d.id,
+                ...d.data(),
+                // Ensure timestamp fields are consistently handled (e.g., convert to ISO string)
+                ...(d.data()[dateFieldName]?.toDate && { [dateFieldName]: d.data()[dateFieldName].toDate().toISOString() }),
+                ...(d.data().createdAt?.toDate && { createdAt: d.data().createdAt.toDate().toISOString() }),
+                ...(d.data().updatedAt?.toDate && { updatedAt: d.data().updatedAt.toDate().toISOString() }),
+                ...(d.data().timestamp?.toDate && { timestamp: d.data().timestamp.toDate().toISOString() }),
+                ...(d.data().lastLogin?.toDate && { lastLogin: d.data().lastLogin.toDate().toISOString() })
+            }));
+
+            if (data.length === 0) {
+                toast.info("No data found matching the selected criteria.");
+            } else {
+                toast.success(`Report generated with ${data.length} record(s).`);
+            }
             setReportData(data);
             await logAudit('report_generated', user.email, 'report', {
                 reportType,
+                recordCount: data.length,
                 filters: { dateRange, filterStatus, filterLab },
             });
-            toast.success('Report generated');
         } catch (err) {
-            console.error(err);
-            toast.error('Failed to generate report');
-            setError('Failed to generate report');
+            console.error("Error generating report:", err);
+            // Check for Firestore index errors (err.code === 'failed-precondition')
+            if (err.code === 'failed-precondition') {
+                toast.error('Query requires a Firestore index. Please create it in the Firebase console.');
+                setError('Query requires a Firestore index. Check console for details.');
+            } else if (err.code === 'permission-denied') {
+                toast.error('Permission denied while generating report.');
+                setError('Permission denied.');
+            } else {
+                toast.error('Failed to generate report: ' + err.message);
+                setError('Failed to generate report.');
+            }
         } finally {
             setIsGenerating(false);
         }

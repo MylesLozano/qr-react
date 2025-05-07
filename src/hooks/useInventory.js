@@ -103,8 +103,8 @@ export default function useInventory(user) {
         updatedBy: user.email,
       };
 
-      await addDoc(collection(db, "inventory"), itemData);
-      await logAudit(user.email, `Added item: ${formData.name}`);
+      const newItemRef = await addDoc(collection(db, "inventory"), itemData);
+      await logAudit('inventory_added', user.email, 'inventory', { itemId: newItemRef.id, itemName: formData.name });
 
       toast.success("Item added successfully");
       setFormData(defaultFormData);
@@ -120,6 +120,10 @@ export default function useInventory(user) {
   // Save edited item
   const handleSaveEdit = async () => {
     if (!handleItemValidation()) return;
+    if (!editingItem?.id) {
+      toast.error("Cannot update item: Missing item ID.");
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -137,7 +141,7 @@ export default function useInventory(user) {
       };
 
       await updateDoc(doc(db, "inventory", editingItem.id), sanitizedData);
-      await logAudit(user.email, `Updated item: ${sanitizedData.name}`);
+      await logAudit('inventory_updated', user.email, 'inventory', { itemId: editingItem.id, itemName: sanitizedData.name });
 
       toast.success("Item updated successfully");
       setIsEditing(false);
@@ -154,26 +158,19 @@ export default function useInventory(user) {
 
   // Delete item
   const deleteItem = async (id, name) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete ${name}? This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
-
     try {
       setIsLoading(true);
       setError(null);
 
       await deleteDoc(doc(db, "inventory", id));
-      await logAudit(user.email, `Deleted item: ${name}`);
+      await logAudit('inventory_deleted', user.email, 'inventory', { itemId: id, itemName: name });
 
       toast.success("Item deleted successfully");
     } catch (error) {
       console.error("Error deleting item:", error);
       setError(error.message);
       toast.error(`Failed to delete item: ${error.message}`);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -188,9 +185,11 @@ export default function useInventory(user) {
 
     setIsUploading(true);
     let skippedRows = 0;
+    let addedCount = 0;
 
     try {
       const batch = writeBatch(db);
+      const addedItemDetails = [];
 
       for (const item of csvData) {
         // Only require name, quantity, and category
@@ -222,18 +221,23 @@ export default function useInventory(user) {
 
         const newDocRef = doc(collection(db, "inventory"));
         batch.set(newDocRef, sanitizedItem);
+        addedCount++;
+        addedItemDetails.push({ id: newDocRef.id, name: sanitizedItem.name }); // Collect details for audit
       }
 
       await batch.commit();
-      await logAudit(
-        user.email,
-        `Bulk uploaded ${
-          csvData.length - skippedRows
-        } items (skipped ${skippedRows})`
-      );
+      // Log only if items were actually added
+      if (addedCount > 0) {
+        await logAudit('inventory_bulk_uploaded', user.email, 'inventory', {
+          addedCount: addedCount,
+          skippedCount: skippedRows,
+          // Optionally include item IDs/names if not too large
+          // items: addedItemDetails 
+        });
+      }
 
       toast.success(
-        `Successfully uploaded ${csvData.length - skippedRows} items! ${
+        `Successfully uploaded ${addedCount} items!${
           skippedRows > 0
             ? ` Skipped ${skippedRows} row(s) missing required fields.`
             : ""
