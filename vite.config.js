@@ -9,28 +9,25 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: [
-            "react",
-            "react-dom",
-            "react-router-dom",
+          "vendor-core": ["react", "react-dom", "react-router-dom"],
+          "vendor-firebase": [
             "firebase/app",
             "firebase/auth",
             "firebase/firestore",
-            "react-toastify",
-            "react-virtualized-auto-sizer",
           ],
+          "vendor-ui": ["react-toastify", "react-virtualized-auto-sizer"],
         },
       },
     },
   },
   optimizeDeps: {
-    include: ["jspdf", "jspdf-autotable"],
-    esbuildOptions: {
-      target: "es2020",
-    },
+    include: ["jspdf"],
+  },
+  define: {
+    "process.env.NODE_DEBUG": "false",
   },
 });

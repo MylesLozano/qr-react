@@ -11,9 +11,6 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Button from '../../components/Button';
 import EmptyState from '../../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
-// Import jsPDF and autotable directly
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 
 /**
  * ReportGenerator component - Generates reports based on templates and filters
@@ -221,40 +218,50 @@ const ReportGenerator = () => {
     }, [selectedTemplate, filters]);
 
     // Generate PDF report
-    const generatePDF = useCallback(() => {
+    const generatePDFReport = async (data) => {
         try {
             setIsGenerating(true);
             
-            // Create new jsPDF instance
-            const doc = new jsPDF();
+            // Dynamically import jsPDF only when needed
+            const { jsPDF } = await import('jspdf');
             
-            const tableColumn = selectedTemplate.fields.map(field => field.name);
-            const tableRows = buildReportRows(filteredData, selectedTemplate.fields);
-            
-            doc.text(`${selectedTemplate.name} Report`, 14, 15);
-            
-            // Use autotable plugin
-            doc.autoTable({
-                head: [tableColumn],
-                body: tableRows,
-                startY: 20,
-                theme: isDarkMode ? 'grid' : 'striped',
-                styles: {
-                    fontSize: 10,
-                    cellPadding: 5,
-                    overflow: 'linebreak'
-                }
+            // Initialize PDF document
+            const doc = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
             });
 
-            doc.save(`${selectedTemplate.name}_${new Date().toISOString()}.pdf`);
+            // Set title
+            doc.setFontSize(16);
+            doc.text('QCheckCITE Inventory Report', 10, 10);
+
+            // Add report data
+            doc.setFontSize(12);
+            if (data && data.length > 0) {
+                let yPos = 30;
+                data.forEach((item, index) => {
+                    if (yPos > 270) { // Check if we need a new page
+                        doc.addPage();
+                        yPos = 10;
+                    }
+                    doc.text(`${item.name}: ${item.quantity} units`, 10, yPos);
+                    yPos += 10;
+                });
+            } else {
+                doc.text('No data available for this report', 10, 30);
+            }
+
+            // Save the PDF
+            doc.save('inventory-report.pdf');
             toast.success('PDF report generated successfully');
         } catch (error) {
-            console.error('Error generating PDF:', error);
-            toast.error(`Failed to generate PDF report: ${error.message}`);
+            console.error('PDF Generation Error:', error);
+            toast.error('Failed to generate PDF report. Please try again.');
         } finally {
             setIsGenerating(false);
         }
-    }, [selectedTemplate, filteredData, isDarkMode]);
+    };
 
     // Generate CSV report
     const generateCSV = useCallback(() => {
@@ -281,7 +288,7 @@ const ReportGenerator = () => {
         try {
             switch (selectedTemplate.format) {
                 case 'pdf':
-                    generatePDF();
+                    generatePDFReport(filteredData);
                     break;
                 case 'csv':
                     generateCSV();
@@ -299,7 +306,7 @@ const ReportGenerator = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [selectedTemplate, validateReportConfig, generatePDF, generateCSV]);
+    }, [selectedTemplate, validateReportConfig, generatePDFReport, generateCSV]);
 
     return (
         <ErrorBoundary>
