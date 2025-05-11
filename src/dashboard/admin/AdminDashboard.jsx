@@ -33,7 +33,8 @@ const AdminDashboard = () => {
     { path: '/admin-dashboard/requests', icon: 'fas fa-inbox', label: 'Manage Requests' },
     { path: '/admin-dashboard/templates', icon: 'fas fa-file-alt', label: 'Report Templates' },
     { path: '/admin-dashboard/reporting', icon: 'fas fa-chart-bar', label: 'View Reports/Audits' },
-    { path: '/admin-dashboard/generate-report', icon: 'fas fa-file-export', label: 'Generate New Report' }
+    { path: '/admin-dashboard/generate-report', icon: 'fas fa-file-export', label: 'Generate New Report' },
+    { path: '/admin-dashboard/user-management', icon: 'fas fa-users', label: 'User Management' }
   ], []);
 
   const handleNavigation = useCallback((path) => {

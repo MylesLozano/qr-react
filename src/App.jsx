@@ -135,7 +135,14 @@ function App() {
             <Route
               path="/admin-dashboard/*"
               element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>}
-            />
+            >
+              <Route path="inventory" element={<ProtectedRoute requiredRole="admin" requiredAction="view_inventory"><Inventory /></ProtectedRoute>} />
+              <Route path="categories" element={<ProtectedRoute requiredRole="admin" requiredAction="manage_categories"><InventoryCategories /></ProtectedRoute>} />
+              <Route path="requests" element={<ProtectedRoute requiredRole="admin" requiredAction="manage_requests"><Requests /></ProtectedRoute>} />
+              <Route path="templates" element={<ProtectedRoute requiredRole="admin" requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute>} />
+              <Route path="reporting" element={<ProtectedRoute requiredRole="admin" requiredAction="generate_reports"><UnifiedReporting /></ProtectedRoute>} />
+              <Route path="generate-report" element={<ProtectedRoute requiredRole="admin" requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute>} />
+            </Route>
 
             {/* User Routes */}
             <Route

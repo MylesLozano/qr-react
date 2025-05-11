@@ -111,11 +111,13 @@ function QRCodeManager({
         if (!localQrData) return MIN_QR_SIZE;
         try {
             const dataLength = JSON.stringify(localQrData).length;
-            return Math.min(MAX_QR_SIZE, Math.max(MIN_QR_SIZE, Math.round(dataLength * 0.5)));
+            // Use the size prop but constrain it between MIN and MAX
+            const calculatedSize = Math.round(dataLength * 0.5);
+            return Math.min(size, Math.max(MIN_QR_SIZE, calculatedSize));
         } catch {
             return MIN_QR_SIZE;
         }
-    }, [localQrData]);
+    }, [localQrData, size]);
 
     const saveQRToFirestore = async () => {
         if (!item?.id || !qrElementRef.current || isSaving || !localQrData) {

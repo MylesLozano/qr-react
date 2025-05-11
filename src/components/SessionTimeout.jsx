@@ -51,7 +51,6 @@ function SessionTimeout({
 
   // Timer logic
   useEffect(() => {
-    const warningTime = timeoutMinutes - warningMinutes;
     const interval = setInterval(() => {
       const timeSinceLastActivity = (Date.now() - lastActivity) / 1000;
       const timeLeftInSeconds = Math.max(0, timeoutMinutes * 60 - timeSinceLastActivity);

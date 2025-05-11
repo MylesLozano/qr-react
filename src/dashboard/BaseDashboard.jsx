@@ -44,6 +44,14 @@ const NAV_CONFIG = [
     roles: ['admin']
   },
   {
+    path: '/admin-dashboard/categories',
+    label: 'Categories',
+    icon: '📋',
+    action: 'manage_categories',
+    description: 'Manage inventory categories',
+    roles: ['admin']
+  },
+  {
     path: '/admin-dashboard/requests',
     label: 'Requests',
     icon: '📥',
