@@ -57,8 +57,8 @@ function App() {
             await Promise.all([
               import("./dashboard/superadmin/SuperAdminDashboard"),
               import("./dashboard/UnifiedReporting"),
-              import("./dashboard/superadmin/ManageUsers"),
-              import("./dashboard/Inventory") // Common component likely needed
+              import("./components/users/UserManagement"),
+              import("./dashboard/Inventory")
             ]);
             break;
           case 'admin':
