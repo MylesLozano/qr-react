@@ -13,6 +13,7 @@ import Button from '../components/Button';
 // Constants
 const MOBILE_BREAKPOINT = 640;
 const DEBOUNCE_WAIT = 100;
+const SIDEBAR_WIDTH = 280; // Width of the sidebar in pixels
 
 // Navigation items configuration - organized by role-specific paths
 const NAV_CONFIG = [
@@ -231,164 +232,110 @@ function BaseDashboard({ children }) {
     }
   }, [isMenuOpen]);
 
-  // Navigation Tab Component
-  const NavTab = ({ item, index }) => {
-    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
-    
-    // Desktop tab styling
-    const tabClasses = isActive
-      ? `text-blue-600 border-b-2 border-blue-600 font-medium ${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-800'}`
-      : `text-gray-500 border-b-2 border-transparent ${isDarkMode ? 'hover:text-gray-300 hover:border-gray-600' : 'hover:text-gray-700 hover:border-gray-300'}`;
-    
-    return (
-      <button
-        onClick={() => {
-          navigate(item.path);
-          if (isMenuOpen) setIsMenuOpen(false);
-        }}
-        className={`flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${tabClasses}`}
-        ref={isMobile && index === 0 ? firstNavItemRef : null}
-        aria-current={isActive ? 'page' : undefined}
-        title={item.description}
-      >
-        <span className="mr-2" aria-hidden="true">{item.icon}</span>
-        {item.label}
-      </button>
-    );
-  };
-
-  // Mobile Navigation Link Component
-  const MobileNavLink = ({ item, index }) => {
-    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
-    
-    const linkClasses = isActive
-      ? `bg-blue-50 text-blue-700 ${isDarkMode ? 'bg-blue-900 text-blue-200' : ''}`
-      : `text-gray-600 ${isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'hover:bg-gray-50 hover:text-gray-900'}`;
-    
-    return (
-      <button
-        onClick={() => {
-          navigate(item.path);
-          setIsMenuOpen(false);
-        }}
-        className={`flex items-center px-3 py-2 rounded-md text-base font-medium w-full text-left ${linkClasses}`}
-        ref={index === 0 ? firstNavItemRef : null}
-        aria-current={isActive ? 'page' : undefined}
-      >
-        <span className="mr-3" aria-hidden="true">{item.icon}</span>
-        {item.label}
-      </button>
-    );
-  };
-
   if (!user) {
     return <LoadingSpinner fullScreen />;
   }
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${themeStyles.container}`}>
+      <div className={`min-h-screen flex ${themeStyles.container}`}>
         {/* Skip link for accessibility */}
         <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-500 text-white p-2 rounded z-50">
           Skip to main content
         </a>
 
-        {/* Navigation */}
-        <nav className={`${themeStyles.nav} shadow-md sticky top-0 z-40 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 flex items-center">
-                  <span className={`text-xl font-bold ${themeStyles.heading}`}>
-                    QCheckCITE
-                  </span>
-                </div>
-                
-                {/* Desktop Navigation Tabs */}
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-2 overflow-x-auto">
-                  {navItems.map((item, index) => (
-                    <NavTab key={item.path} item={item} index={index} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {/* Mobile menu button */}
-                {isMobile && (
-                  <button
-                    ref={menuButtonRef}
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className={`inline-flex items-center justify-center p-2 rounded-md transition-colors duration-200
-                      ${isDarkMode
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-                    aria-expanded={isMenuOpen}
-                    aria-controls="mobile-menu"
-                    aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-                  >
-                    <span className="sr-only">{isMenuOpen ? 'Close menu' : 'Open menu'}</span>
-                    {isMenuOpen ? (
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    ) : (
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-
-                {/* Theme toggle button */}
+        {/* Sidebar Navigation for all roles */}
+        <nav className={`${themeStyles.nav} w-[280px] flex-shrink-0 ${isMobile ? 'fixed inset-y-0 left-0 transform -translate-x-full z-40' : 'sticky top-0 h-screen'} 
+          ${isMenuOpen ? 'translate-x-0' : ''} transition-transform duration-300 ease-in-out border-r ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="h-full flex flex-col">
+            {/* Logo/Header section */}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <span className={`text-xl font-semibold ${themeStyles.heading}`}>QCheckCITE</span>
+              {isMobile && (
                 <button
-                  onClick={toggleTheme}
-                  className={`p-2 rounded-full transition-colors duration-200 ${themeStyles.themeButton}`}
-                  aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`${themeStyles.themeButton} p-2 rounded-md`}
+                  aria-label="Close menu"
                 >
-                  {isDarkMode ? '🌞' : '🌙'}
+                  <span className="sr-only">Close menu</span>
+                  ✕
                 </button>
+              )}
+            </div>
 
-                {/* Logout button */}
-                <Button
-                  onClick={handleLogout}
-                  disabled={isLoading}
-                  color="red"
-                  size="sm"
-                  className={isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                  aria-label="Logout"
+            {/* Navigation Links */}
+            <div className="flex-1 overflow-y-auto py-4 px-2">
+              {navItems.map((item, index) => (
+                <button
+                  key={item.path}
+                  onClick={() => {
+                    navigate(item.path);
+                    if (isMobile) setIsMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg mb-1 flex items-center transition-colors duration-200 ${
+                    location.pathname.includes(item.path)
+                      ? `${isDarkMode ? 'bg-gray-700 text-white' : 'bg-blue-100 text-blue-700'}`
+                      : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
+                  }`}
+                  ref={index === 0 ? firstNavItemRef : null}
+                  aria-current={location.pathname.includes(item.path) ? 'page' : undefined}
+                  title={item.description}
                 >
-                  {isLoading ? <LoadingSpinner size="sm" /> : 'Logout'}
-                </Button>
-              </div>
+                  <span className="mr-3" aria-hidden="true">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Bottom Actions Section */}
+            <div className="p-4 border-t border-gray-200">
+              <Button
+                onClick={toggleTheme}
+                className={`w-full mb-2 ${themeStyles.themeButton}`}
+              >
+                {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+              </Button>
+              <Button
+                onClick={handleLogout}
+                className={`w-full ${themeStyles.logoutButton} text-white`}
+                disabled={isLoading}
+              >
+                {isLoading ? <LoadingSpinner size="sm" /> : 'Sign Out'}
+              </Button>
             </div>
           </div>
         </nav>
 
-        {/* Mobile menu - Slide in from top */}
-        {isMenuOpen && (
-          <div
-            className={`sm:hidden fixed inset-x-0 top-16 z-30 transform transition-transform duration-200 ease-in-out
-              ${isMenuOpen ? 'translate-y-0' : '-translate-y-full'} 
-              ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} 
-              shadow-lg border-b`}
-            id="mobile-menu"
+        {/* Mobile menu button */}
+        {isMobile && (
+          <button
+            ref={menuButtonRef}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`fixed top-4 left-4 z-50 inline-flex items-center justify-center p-2 rounded-md transition-colors duration-200
+              ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+            aria-expanded={isMenuOpen}
+            aria-controls="navigation-menu"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
           >
-            <div className="max-h-[calc(100vh-4rem)] overflow-y-auto px-2 pt-2 pb-3 space-y-1">
-              {navItems.map((item, index) => (
-                <MobileNavLink key={item.path} item={item} index={index} />
-              ))}
-            </div>
-          </div>
+            <span className="sr-only">{isMenuOpen ? 'Close menu' : 'Open menu'}</span>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
         )}
 
-        {/* Main content */}
+        {/* Main Content */}
         <main
           id="main-content"
-          className={`max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]`}
+          className="flex-1 min-h-screen"
         >
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
+          <div className={`p-6 ${isMobile ? 'pt-16' : ''}`}>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </div>
         </main>
       </div>
     </ErrorBoundary>

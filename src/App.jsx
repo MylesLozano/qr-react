@@ -32,6 +32,7 @@ const QRScanner = lazy(() => import("./components/QRScanner"));
 // Superadmin-specific components
 const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
 const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
+const UserManagement = lazy(() => import("./components/users/UserManagement"));
 
 // Constants
 const SESSION_TIMEOUT_MINUTES = 30;
@@ -127,13 +128,8 @@ function App() {
               path="/superadmin-dashboard/*"
               element={<ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>}
             >
-              {/* Add specific superadmin routes here if needed, e.g., for nested views */}
-              {/* Example: <Route path="settings" element={<ProtectedRoute requiredRole="superadmin"><SuperAdminSettings /></ProtectedRoute>} /> */}
+              <Route path="user-management" element={<ProtectedRoute requiredRole="superadmin" requiredAction="manage_users"><UserManagement /></ProtectedRoute>} />
             </Route>
-            <Route
-              path="/superadmin-dashboard/user-management"
-              element={<ProtectedRoute requiredRole="superadmin" requiredAction="manage_users"><ManageUsers /></ProtectedRoute>}
-            />
 
             {/* Admin Routes */}
             <Route
