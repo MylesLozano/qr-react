@@ -11,12 +11,7 @@ export default defineConfig({
     outDir: "dist",
     chunkSizeWarningLimit: 600, // Increased from default 500kb to accommodate vendor-firebase chunk
     rollupOptions: {
-      external: ["jspdf", "jspdf-autotable"],
       output: {
-        globals: {
-          jspdf: "jsPDF",
-          "jspdf-autotable": "jsPDFAutoTable",
-        },
         manualChunks: {
           "vendor-react": ["react", "react-dom", "react-router-dom"],
           "vendor-firebase": [
@@ -25,6 +20,7 @@ export default defineConfig({
             "firebase/firestore",
           ],
           "vendor-ui": ["react-toastify", "react-virtualized-auto-sizer"],
+          "vendor-pdf": ["jspdf", "jspdf-autotable"],
           "dashboard-common": [
             "./src/dashboard/BaseDashboard.jsx",
             "./src/components/LoadingSpinner.jsx",
