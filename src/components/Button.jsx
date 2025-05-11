@@ -19,10 +19,12 @@ const Button = forwardRef(({
 }, ref) => {
     // Validate color prop
     const validColors = {
-        blue: 'bg-blue-500 hover:bg-blue-600',
-        red: 'bg-red-500 hover:bg-red-600',
-        green: 'bg-green-500 hover:bg-green-600',
-        gray: 'bg-gray-300 hover:bg-gray-400 text-gray-800',
+        blue: 'bg-blue-500 hover:bg-blue-600 text-white',
+        red: 'bg-red-500 hover:bg-red-600 text-white',
+        green: 'bg-green-500 hover:bg-green-600 text-white',
+        gray: isDarkMode
+            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+            : 'bg-gray-300 hover:bg-gray-400 text-gray-800',
         transparent: 'bg-transparent'
     };
 
@@ -33,7 +35,15 @@ const Button = forwardRef(({
     };
 
     // Validate and apply styles
-    const colorClass = validColors[color] || validColors.blue;
+    const { isDarkMode } = useTheme();
+
+    const colorClass =
+      color === 'gray'
+        ? isDarkMode
+          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+          : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+        : validColors[color] || validColors.blue;
+
     const sizeClass = validSizes[size] || validSizes.md;
 
     // Base styles that should always be applied

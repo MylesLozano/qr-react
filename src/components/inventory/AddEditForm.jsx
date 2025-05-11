@@ -3,7 +3,8 @@ import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/fi
 import { db, logAudit } from "../../firebase";
 import { toast } from "react-toastify";
 import Button from "../Button";
-import { validateItem, sanitizeInput, sanitizeNumber } from "../../utils/inventoryUtils";
+import { sanitizeInput, sanitizeNumber } from "../../utils/inventoryUtils";
+import { useInventoryValidation } from "../../hooks/useInventoryValidation";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -11,15 +12,14 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [validationErrors, setValidationErrors] = useState({});
 
   // Initialize form with default values or editing item values
   const [formData, setFormData] = useState(editingItem || defaultFormData);
+  const { errors: validationErrors, validate } = useInventoryValidation(formData);
 
   // Reset form when editingItem changes
   useEffect(() => {
     setFormData(editingItem || defaultFormData);
-    setValidationErrors({});
   }, [editingItem, defaultFormData]);
 
   const isEditing = !!editingItem;
@@ -37,27 +37,18 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
     }
   };
 
-  const handleItemValidation = () => {
-    const errors = validateItem(formData);
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      toast.error(Object.values(errors).join(', '));
-      return false;
-    }
-    setValidationErrors({});
-    return true;
-  };
-
   const handleCancel = () => {
     setFormData(defaultFormData);
-    setValidationErrors({});
     if (onSuccess) onSuccess();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!handleItemValidation()) return;
+    if (!validate()) {
+      toast.error(Object.values(validationErrors).join(', '));
+      return;
+    }
 
     try {
       setIsLoading(true);

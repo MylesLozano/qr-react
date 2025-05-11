@@ -12,8 +12,6 @@ import SessionTimeout from "./components/SessionTimeout";
 import { useAuth } from "./context/AuthContext";
 
 // Core components that are used across multiple routes
-const QRCodeManager = lazy(() => import("./components/QRCodeManager"));
-const BaseDashboard = lazy(() => import("./dashboard/BaseDashboard"));
 
 // Feature-specific components
 const Inventory = lazy(() => import("./dashboard/Inventory"));
@@ -25,7 +23,6 @@ const InventoryCategories = lazy(() => import('./dashboard/admin/InventoryCatego
 const ReportTemplates = lazy(() => import('./dashboard/admin/ReportTemplates'));
 const ReportGenerator = lazy(() => import("./dashboard/admin/ReportGenerator"));
 const Requests = lazy(() => import("./dashboard/admin/Requests"));
-const UserManagement = lazy(() => import("./dashboard/admin/UserManagement"));
 
 // User-specific components
 const UserDashboard = lazy(() => import("./dashboard/user/UserDashboard"));
@@ -129,6 +126,13 @@ function App() {
             <Route
               path="/superadmin-dashboard/*"
               element={<ProtectedRoute requiredRole="superadmin"><SuperAdminDashboard /></ProtectedRoute>}
+            >
+              {/* Add specific superadmin routes here if needed, e.g., for nested views */}
+              {/* Example: <Route path="settings" element={<ProtectedRoute requiredRole="superadmin"><SuperAdminSettings /></ProtectedRoute>} /> */}
+            </Route>
+            <Route
+              path="/superadmin-dashboard/user-management"
+              element={<ProtectedRoute requiredRole="superadmin" requiredAction="manage_users"><ManageUsers /></ProtectedRoute>}
             />
 
             {/* Admin Routes */}
