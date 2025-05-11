@@ -258,9 +258,18 @@ function BaseDashboard({ children }) {
           ${role === 'user' ? 'lg:hidden' : ''}`}
         >
           <div className="h-full flex flex-col">
-            {/* Logo/Header section */}
+            {/* Logo Container */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <span className={`text-xl font-semibold ${themeStyles.heading}`}>QCheckCITE</span>
+              <div className="flex items-center space-x-3">
+                <img 
+                  src="/src/assets/QCheckCITE_Logo.png" 
+                  alt="QCheckCITE Logo" 
+                  className="h-8 w-8 object-contain"
+                />
+                <span className={`text-xl font-semibold ${themeStyles.heading}`}>
+                  QCheckCITE
+                </span>
+              </div>
               {isMobile && (
                 <button
                   onClick={() => setIsMenuOpen(false)}
