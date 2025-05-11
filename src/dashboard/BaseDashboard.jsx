@@ -156,6 +156,11 @@ function BaseDashboard({ children }) {
     logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'
   };
 
+  // Calculate content width based on role
+  const shouldExpandContent = useMemo(() => 
+    ['admin', 'superadmin'].includes(role) || window.innerWidth <= MOBILE_BREAKPOINT
+  , [role]);
+
   // Handle window resize with optimized debounce
   const handleResize = useCallback(
     debounce(() => {
@@ -245,8 +250,13 @@ function BaseDashboard({ children }) {
         </a>
 
         {/* Sidebar Navigation for all roles */}
-        <nav className={`${themeStyles.nav} w-[280px] flex-shrink-0 ${isMobile ? 'fixed inset-y-0 left-0 transform -translate-x-full z-40' : 'sticky top-0 h-screen'} 
-          ${isMenuOpen ? 'translate-x-0' : ''} transition-transform duration-300 ease-in-out border-r ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        <nav className={`${themeStyles.nav} w-[280px] flex-shrink-0 
+          ${isMobile ? 'fixed inset-y-0 left-0 transform -translate-x-full z-40' : 'sticky top-0 h-screen'} 
+          ${isMenuOpen ? 'translate-x-0' : ''} 
+          transition-transform duration-300 ease-in-out border-r 
+          ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}
+          ${role === 'user' ? 'lg:hidden' : ''}`}
+        >
           <div className="h-full flex flex-col">
             {/* Logo/Header section */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -306,12 +316,13 @@ function BaseDashboard({ children }) {
           </div>
         </nav>
 
-        {/* Mobile menu button */}
-        {isMobile && (
+        {/* Hamburger menu button - shown for users at all sizes, only on mobile for admin/superadmin */}
+        {(isMobile || role === 'user') && (
           <button
             ref={menuButtonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`fixed top-4 left-4 z-50 inline-flex items-center justify-center p-2 rounded-md transition-colors duration-200
+            className={`fixed top-4 left-4 z-50 inline-flex items-center justify-center p-2 rounded-md 
+              transition-colors duration-200
               ${isDarkMode
                 ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
@@ -329,9 +340,15 @@ function BaseDashboard({ children }) {
         {/* Main Content */}
         <main
           id="main-content"
-          className="flex-1 min-h-screen"
+          className={`flex-1 min-h-screen relative
+            ${role === 'user' ? 'max-w-7xl mx-auto' : 'w-full'}
+            ${isMobile ? 'pt-16' : ''}`}
         >
-          <div className={`p-6 ${isMobile ? 'pt-16' : ''}`}>
+          <div className={`
+            ${shouldExpandContent ? 'w-full' : 'max-w-5xl mx-auto'}
+            ${isMobile ? 'px-4' : 'px-6'}
+            py-6
+          `}>
             <ErrorBoundary>
               {children}
             </ErrorBoundary>
