@@ -31,7 +31,6 @@ const QRScanner = lazy(() => import("./components/QRScanner"));
 
 // Superadmin-specific components
 const SuperAdminDashboard = lazy(() => import("./dashboard/superadmin/SuperAdminDashboard"));
-const ManageUsers = lazy(() => import("./dashboard/superadmin/ManageUsers"));
 const UserManagement = lazy(() => import("./components/users/UserManagement"));
 
 // Constants
@@ -142,6 +141,7 @@ function App() {
               <Route path="templates" element={<ProtectedRoute requiredRole="admin" requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute>} />
               <Route path="reporting" element={<ProtectedRoute requiredRole="admin" requiredAction="generate_reports"><UnifiedReporting /></ProtectedRoute>} />
               <Route path="generate-report" element={<ProtectedRoute requiredRole="admin" requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute>} />
+              <Route path="user-management" element={<ProtectedRoute requiredRole="admin" requiredAction="manage_users"><UserManagement /></ProtectedRoute>} />
             </Route>
 
             {/* User Routes */}

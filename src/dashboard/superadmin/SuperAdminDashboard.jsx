@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import BaseDashboard from "../BaseDashboard";
-import ManageUsers from "./ManageUsers";
+import UserManagement from "../../components/users/UserManagement";
 import Inventory from "../Inventory";
 import Requests from "../admin/Requests";
 import UnifiedReporting from "../UnifiedReporting";
@@ -32,7 +32,7 @@ function SuperAdminDashboard() {
             <Route path="reporting" element={<ProtectedRoute requiredAction="generate_reports"><UnifiedReporting /></ProtectedRoute>} />
             <Route path="templates" element={<ProtectedRoute requiredAction="manage_templates"><ReportTemplates /></ProtectedRoute>} />
             <Route path="generate-report" element={<ProtectedRoute requiredAction="generate_reports"><ReportGenerator /></ProtectedRoute>} />
-            <Route path="user-management" element={<ProtectedRoute requiredAction="manage_users"><ManageUsers /></ProtectedRoute>} />
+            <Route path="user-management" element={<ProtectedRoute requiredAction="manage_users"><UserManagement /></ProtectedRoute>} />
             <Route path="user-management/*" element={<Navigate to="/superadmin-dashboard/user-management" replace />} />
             <Route path="*" element={<Navigate to="/superadmin-dashboard/user-management" replace />} />
           </Routes>
