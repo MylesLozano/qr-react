@@ -5,27 +5,23 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 3000, // Set the port if needed
+    port: 3000,
   },
   build: {
     outDir: "dist",
-    chunkSizeWarningLimit: 600, // Increased from default 500kb to accommodate vendor-firebase chunk
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-firebase": [
+          vendor: [
+            "react",
+            "react-dom",
+            "react-router-dom",
             "firebase/app",
             "firebase/auth",
             "firebase/firestore",
-          ],
-          "vendor-ui": ["react-toastify", "react-virtualized-auto-sizer"],
-          "vendor-pdf": ["jspdf", "jspdf-autotable"],
-          "dashboard-common": [
-            "./src/dashboard/BaseDashboard.jsx",
-            "./src/components/LoadingSpinner.jsx",
-            "./src/components/ErrorBoundary.jsx",
-            "./src/components/Button.jsx",
+            "react-toastify",
+            "react-virtualized-auto-sizer",
           ],
         },
       },
@@ -33,5 +29,8 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ["jspdf", "jspdf-autotable"],
+    esbuildOptions: {
+      target: "es2020",
+    },
   },
 });

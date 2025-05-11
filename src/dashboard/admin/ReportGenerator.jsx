@@ -7,12 +7,13 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 import usePageTitle from '../../hooks/usePageTitle';
 import Button from '../../components/Button';
 import EmptyState from '../../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
+// Import jsPDF and autotable directly
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 /**
  * ReportGenerator component - Generates reports based on templates and filters
@@ -222,10 +223,17 @@ const ReportGenerator = () => {
     // Generate PDF report
     const generatePDF = useCallback(() => {
         try {
+            setIsGenerating(true);
+            
+            // Create new jsPDF instance
             const doc = new jsPDF();
+            
             const tableColumn = selectedTemplate.fields.map(field => field.name);
             const tableRows = buildReportRows(filteredData, selectedTemplate.fields);
+            
             doc.text(`${selectedTemplate.name} Report`, 14, 15);
+            
+            // Use autotable plugin
             doc.autoTable({
                 head: [tableColumn],
                 body: tableRows,
@@ -242,7 +250,9 @@ const ReportGenerator = () => {
             toast.success('PDF report generated successfully');
         } catch (error) {
             console.error('Error generating PDF:', error);
-            toast.error('Failed to generate PDF report');
+            toast.error(`Failed to generate PDF report: ${error.message}`);
+        } finally {
+            setIsGenerating(false);
         }
     }, [selectedTemplate, filteredData, isDarkMode]);
 
