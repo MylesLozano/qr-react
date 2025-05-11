@@ -12,6 +12,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
+        format: 'es',
         manualChunks: {
           "vendor-core": ["react", "react-dom", "react-router-dom"],
           "vendor-firebase": [
@@ -21,11 +22,17 @@ export default defineConfig({
           ],
           "vendor-ui": ["react-toastify", "react-virtualized-auto-sizer"],
         },
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'js/[name]-[hash].js',
+        entryFileNames: 'js/[name]-[hash].js',
       },
     },
   },
   optimizeDeps: {
     include: ["jspdf"],
+    esbuildOptions: {
+      target: 'es2020',
+    },
   },
   define: {
     "process.env.NODE_DEBUG": "false",
