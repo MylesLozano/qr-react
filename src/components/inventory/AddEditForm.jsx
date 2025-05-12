@@ -38,7 +38,9 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   };
 
   const handleCancel = () => {
-    setFormData(defaultFormData);
+    // Reset form to original state
+    setFormData(editingItem || defaultFormData);
+    // Call onSuccess to close modal or perform any additional actions
     if (onSuccess) onSuccess();
   };
 
@@ -89,6 +91,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
         });
       }
 
+      // Reset form to default state after successful submission
       setFormData(defaultFormData);
       if (onSuccess) onSuccess();
     } catch (error) {
@@ -264,16 +267,14 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
         </div>
 
         <div className="mt-4 flex justify-end space-x-4">
-          {isEditing && (
-            <Button
-              onClick={handleCancel}
-              color="gray"
-              size="md"
-              type="button"
-            >
-              Cancel
-            </Button>
-          )}
+          <Button
+            onClick={handleCancel}
+            color="gray"
+            size="md"
+            type="button"
+          >
+            Cancel
+          </Button>
 
           <Button
             color="blue"

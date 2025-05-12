@@ -58,7 +58,7 @@ const getActionColor = (action) => {
  * @component
  * @returns {JSX.Element} The rendered UnifiedReporting component
  */
-const UnifiedReporting = () => {
+function UnifiedReporting() {
     usePageTitle('QCheckCITE - Reporting');
     const { isDarkMode } = useTheme();
     const { user, role } = useAuth();
@@ -88,6 +88,7 @@ const UnifiedReporting = () => {
     const [lastDoc, setLastDoc] = useState(null);
     const [hasMore, setHasMore] = useState(true);
     const [filters, setFilters] = useState({ action: '', entityType: '' });
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     // === PERMISSION CHECKS ===
     const canGenerateReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
@@ -431,7 +432,7 @@ const UnifiedReporting = () => {
 
     return (
         <ErrorBoundary>
-            <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
+            <div className={`max-w-7xl mx-auto p-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
                 <h1 className="text-2xl font-bold mb-6">Unified Reporting</h1>
 
                 {/* Tabs */}
@@ -531,17 +532,21 @@ const UnifiedReporting = () => {
                                                 <th className="px-4 py-2 text-left">Records</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            {availableReports.map(r => (<tr key={r.id} className="border-b">
-                                                <td className="px-4 py-2">{r.type}</td>
-                                                <td className="px-4 py-2">{r.generatedBy}</td>
-                                                <td className="px-4 py-2">{r.generatedAt?.toDate().toLocaleString()}</td>
-                                                <td className="px-4 py-2">{r.data.length}</td>
-                                            </tr>))}
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            {availableReports.map(r => (
+                                                <tr key={r.id} className={`hover:${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">{r.type}</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">{r.generatedBy}</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                        {r.generatedAt?.toDate().toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">{r.data.length}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
-                            ) : <p className="text-center">No saved reports.</p>}
+                            ) : <p className="text-center py-4">No saved reports.</p>}
                         </div>
                     </>
                 )}
@@ -549,27 +554,129 @@ const UnifiedReporting = () => {
                 {/* Audit Logs Tab */}
                 {activeTab === 'auditLogs' && canViewAuditLogs && (
                     <>
-                        <div className="flex justify-between mb-4">
-                            <div className="flex gap-4 flex-wrap">
-                                <select value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} className="p-2 rounded border">
-                                    {actionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                                <select value={filters.entityType} onChange={e => setFilters(f => ({ ...f, entityType: e.target.value }))} className="p-2 rounded border">
-                                    {entityOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                                <input type="date" value={dateRange.start} onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))} className="p-2 rounded border" />
-                                <input type="date" value={dateRange.end} onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} className="p-2 rounded border" />
-                                <Button onClick={fetchLogs} className="px-4 py-2 rounded">Filter</Button>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button onClick={fetchSignOutLogs} disabled={logsLoading} className="px-4 py-2 rounded">
-                                    {logsLoading ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
+                        <div className="relative">
+                            {/* Filter Button */}
+                            <div className="flex justify-between items-center mb-4">
+                                <Button 
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                    aria-expanded={isFilterOpen}
+                                    aria-haspopup="true"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <span>Filters</span>
+                                        <span className={`transform transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}>▼</span>
+                                    </span>
                                 </Button>
-                                <Button onClick={exportLogsToCsv} disabled={exporting || !logs.length} className="px-4 py-2 rounded">
-                                    {exporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
-                                </Button>
+                                
+                                <div className="flex gap-2">
+                                    <Button onClick={fetchSignOutLogs} disabled={logsLoading} className="px-4 py-2 rounded">
+                                        {logsLoading ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
+                                    </Button>
+                                    <Button onClick={exportLogsToCsv} disabled={exporting || !logs.length} className="px-4 py-2 rounded">
+                                        {exporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
+                                    </Button>
+                                </div>
                             </div>
+
+                            {/* Filter Dropdown */}
+                            {isFilterOpen && (
+                                <div className={`absolute z-10 mt-1 w-80 rounded-md shadow-lg ${
+                                    isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                                }`}>
+                                    <div className="p-4 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Action Type</label>
+                                            <select 
+                                                value={filters.action} 
+                                                onChange={e => setFilters(f => ({ ...f, action: e.target.value }))}
+                                                className={`w-full p-2 rounded border ${
+                                                    isDarkMode 
+                                                        ? 'bg-gray-700 border-gray-600 text-white' 
+                                                        : 'bg-white border-gray-300 text-black'
+                                                }`}
+                                            >
+                                                {actionOptions.map(o => 
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                )}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Entity Type</label>
+                                            <select 
+                                                value={filters.entityType} 
+                                                onChange={e => setFilters(f => ({ ...f, entityType: e.target.value }))}
+                                                className={`w-full p-2 rounded border ${
+                                                    isDarkMode 
+                                                        ? 'bg-gray-700 border-gray-600 text-white' 
+                                                        : 'bg-white border-gray-300 text-black'
+                                                }`}
+                                            >
+                                                {entityOptions.map(o => 
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                )}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Date Range</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input 
+                                                    type="date" 
+                                                    value={dateRange.start} 
+                                                    onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                    className={`w-full p-2 rounded border ${
+                                                        isDarkMode 
+                                                            ? 'bg-gray-700 border-gray-600 text-white' 
+                                                            : 'bg-white border-gray-300 text-black'
+                                                    }`}
+                                                />
+                                                <input 
+                                                    type="date" 
+                                                    value={dateRange.end} 
+                                                    onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                    className={`w-full p-2 rounded border ${
+                                                        isDarkMode 
+                                                            ? 'bg-gray-700 border-gray-600 text-white' 
+                                                            : 'bg-white border-gray-300 text-black'
+                                                    }`}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                            <Button
+                                                onClick={() => {
+                                                    setFilters({ action: '', entityType: '' });
+                                                    setDateRange({ start: '', end: '' });
+                                                    setIsFilterOpen(false);
+                                                    fetchLogs();
+                                                }}
+                                                className={`px-4 py-2 rounded ${
+                                                    isDarkMode 
+                                                        ? 'bg-gray-700 hover:bg-gray-600' 
+                                                        : 'bg-gray-100 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                Clear Filters
+                                            </Button>
+                                            <Button
+                                                onClick={() => {
+                                                    fetchLogs();
+                                                    setIsFilterOpen(false);
+                                                }}
+                                                className="px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white"
+                                            >
+                                                Apply Filters
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Table Section */}
                         {logsLoading && !logs.length ? <LoadingSpinner /> : (
                             <div className="overflow-auto rounded-lg border mb-4">
                                 <table className="min-w-full">
@@ -609,12 +716,18 @@ const UnifiedReporting = () => {
                             </div>
                         )}
                         {logsLoading && logs.length > 0 && <LoadingSpinner />}
-                        {hasMore && !logsLoading && logs.length > 0 && <Button onClick={loadMore} className="w-full">Load More</Button>}
+                        {hasMore && !logsLoading && logs.length > 0 && (
+                            <div className="mt-4">
+                                <Button onClick={loadMore} className="w-full">
+                                    Load More
+                                </Button>
+                            </div>
+                        )}
                     </>
                 )}
             </div>
         </ErrorBoundary>
     );
-};
+}
 
 export default UnifiedReporting;

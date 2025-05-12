@@ -1,4 +1,3 @@
-// File: src/dashboard/Inventory.jsx
 import { useState, useCallback } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useTheme } from '../hooks/useTheme';
@@ -24,9 +23,10 @@ function Inventory({ isInDashboard = false }) {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
   const navigate = useNavigate();
-
-  // Only declare state variables that are used
-
+  
+  // State to control form visibility
+  const [showAddEditForm, setShowAddEditForm] = useState(false);
+  
   // Fetch inventory data and manage item state (from useInventory hook)
   const {
     items,
@@ -35,15 +35,11 @@ function Inventory({ isInDashboard = false }) {
     deleteItem,
     bulkUpload,
     isUploading,
-    formData,
-    setFormData,
     defaultFormData,
     editingItem,
     setEditingItem,
-    validationErrors,
     setCsvData,
     csvData,
-    handleSaveEdit
   } = useInventory(user);
 
   // Search and filter logic (from useSearch hook)
@@ -89,7 +85,33 @@ function Inventory({ isInDashboard = false }) {
   // Handler for editing an item
   const handleEdit = useCallback((item) => {
     setEditingItem(item);
-    // Add logic here to show/scroll to the form if needed
+    setShowAddEditForm(true);
+    // Scroll to the form for better UX
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth'
+      });
+    }, 100);
+  }, [setEditingItem]);
+
+  // Handler for adding a new item
+  const handleAddItem = useCallback(() => {
+    setEditingItem(defaultFormData);
+    setShowAddEditForm(true);
+    // Scroll to the form for better UX
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth'
+      });
+    }, 100);
+  }, [defaultFormData, setEditingItem]);
+
+  // Handler for closing the form
+  const handleFormClose = useCallback(() => {
+    setEditingItem(null);
+    setShowAddEditForm(false);
   }, [setEditingItem]);
 
   // Handler for deleting an item
@@ -139,24 +161,31 @@ function Inventory({ isInDashboard = false }) {
                     <p>As an administrator, you can:</p>
                     <div className="flex justify-center gap-4">
                       <Button
-                        onClick={() => setEditingItem(defaultFormData)}
+                        onClick={handleAddItem}
                         color="blue"
                         className="inline-flex items-center"
                       >
                         <span className="mr-2">+</span> Add New Item
                       </Button>
-                      <AddEditForm
-                        formData={formData}
-                        setFormData={setFormData}
-                        editingItem={editingItem}
-                        setEditingItem={setEditingItem}
-                        handleSaveEdit={handleSaveEdit}
-                        defaultFormData={defaultFormData}
-                        validationErrors={validationErrors}
-                        isLoading={isLoading}
-                        isDarkMode={isDarkMode}
-                      />
                     </div>
+                    
+                    {showAddEditForm && (
+                      <div>
+                        {/* BulkUploadSection shown with the Add New Item form */}
+                        <BulkUploadSection
+                          setCsvData={setCsvData}
+                          csvData={csvData || []}
+                          bulkUpload={bulkUpload}
+                          isUploading={isUploading}
+                          isDarkMode={isDarkMode}
+                        />
+                        <AddEditForm
+                          onSuccess={handleFormClose}
+                          editingItem={editingItem}
+                          defaultFormData={defaultFormData}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
@@ -199,7 +228,23 @@ function Inventory({ isInDashboard = false }) {
                 <span className="mr-2">←</span> Back
               </Button>
             )}
-            <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
+            <div className="flex justify-between items-center mb-4">
+              <h1 className="text-3xl font-bold">Inventory Management</h1>
+              
+              <div className="flex gap-3">
+                {/* Only keep the Add New Item button */}
+                {canAddEditDelete && (
+                  <Button
+                    onClick={handleAddItem}
+                    color="blue"
+                    size="md"
+                    className="inline-flex items-center"
+                  >
+                    <span className="mr-2">+</span> Add New Item
+                  </Button>
+                )}
+              </div>
+            </div>
 
             {/* Search and Filter Component */}
             <SearchFilters
@@ -213,20 +258,8 @@ function Inventory({ isInDashboard = false }) {
               isDarkMode={isDarkMode}
             />
 
-            {/* Bulk Upload and QR Stats side-by-side */}
-            {/* Adjust spacing and stacking on smaller screens */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              {/* Render BulkUploadSection only if user has permission */}
-              {canAddEditDelete && (
-                <BulkUploadSection
-                  setCsvData={setCsvData}
-                  csvData={csvData}
-                  bulkUpload={bulkUpload}
-                  isUploading={isUploading}
-                  isDarkMode={isDarkMode}
-                />
-              )}
-              {/* QR Stats Section */}
+            {/* QR Stats Section (Moved to be shown alone) */}
+            <div className="mb-6">
               <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
             </div>
 
@@ -251,19 +284,23 @@ function Inventory({ isInDashboard = false }) {
               />
             </div>
 
-            {/* Add/Edit Item Form */}
-            {canAddEditDelete && (
-              <AddEditForm
-                formData={formData}
-                setFormData={setFormData}
-                editingItem={editingItem}
-                setEditingItem={setEditingItem}
-                handleSaveEdit={handleSaveEdit}
-                defaultFormData={defaultFormData}
-                validationErrors={validationErrors}
-                isLoading={isLoading}
-                isDarkMode={isDarkMode}
-              />
+            {/* Add/Edit Item Form - only shown when needed */}
+            {canAddEditDelete && showAddEditForm && (
+              <div>
+                {/* BulkUploadSection shown with the Add New Item form */}
+                <BulkUploadSection
+                  setCsvData={setCsvData}
+                  csvData={csvData || []}
+                  bulkUpload={bulkUpload}
+                  isUploading={isUploading}
+                  isDarkMode={isDarkMode}
+                />
+                <AddEditForm
+                  onSuccess={handleFormClose}
+                  editingItem={editingItem}
+                  defaultFormData={defaultFormData}
+                />
+              </div>
             )}
 
             {/* Category Details Modal */}

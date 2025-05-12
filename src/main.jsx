@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter as Router } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import App from "./App";
 import "./index.css";
 
@@ -38,9 +39,11 @@ const initializeApp = () => {
       <React.StrictMode>
         <RootErrorBoundary>
           <Router>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </ThemeProvider>
           </Router>
         </RootErrorBoundary>
       </React.StrictMode>
@@ -70,4 +73,4 @@ const initializeApp = () => {
 
 // Initialize the application
 initializeApp();
-export default App; 
+export default App;
