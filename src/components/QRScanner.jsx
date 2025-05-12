@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../hooks/useTheme";
 import { toast } from "react-toastify";
 import Button from "./Button";
 import LoadingSpinner from "./LoadingSpinner";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   collection,
   query,
@@ -13,23 +13,19 @@ import {
 import { db, auth } from "../../firebase";
 import usePageTitle from "../../hooks/usePageTitle";
 import { toast } from "react-toastify";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../hooks/useTheme";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { format } from "date-fns";
 import Button from "../../components/Button";
 import { useNavigate } from "react-router-dom";
 
-/**
- * MyRequests component - Allows users to view and manage their item requests
- * @component
- * @returns {JSX.Element} The rendered MyRequests component
- */
 function MyRequests({ isInDashboard = false }) {
   usePageTitle("QCheckCITE - My Requests");
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
+  // State for component
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -47,64 +43,102 @@ function MyRequests({ isInDashboard = false }) {
 
   // State for dynamic counts
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
+  const [totalRequestsCount, setTotalRequestsCount] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
 
   // Memoize the current user
   const currentUser = useMemo(() => auth.currentUser, []);
 
-  // Consolidated effect for fetching counts and requests
+  // Consolidated useEffect for fetching counts and requests
   useEffect(() => {
-    if (!currentUser) {
-      setLoading(false);
-      setLoadingCounts(false);
-      return;
-    }
+    const fetchRequestCounts = async () => {
+      if (!currentUser) {
+        setLoadingCounts(false);
+        return;
+      }
+
+      try {
+        // Total requests count
+        const totalRequestsQuery = query(
+          collection(db, "requests"),
+          where("userId", "==", currentUser.uid)
+        );
+        const totalCountSnapshot = await getCountFromServer(totalRequestsQuery);
+        setTotalRequestsCount(totalCountSnapshot.data().count);
+
+        // Approved requests count
+        const approvedRequestsQuery = query(
+          collection(db, "requests"),
+          where("userId", "==", currentUser.uid),
+          where("status", "==", "approved")
+        );
+        const approvedCountSnapshot = await getCountFromServer(approvedRequestsQuery);
+        setApprovedRequestsCount(approvedCountSnapshot.data().count);
+
+        // Pending requests count
+        const pendingRequestsQuery = query(
+          collection(db, "requests"),
+          where("userId", "==", currentUser.uid),
+          where("status", "==", "pending")
+        );
+        const pendingCountSnapshot = await getCountFromServer(pendingRequestsQuery);
+        setPendingRequestsCount(pendingCountSnapshot.data().count);
+
+        setLoadingCounts(false);
+      } catch (error) {
+        console.error("Error fetching request counts:", error);
+        toast.error("Failed to fetch request counts");
+        setLoadingCounts(false);
+      }
+    };
 
     let unsubscribeRequests = null;
 
     const fetchData = async () => {
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const myRequestsQuery = query(
           collection(db, "requests"),
           where("userId", "==", currentUser.uid)
         );
+
+        // Fetch counts simultaneously
+        fetchRequestCounts();
+
         unsubscribeRequests = onSnapshot(
           myRequestsQuery,
           (snapshot) => {
-            let approved = 0;
             const userRequests = snapshot.docs.map((doc) => ({
               id: doc.id,
               ...doc.data(),
               createdAt: doc.data().createdAt?.toDate(),
             }));
             setRequests(userRequests);
-            snapshot.forEach((doc) => {
-              if (doc.data().status === "approved") approved++;
-            });
-            setApprovedRequestsCount(approved);
             setLoading(false);
-            setLoadingCounts(false);
           },
           (err) => {
             console.error("Error fetching data:", err);
-            toast.error("Failed to fetch requests or counts");
+            toast.error("Failed to fetch requests");
             setLoading(false);
-            setLoadingCounts(false);
           }
         );
       } catch (err) {
         console.error("Error in fetchData:", err);
         toast.error("Failed to fetch request data");
         setLoading(false);
-        setLoadingCounts(false);
       }
     };
 
     fetchData();
 
-    // Return cleanup function that checks if unsubscribeRequests is a function
+    // Return cleanup function
     return () => {
-      if (typeof unsubscribeRequests === 'function') {
+      if (typeof unsubscribeRequests === "function") {
         unsubscribeRequests();
       }
     };
@@ -177,48 +211,54 @@ function MyRequests({ isInDashboard = false }) {
   }, [formData]);
 
   // Handle form input changes
-  const handleInputChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "quantity" ? parseInt(value) || 0 : value,
-    }));
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  }, [errors]);
+  const handleInputChange = useCallback(
+    (e) => {
+      const { name, value } = e.target;
+      setFormData((prev) => ({
+        ...prev,
+        [name]: name === "quantity" ? parseInt(value) || 0 : value,
+      }));
+      // Clear error when user types
+      if (errors[name]) {
+        setErrors((prev) => ({ ...prev, [name]: "" }));
+      }
+    },
+    [errors]
+  );
 
   // Handle form submission
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!validateForm()) return;
 
-    setSubmitting(true);
-    try {
-      await addDoc(collection(db, "requests"), {
-        userId: currentUser.uid,
-        userEmail: currentUser.email,
-        ...formData,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
+      setSubmitting(true);
+      try {
+        await addDoc(collection(db, "requests"), {
+          userId: currentUser.uid,
+          userEmail: currentUser.email,
+          ...formData,
+          status: "pending",
+          createdAt: serverTimestamp(),
+        });
 
-      toast.success("Request submitted successfully!");
-      setFormData({
-        itemName: "",
-        quantity: 1,
-        reason: "",
-        usageLocation: "",
-      });
-      setShowForm(false);
-    } catch (error) {
-      console.error("Error submitting request:", error);
-      toast.error("Failed to submit request. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  }, [formData, currentUser, validateForm]);
+        toast.success("Request submitted successfully!");
+        setFormData({
+          itemName: "",
+          quantity: 1,
+          reason: "",
+          usageLocation: "",
+        });
+        setShowForm(false);
+      } catch (error) {
+        console.error("Error submitting request:", error);
+        toast.error("Failed to submit request. Please try again.");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [formData, currentUser, validateForm]
+  );
 
   // Handle request deletion
   const handleDelete = useCallback(async (id) => {
@@ -234,24 +274,23 @@ function MyRequests({ isInDashboard = false }) {
   }, []);
 
   // Memoize status colors
-  const statusColors = useMemo(() => ({
-    approved: "bg-green-500",
-    rejected: "bg-red-500",
-    pending: "bg-yellow-500",
-  }), []);
+  const statusColors = useMemo(
+    () => ({
+      approved: "bg-green-500",
+      rejected: "bg-red-500",
+      pending: "bg-yellow-500",
+    }),
+    []
+  );
 
   // Extract the EmptyRequestsOptions component to improve readability
   const EmptyRequestsOptions = () => (
-    <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+    <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"} mb-6`}>
       <h2 className="text-xl font-semibold mb-4">Get Started with Requests</h2>
       <p className="mb-4">You haven't made any requests yet. Create your first request to get started.</p>
 
       <div className="flex justify-center">
-        <Button
-          onClick={() => setShowForm(true)}
-          color="blue"
-          size="md"
-        >
+        <Button onClick={() => setShowForm(true)} color="blue" size="md">
           Create New Request
         </Button>
       </div>
@@ -260,7 +299,7 @@ function MyRequests({ isInDashboard = false }) {
 
   return (
     <ErrorBoundary>
-      <div className={`${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+      <div className={`${isDarkMode ? "text-gray-200" : "text-gray-900"}`}>
         {!isInDashboard && (
           <div className="mb-4">
             <Button
@@ -281,50 +320,44 @@ function MyRequests({ isInDashboard = false }) {
 
         <div className="mb-4 flex justify-between items-center">
           {!showForm && (
-            <Button
-              onClick={() => setShowForm(true)}
-              color="blue"
-            >
+            <Button onClick={() => setShowForm(true)} color="blue">
               New Request
             </Button>
           )}
           {showForm && (
-            <Button
-              onClick={() => setShowForm(false)}
-              color="gray"
-            >
+            <Button onClick={() => setShowForm(false)} color="gray">
               Cancel
             </Button>
           )}
           <div>
             <span className="font-semibold mr-2">Approved:</span>
             {loadingCounts ? <LoadingSpinner size="small" /> : approvedRequestsCount}
+            <span className="font-semibold mx-2">Pending:</span>
+            {loadingCounts ? <LoadingSpinner size="small" /> : pendingRequestsCount}
             <span className="font-semibold mx-2">Total:</span>
-            {loadingCounts ? <LoadingSpinner size="small" /> : requests.length}
+            {loadingCounts ? <LoadingSpinner size="small" /> : totalRequestsCount}
           </div>
         </div>
 
         {/* Request Form */}
         {showForm && (
-          <div id="request-form" className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+          <div id="request-form" className={`rounded-lg shadow-md p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"} mb-6`}>
             <h2 className="text-xl font-semibold mb-4">Create Request</h2>
 
             {/* Search Inventory */}
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-1">
-                Search for an item
-              </label>
+              <label className="block text-sm font-medium mb-1">Search for an item</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Search inventory..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`p-2 rounded border flex-grow ${isDarkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                  className={`p-2 rounded border flex-grow ${
+                    isDarkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"
+                  }`}
                 />
-                <Button onClick={handleSearch}>
-                  Search
-                </Button>
+                <Button onClick={handleSearch}>Search</Button>
               </div>
 
               {searchResults.length > 0 && (
@@ -335,7 +368,9 @@ function MyRequests({ isInDashboard = false }) {
                       {searchResults.map((item) => (
                         <li
                           key={item.id}
-                          className={`p-2 rounded cursor-pointer mb-1 ${isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"}`}
+                          className={`p-2 rounded cursor-pointer mb-1 ${
+                            isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"
+                          }`}
                           onClick={() => handleSelectItem(item)}
                         >
                           <p className="font-semibold">{item.name}</p>
@@ -361,8 +396,9 @@ function MyRequests({ isInDashboard = false }) {
                   type="text"
                   value={formData.itemName}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 rounded border ${errors.itemName ? "border-red-500" : "border-gray-300"
-                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  className={`w-full px-3 py-2 rounded border ${
+                    errors.itemName ? "border-red-500" : "border-gray-300"
+                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
                   aria-invalid={!!errors.itemName}
                   aria-describedby={errors.itemName ? "itemName-error" : undefined}
                   disabled={!!selectedItem}
@@ -385,8 +421,9 @@ function MyRequests({ isInDashboard = false }) {
                   value={formData.quantity}
                   onChange={handleInputChange}
                   min="1"
-                  className={`w-full px-3 py-2 rounded border ${errors.quantity ? "border-red-500" : "border-gray-300"
-                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  className={`w-full px-3 py-2 rounded border ${
+                    errors.quantity ? "border-red-500" : "border-gray-300"
+                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
                   aria-invalid={!!errors.quantity}
                   aria-describedby={errors.quantity ? "quantity-error" : undefined}
                 />
@@ -406,8 +443,9 @@ function MyRequests({ isInDashboard = false }) {
                   name="reason"
                   value={formData.reason}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 rounded border ${errors.reason ? "border-red-500" : "border-gray-300"
-                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  className={`w-full px-3 py-2 rounded border ${
+                    errors.reason ? "border-red-500" : "border-gray-300"
+                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
                   aria-invalid={!!errors.reason}
                   aria-describedby={errors.reason ? "reason-error" : undefined}
                 />
@@ -428,8 +466,9 @@ function MyRequests({ isInDashboard = false }) {
                   type="text"
                   value={formData.usageLocation}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 rounded border ${errors.usageLocation ? "border-red-500" : "border-gray-300"
-                    } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                  className={`w-full px-3 py-2 rounded border ${
+                    errors.usageLocation ? "border-red-500" : "border-gray-300"
+                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
                   aria-invalid={!!errors.usageLocation}
                   aria-describedby={errors.usageLocation ? "usageLocation-error" : undefined}
                 />
@@ -450,11 +489,7 @@ function MyRequests({ isInDashboard = false }) {
                 >
                   {submitting ? <LoadingSpinner size="small" /> : "Submit Request"}
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  color="gray"
-                >
+                <Button type="button" onClick={() => setShowForm(false)} color="gray">
                   Cancel
                 </Button>
               </div>
@@ -466,7 +501,7 @@ function MyRequests({ isInDashboard = false }) {
         {!loading && requests.length === 0 ? (
           <EmptyRequestsOptions />
         ) : (
-          <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}>
+          <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"} mb-6`}>
             <h2 className="text-xl font-semibold mb-4">My Requests</h2>
             <div className="overflow-x-auto">
               <table
@@ -503,9 +538,7 @@ function MyRequests({ isInDashboard = false }) {
                         </span>
                       </td>
                       <td className="p-2 border">
-                        {req.createdAt
-                          ? format(req.createdAt, "MMM d, yyyy HH:mm")
-                          : "N/A"}
+                        {req.createdAt ? format(req.createdAt, "MMM d, yyyy HH:mm") : "N/A"}
                       </td>
                       <td className="p-2 border">
                         {req.status === "pending" ? (

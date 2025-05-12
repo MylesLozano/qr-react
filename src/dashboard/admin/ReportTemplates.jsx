@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, where, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { db, logAudit } from '../../firebase';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { toast } from 'react-toastify';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from "../../hooks/useAuth";
 import { canPerformAction } from '../../utils/roleUtils';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import usePageTitle from '../../hooks/usePageTitle';

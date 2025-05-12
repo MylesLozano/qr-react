@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { debounce, groupByCategory } from "../utils/inventoryUtils";
-import { sanitizeInput } from "../utils/inventoryUtils";
+import { useState, useMemo, useCallback } from "react";
+import { debounce, groupByCategory, sanitizeInput } from "../utils/inventoryUtils";
 
 export default function useSearch(items) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,28 +48,33 @@ export default function useSearch(items) {
     [filteredItems]
   );
 
-  // Debounced search
+  // Fixed debounced search with proper dependency handling
   const debouncedSearch = useCallback(
-    debounce((value) => {
-      setSearchTerm(value);
-    }, 300),
-    []
+    (value) => {
+      const debouncedFn = debounce((val) => {
+        setSearchTerm(sanitizeInput(val));
+      }, 300);
+      debouncedFn(value);
+    },
+    [] // Empty dependency array as we're creating the debounced function inside
   );
 
   // Handle search change
-  const handleSearchChange = (e) => {
+  const handleSearchChange = useCallback((e) => {
     const value = sanitizeInput(e.target.value);
     debouncedSearch(value);
 
     if (value.trim()) {
-      const newHistory = [
-        value,
-        ...searchHistory.filter((item) => item !== value),
-      ].slice(0, 10);
-      setSearchHistory(newHistory);
-      localStorage.setItem("searchHistory", JSON.stringify(newHistory));
+      setSearchHistory((prevHistory) => {
+        const newHistory = [
+          value,
+          ...prevHistory.filter((item) => item !== value),
+        ].slice(0, 10);
+        localStorage.setItem("searchHistory", JSON.stringify(newHistory));
+        return newHistory;
+      });
     }
-  };
+  }, [debouncedSearch]);
 
   return {
     searchTerm,

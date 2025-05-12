@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, onSnapshot, getCountFromServer } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import { toast } from "react-toastify";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../hooks/useTheme";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { useNavigate, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -19,7 +19,7 @@ import MyRequests from "./MyRequests";
  */
 function UserDashboard() {
   usePageTitle("QCheckCITE - User Dashboard");
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [inventoryCount, setInventoryCount] = useState(0);
@@ -28,22 +28,34 @@ function UserDashboard() {
   const [loadingCounts, setLoadingCounts] = useState(true);
   const currentUser = useMemo(() => auth.currentUser, []);
 
-  // Get active component from URL
-  const getActiveComponentFromUrl = () => {
-    const path = location.pathname.split('/').pop();
-    if (path === 'inventory') return 'inventory';
-    if (path === 'my-requests') return 'requests';
-    if (path === 'scan') return 'scan';
-    return null;
-  };
+  const mainComponents = useMemo(() => [
+    { key: 'inventory', path: 'inventory' },
+    { key: 'requests', path: 'my-requests' },
+    { key: 'scan', path: 'scan' },
+  ], []);
+
+  const getActiveComponentFromUrl = useCallback(() => {
+    const pathSegments = location.pathname.split('/');
+    const lastSegment = pathSegments[pathSegments.length - 1];
+    return mainComponents.find(c => c.path === lastSegment)?.key || 'inventory';
+  }, [location.pathname, mainComponents]);
 
   // Active component state
   const [activeComponent, setActiveComponent] = useState(getActiveComponentFromUrl);
 
-  // Update active component when URL changes
   useEffect(() => {
-    setActiveComponent(getActiveComponentFromUrl());
-  }, [location.pathname]);
+    const active = getActiveComponentFromUrl();
+    setActiveComponent(active);
+  }, [getActiveComponentFromUrl]);
+
+  useEffect(() => {
+    const handleHistoryChange = () => {
+      const active = getActiveComponentFromUrl();
+      setActiveComponent(active);
+    };
+    window.addEventListener('popstate', handleHistoryChange);
+    return () => window.removeEventListener('popstate', handleHistoryChange);
+  }, [getActiveComponentFromUrl]);
 
   // Update URL when active component changes
   useEffect(() => {
@@ -51,7 +63,7 @@ function UserDashboard() {
       const path = activeComponent === 'requests' ? 'my-requests' : activeComponent;
       navigate(`/user-dashboard/${path}`);
     }
-  }, [activeComponent, navigate]);
+  }, [activeComponent, navigate, getActiveComponentFromUrl]);
 
   // Consolidated effect for fetching counts
   useEffect(() => {
@@ -135,18 +147,6 @@ function UserDashboard() {
       component: "requests"
     },
   ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      toast.success("Logged out successfully");
-      navigate('/login');
-    } catch (error) {
-      console.error("Error signing out:", error);
-      toast.error("Failed to log out");
-    }
-  };
 
   // Render dashboard home
   const renderDashboard = () => (

@@ -70,3 +70,4 @@ const initializeApp = () => {
 
 // Initialize the application
 initializeApp();
+export default App; 

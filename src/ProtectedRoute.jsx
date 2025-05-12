@@ -2,9 +2,9 @@
 // This component is a wrapper around route elements that enforces authentication and role/action-based authorization.
 // It checks if a user is logged in and has the necessary permissions to access the requested route.
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
 // hasPermission: checks if a user's role meets a required role (e.g., admin for admin-only pages)
 // canPerformAction: checks if a user's role is allowed to perform a specific action (e.g., 'generate_reports')
 // getDashboardPath: returns the default dashboard path for a given role

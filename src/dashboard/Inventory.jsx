@@ -1,8 +1,8 @@
 // File: src/dashboard/Inventory.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Button from "../components/Button";
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,19 +13,19 @@ import CategoryList from '../components/inventory/CategoryList';
 import InventoryList from '../components/inventory/InventoryList';
 import AddEditForm from '../components/inventory/AddEditForm';
 import CategoryDetails from '../components/inventory/CategoryDetails';
-// Import QRCodePreview from the correct path
 import QRCodePreview from '../components/inventory/QRCodePreview';
 import useInventory from '../hooks/useInventory';
 import useSearch from '../hooks/useSearch';
-import useQRCode from '../hooks/useQRCode';
+import { useQRCode } from '../hooks/useQRCode';
 import { toast } from 'react-toastify';
-import Papa from 'papaparse';
 import { canPerformAction } from '../utils/roleUtils';
 
 function Inventory({ isInDashboard = false }) {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
   const navigate = useNavigate();
+
+  // Only declare state variables that are used
 
   // Fetch inventory data and manage item state (from useInventory hook)
   const {
@@ -38,8 +38,6 @@ function Inventory({ isInDashboard = false }) {
     formData,
     setFormData,
     defaultFormData,
-    isEditing,
-    setIsEditing,
     editingItem,
     setEditingItem,
     validationErrors,
@@ -65,7 +63,6 @@ function Inventory({ isInDashboard = false }) {
   const {
     qrStats, // QR statistics
     qrPreview, // The item currently selected for QR preview (determines modal visibility)
-    setQrPreview, // Setter to control qrPreview state (can be used to close modal)
     generatedQrData, // The actual generated data for the QR code
     isGeneratingQr, // Loading state during QR data generation
     qrError, // Error state specific to QR operations
@@ -92,9 +89,8 @@ function Inventory({ isInDashboard = false }) {
   // Handler for editing an item
   const handleEdit = useCallback((item) => {
     setEditingItem(item);
-    setIsEditing(true);
     // Add logic here to show/scroll to the form if needed
-  }, [setEditingItem, setIsEditing]);
+  }, [setEditingItem]);
 
   // Handler for deleting an item
   const handleDeleteItem = useCallback(async (itemId, itemName) => {
@@ -113,7 +109,6 @@ function Inventory({ isInDashboard = false }) {
   // Permission check (simplified)
   const canEdit = canPerformAction(role, 'edit_inventory');
   const canDelete = canPerformAction(role, 'delete_inventory');
-  const canGenerateQr = canPerformAction(role, 'generate_reports');
   const canAddEditDelete = canEdit || canDelete; // Either can edit or delete
 
   // Early return for empty inventory
@@ -144,27 +139,23 @@ function Inventory({ isInDashboard = false }) {
                     <p>As an administrator, you can:</p>
                     <div className="flex justify-center gap-4">
                       <Button
-                        onClick={() => setIsEditing(true)}
+                        onClick={() => setEditingItem(defaultFormData)}
                         color="blue"
                         className="inline-flex items-center"
                       >
                         <span className="mr-2">+</span> Add New Item
                       </Button>
-                      {isEditing && (
-                        <AddEditForm
-                          formData={formData}
-                          setFormData={setFormData}
-                          isEditing={isEditing}
-                          setIsEditing={setIsEditing}
-                          editingItem={editingItem}
-                          setEditingItem={setEditingItem}
-                          handleSaveEdit={handleSaveEdit}
-                          defaultFormData={defaultFormData}
-                          validationErrors={validationErrors}
-                          isLoading={isLoading}
-                          isDarkMode={isDarkMode}
-                        />
-                      )}
+                      <AddEditForm
+                        formData={formData}
+                        setFormData={setFormData}
+                        editingItem={editingItem}
+                        setEditingItem={setEditingItem}
+                        handleSaveEdit={handleSaveEdit}
+                        defaultFormData={defaultFormData}
+                        validationErrors={validationErrors}
+                        isLoading={isLoading}
+                        isDarkMode={isDarkMode}
+                      />
                     </div>
                   </div>
                 ) : (
@@ -265,8 +256,6 @@ function Inventory({ isInDashboard = false }) {
               <AddEditForm
                 formData={formData}
                 setFormData={setFormData}
-                isEditing={isEditing}
-                setIsEditing={setIsEditing}
                 editingItem={editingItem}
                 setEditingItem={setEditingItem}
                 handleSaveEdit={handleSaveEdit}

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { useMemo } from 'react';
+import { useTheme } from '../../hooks/useTheme';
 import Button from '../Button';
 import InventoryList from './InventoryList';
 import LoadingSpinner from '../LoadingSpinner';
@@ -18,27 +18,9 @@ function CategoryDetails({
   const { isDarkMode: componentDarkMode } = useTheme();
   const currentIsDarkMode = isDarkMode !== undefined ? isDarkMode : componentDarkMode;
 
-  // Validate category
-  if (!category) {
-    console.error("CategoryDetails: No category provided");
-    return null;
-  }
-
-  // Validate items array
-  if (!Array.isArray(items)) {
-    console.error("CategoryDetails received invalid items:", items);
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className={`p-6 rounded-lg ${currentIsDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'}`}>
-          <p>Error: Invalid items data</p>
-          <Button onClick={onClose} color="gray" className="mt-4">Close</Button>
-        </div>
-      </div>
-    );
-  }
-
   // Filter and memoize category items with error handling
   const categoryItems = useMemo(() => {
+    if (!Array.isArray(items)) return [];
     try {
       return items.filter(item => {
         if (!item || typeof item !== 'object') {
@@ -65,6 +47,25 @@ function CategoryDetails({
       return 0;
     }
   }, [categoryItems]);
+
+  // Validate category
+  if (!category) {
+    console.error("CategoryDetails: No category provided");
+    return null;
+  }
+
+  // Validate items array
+  if (!Array.isArray(items)) {
+    console.error("CategoryDetails received invalid items:", items);
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className={`p-6 rounded-lg ${currentIsDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'}`}>
+          <p>Error: Invalid items data</p>
+          <Button onClick={onClose} color="gray" className="mt-4">Close</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">

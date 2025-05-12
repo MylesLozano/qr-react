@@ -1,8 +1,8 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import { useAuth } from "../../hooks/useAuth";
 import Button from '../Button';
 import LoadingSpinner from '../LoadingSpinner';
 import { canPerformAction } from '../../utils/roleUtils';

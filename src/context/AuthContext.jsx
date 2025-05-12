@@ -1,15 +1,30 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, getUserRole, checkAndAssignUserRole } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useState, useEffect } from 'react';
+import { auth, checkAndAssignUserRole, getUserRole } from '../firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { toast } from 'react-toastify';
-
-const AuthContext = createContext();
+import SessionTimeout from '../components/SessionTimeout';
+import { AuthContext } from './AuthContextDef';
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const handleTimeout = async () => {
+        try {
+            await signOut(auth);
+            toast.info('Session expired. Please log in again.');
+        } catch (error) {
+            console.error('Error signing out:', error);
+            toast.error('Error during session timeout');
+        }
+    };
+
+    const handleWarning = (timeLeft) => {
+        const minutes = Math.floor(timeLeft / 60);
+        toast.warning(`Your session will expire in ${minutes} minutes`);
+    };
 
     useEffect(() => {
         let isMounted = true;
@@ -57,13 +72,17 @@ export function AuthProvider({ children }) {
         error
     };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {user && (
+                <SessionTimeout
+                    timeoutMinutes={30}
+                    warningMinutes={5}
+                    onTimeout={handleTimeout}
+                    onWarning={handleWarning}
+                />
+            )}
+            {children}
+        </AuthContext.Provider>
+    );
 }
-
-export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
-} 

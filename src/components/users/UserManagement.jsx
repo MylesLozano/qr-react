@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { db, logAudit } from "../../firebase";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../hooks/useTheme";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorBoundary from "../ErrorBoundary";
 import { toast } from "react-toastify";
 import Button from "../Button";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 
 /**
  * UserManagement component - Unified component for managing users across admin and superadmin roles

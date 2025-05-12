@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
-import { debounce } from '../utils/inventoryUtils';
+import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -12,8 +11,6 @@ import Button from '../components/Button';
 
 // Constants
 const MOBILE_BREAKPOINT = 640;
-const DEBOUNCE_WAIT = 100;
-const SIDEBAR_WIDTH = 280; // Width of the sidebar in pixels
 
 // Navigation items configuration - organized by role-specific paths
 const NAV_CONFIG = [
@@ -162,16 +159,13 @@ function BaseDashboard({ children }) {
   , [role]);
 
   // Handle window resize with optimized debounce
-  const handleResize = useCallback(
-    debounce(() => {
-      const mobile = window.innerWidth <= MOBILE_BREAKPOINT;
-      setIsMobile(mobile);
-      if (!mobile && isMenuOpen) {
-        setIsMenuOpen(false);
-      }
-    }, DEBOUNCE_WAIT),
-    [isMenuOpen]
-  );
+  const handleResize = useCallback(() => {
+    const mobile = window.innerWidth <= MOBILE_BREAKPOINT;
+    setIsMobile(mobile);
+    if (!mobile && isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+  }, [isMenuOpen, setIsMobile, setIsMenuOpen]);
 
   useEffect(() => {
     window.addEventListener('resize', handleResize);

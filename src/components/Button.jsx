@@ -1,7 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import LoadingSpinner from './LoadingSpinner';
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../hooks/useTheme";
 
 const Button = forwardRef(({
   children,

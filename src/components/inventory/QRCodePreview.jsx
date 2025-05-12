@@ -1,7 +1,6 @@
 // File: src/components/inventory/QRCodePreview.jsx
 
-import React from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 import QRCodeManager from '../QRCodeManager';
 import Button from '../Button';
 import PropTypes from 'prop-types';

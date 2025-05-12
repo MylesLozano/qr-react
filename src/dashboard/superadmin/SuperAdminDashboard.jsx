@@ -1,4 +1,3 @@
-import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import BaseDashboard from "../BaseDashboard";
 import UserManagement from "../../components/users/UserManagement";
@@ -8,7 +7,7 @@ import UnifiedReporting from "../UnifiedReporting";
 import ReportTemplates from "../admin/ReportTemplates";
 import ReportGenerator from "../admin/ReportGenerator";
 import usePageTitle from "../../hooks/usePageTitle";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../hooks/useTheme";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import ProtectedRoute from "../../ProtectedRoute";
 

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useMemo, useEffect } from "react";
+import { lazy, Suspense, useMemo, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./Login";
 import ProtectedRoute from "./ProtectedRoute";
@@ -9,7 +9,7 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import { ThemeProvider } from "./context/ThemeContext";
 import { getDashboardPath } from './utils/roleUtils';
 import SessionTimeout from "./components/SessionTimeout";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 
 // Core components that are used across multiple routes
 

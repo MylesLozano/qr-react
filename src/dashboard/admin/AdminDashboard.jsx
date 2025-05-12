@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import QRCodeManager from '../../components/QRCodeManager';
 import { toast } from 'react-toastify';
 import BaseDashboard from "../BaseDashboard";
@@ -6,7 +6,7 @@ import usePageTitle from "../../hooks/usePageTitle";
 import { collection, query, where, getCountFromServer, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Button from '../../components/Button';

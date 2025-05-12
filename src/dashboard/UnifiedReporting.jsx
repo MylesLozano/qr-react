@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import usePageTitle from '../hooks/usePageTitle';
 import {
     collection,
@@ -16,8 +16,8 @@ import { db, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
