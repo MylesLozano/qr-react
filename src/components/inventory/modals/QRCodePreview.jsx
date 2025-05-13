@@ -1,8 +1,8 @@
 // File: src/components/inventory/QRCodePreview.jsx
 
-import { useTheme } from '../../hooks/useTheme';
-import QRCodeManager from '../QRCodeManager';
-import Button from '../Button';
+import { useTheme } from '../../../hooks/useTheme';
+import QRCodeManager from '../../QRCodeManager';
+import Button from '../../Button';
 import PropTypes from 'prop-types';
 
 function QRCodePreview({ 

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db, logAudit } from "../../firebase";
+import { db, logAudit } from "../../../firebase";
 import { toast } from "react-toastify";
-import Button from "../Button";
-import { sanitizeInput, sanitizeNumber } from "../../utils/inventoryUtils";
-import { useInventoryValidation } from "../../hooks/useInventoryValidation";
-import { useAuth } from "../../hooks/useAuth";
-import { useTheme } from "../../hooks/useTheme";
+import Button from "../../Button";
+import { sanitizeInput, sanitizeNumber } from "../../../utils/inventoryUtils";
+import { useInventoryValidation } from "../../../hooks/useInventoryValidation";
+import { useAuth } from "../../../hooks/useAuth";
+import { useTheme } from "../../../hooks/useTheme";
 
 function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   const { isDarkMode } = useTheme();

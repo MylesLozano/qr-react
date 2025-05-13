@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { useTheme } from '../../hooks/useTheme';
-import Button from '../Button';
-import InventoryList from './InventoryList';
-import LoadingSpinner from '../LoadingSpinner';
+import { useTheme } from '../../../hooks/useTheme';
+import Button from '../../Button';
+import InventoryList from '../lists/InventoryList';
+import LoadingSpinner from '../../LoadingSpinner';
 
 function CategoryDetails({
   category,
