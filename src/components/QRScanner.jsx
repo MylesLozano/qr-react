@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
+import { BrowserQRCodeReader } from '@zxing/browser';
 import { useTheme } from "../hooks/useTheme";
 import { toast } from "react-toastify";
 import Button from "./Button";
@@ -13,6 +14,7 @@ function QRScanner({ isInDashboard = false }) {
   const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
   const [loadingComponent, setLoadingComponent] = useState(true);
+  const [uploadedFile, setUploadedFile] = useState(null);
 
   // Add a delay before loading the scanner to ensure DOM is ready
   useEffect(() => {
@@ -39,6 +41,7 @@ function QRScanner({ isInDashboard = false }) {
     }
   }, []);
 
+  
   const handleScanError = useCallback((err) => {
     console.error("QR Scan Error:", err);
     setError(err.message || "Failed to scan QR code");
@@ -55,6 +58,33 @@ function QRScanner({ isInDashboard = false }) {
       handleScanError(err);
     }
   }, [handleScanError]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedFile(URL.createObjectURL(file)); // Save for preview
+
+    try {
+      const image = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const reader = new BrowserQRCodeReader();
+      const result = await reader.decodeFromImageElement(canvas);
+      if (result?.text) {
+        setScanResult(result.text);
+        toast.success("QR code decoded from image!");
+      } else {
+        toast.error("Could not detect a QR code in this image.");
+      }
+    } catch (err) {
+      console.error("Image QR decode error:", err);
+      toast.error("Failed to decode image QR code");
+    }
+  };
 
   const startScanning = useCallback(() => {
     setScanning(true);
@@ -111,25 +141,56 @@ function QRScanner({ isInDashboard = false }) {
       ) : (
         <div>
           {!scanning ? (
-            <div className="flex justify-center">
-              <Button
-                onClick={startScanning}
-                color="blue"
-                size="lg"
-                className="mr-2"
-              >
-                Start Scanning
-              </Button>
-              {!isInDashboard && (
+            <>
+              <div className="flex justify-center">
                 <Button
-                  onClick={handleBack}
-                  color="gray"
+                  onClick={startScanning}
+                  color="blue"
                   size="lg"
+                  className="mr-2"
                 >
-                  Cancel
+                  Start Scanning
                 </Button>
-              )}
-            </div>
+                {!isInDashboard && (
+                  <Button
+                    onClick={handleBack}
+                    color="gray"
+                    size="lg"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <label className="block mb-2 text-sm font-medium">
+                  Upload QR Image
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className={`block text-sm ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
+                />
+
+                {uploadedFile && (
+                  <div className="mt-4 flex flex-col items-start gap-2">
+                    <img
+                      src={uploadedFile}
+                      alt="Uploaded preview"
+                      className="max-h-40 rounded border"
+                    />
+                    <Button
+                      onClick={() => setUploadedFile(null)}
+                      color="gray"
+                      size="sm"
+                    >
+                      Clear Upload
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <div className="relative">
               {scanning && (

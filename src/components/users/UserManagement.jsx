@@ -111,6 +111,7 @@ function UserManagement() {
       const userRef = doc(db, "users", userId);
       await updateDoc(userRef, { 
         role: newRole,
+        sessionRevoked: true,
         updatedAt: new Date().toISOString(),
         updatedBy: user.email
       });

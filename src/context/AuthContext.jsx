@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { auth, checkAndAssignUserRole, getUserRole } from '../firebase';
+import { db, auth, checkAndAssignUserRole, getUserRole } from '../firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { toast } from 'react-toastify';
 import SessionTimeout from '../components/SessionTimeout';
@@ -32,6 +33,16 @@ export function AuthProvider({ children }) {
             try {
                 if (currentUser?.email.endsWith('@jmc.edu.ph')) {
                     await checkAndAssignUserRole(currentUser); // ✅ Assign + audit
+
+                    const userDocRef = doc(db, "users", currentUser.uid);
+                    const userSnap = await getDoc(userDocRef);
+                    if (userSnap.exists() && userSnap.data()?.sessionRevoked) {
+                        await updateDoc(userDocRef, { sessionRevoked: false }); // Reset
+                        toast.error("Your session was revoked. Please log in again.");
+                        await signOut(auth);
+                        return;
+                    }
+
                     setUser(currentUser);
                     const userRole = await getUserRole(currentUser.uid);
                     setRole(userRole);
