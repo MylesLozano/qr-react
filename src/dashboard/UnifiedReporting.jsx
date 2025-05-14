@@ -176,9 +176,8 @@ function UnifiedReporting() {
                 updateLoadingState('fetchingReports', false);
                 updateLoadingState('initialLoad', false);
             }
-        })();
-        return () => unsubscribe && unsubscribe();
-    }, [user, activeTab]);
+        })();        return () => unsubscribe && unsubscribe();
+    }, [user, activeTab, updateLoadingState]);
 
     // === VALIDATION ===
     const validateReportParams = useCallback(() => {
@@ -274,7 +273,9 @@ function UnifiedReporting() {
             }        } finally {
             updateLoadingState('generatingReport', false);
         }
-    }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user, validateReportParams]);    const exportToCSV = useCallback(async () => {
+    }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user, validateReportParams, updateLoadingState]);
+    
+    const exportToCSV = useCallback(async () => {
         if (!canExportReports) return toast.error("No permission to export");
         if (!reportData.length) return toast.warning('No data to export');
         updateLoadingState('exportingCSV', true);
@@ -284,12 +285,14 @@ function UnifiedReporting() {
             await logAudit('report_exported', user.email, 'report', {
                 recordCount: reportData.length,
                 reportType,
-            });
-            toast.success('Exported CSV');
+            });            toast.success('Exported CSV');
         } catch (err) {
             console.error(err);
-            toast.error('Export failed');        } finally { updateLoadingState('exportingCSV', false); }
-    }, [canExportReports, reportData, reportType, user]);
+            toast.error('Export failed');
+        } finally { 
+            updateLoadingState('exportingCSV', false); 
+        }
+    }, [canExportReports, reportData, reportType, user, updateLoadingState]);
     
     const saveReport = useCallback(async () => {
         if (!canSaveReports) return toast.error("No permission to save");
@@ -310,9 +313,8 @@ function UnifiedReporting() {
             toast.success('Report saved');
         } catch (err) {
             console.error(err);
-            toast.error('Save failed');
-        } finally { updateLoadingState('savingReport', false); }
-    }, [canSaveReports, reportData, reportType, dateRange, filterStatus, filterLab, user]);
+            toast.error('Save failed');        } finally { updateLoadingState('savingReport', false); }
+    }, [canSaveReports, reportData, reportType, dateRange, filterStatus, filterLab, user, updateLoadingState]);
 
     // === AUDIT LOGS HANDLERS ===
     const safeToString = useCallback(v => v == null ? 'N/A' : typeof v === 'object' ? JSON.stringify(v) : String(v), []);
@@ -346,10 +348,9 @@ function UnifiedReporting() {
             console.error(err);
             setError('Failed to fetch logs');
         } finally { 
-            updateLoadingState('fetchingLogs', false);
-            updateLoadingState('initialLoad', false);
+            updateLoadingState('fetchingLogs', false);            updateLoadingState('initialLoad', false);
         }
-    }, [canViewAuditLogs, filters, dateRange, processLogData]);
+    }, [canViewAuditLogs, filters, dateRange, processLogData, updateLoadingState]);
     
     const loadMore = useCallback(async () => {
         if (!lastDoc || !hasMore || !canViewAuditLogs) return;
@@ -365,10 +366,9 @@ function UnifiedReporting() {
             setLogs(prev => [...prev, ...arr]);
             setLastDoc(snap.docs[snap.docs.length - 1] || null);
             setHasMore(snap.docs.length === 20);        } catch (err) {
-            console.error(err);
-            setError('Failed to load more logs');
+            console.error(err);            setError('Failed to load more logs');
         } finally { updateLoadingState('loadingMoreLogs', false); }
-    }, [lastDoc, hasMore, canViewAuditLogs, filters, dateRange, processLogData]);    
+    }, [lastDoc, hasMore, canViewAuditLogs, filters, dateRange, processLogData, updateLoadingState]);
 
     const exportLogsToCsv = useCallback(async () => {
         if (!canExportReports) return toast.error("No permission to export");
@@ -382,11 +382,11 @@ function UnifiedReporting() {
                 filters,
                 dateRange,
             });
-            toast.success('Logs exported');
-        } catch (err) {
-            console.error(err); toast.error('Export failed');
+            toast.success('Logs exported');        } catch (err) {
+            console.error(err);
+            toast.error('Export failed');
         } finally { updateLoadingState('exportingLogs', false); }
-    }, [canExportReports, logs, user, filters, dateRange]);
+    }, [canExportReports, logs, user, filters, dateRange, updateLoadingState]);
 
     // Function to filter for sign-out events specifically
     const fetchSignOutLogs = useCallback(async () => {
@@ -414,11 +414,10 @@ function UnifiedReporting() {
             setHasMore(snap.docs.length === 20);
         } catch (err) {
             console.error('Error fetching sign-out logs:', err);
-            toast.error('Failed to fetch sign-out logs');
-        } finally {
+            toast.error('Failed to fetch sign-out logs');        } finally {
             updateLoadingState('fetchingSpecificLogs', false);
         }
-    }, [canViewAuditLogs, processLogData]);
+    }, [canViewAuditLogs, processLogData, updateLoadingState]);
 
     // fetch audit logs on tab switch
     useEffect(() => { if (activeTab === 'auditLogs') fetchLogs(); }, [activeTab, fetchLogs]);
