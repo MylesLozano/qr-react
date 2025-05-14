@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';

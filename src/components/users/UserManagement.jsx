@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import PropTypes from "prop-types";
-import { collection, query, orderBy, onSnapshot, doc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useTheme } from "../../hooks/useTheme";
 import LoadingSpinner from "../LoadingSpinner";
@@ -30,9 +29,9 @@ function UserManagement() {
   // Memoize role options based on user's role
   const roleOptions = useMemo(() => getRoleOptions(role), [getRoleOptions, role]);
   
-  // Debounced search function
-  const debouncedSetSearchTerm = useCallback(
-    debounce((value) => {
+  // Memoize the debounced function
+  const debouncedSearch = useMemo(
+    () => debounce((value) => {
       setSearchTerm(value);
     }, 300),
     []
@@ -40,8 +39,8 @@ function UserManagement() {
   
   // Handle search input change with debouncing
   const handleSearchChange = useCallback((e) => {
-    debouncedSetSearchTerm(e.target.value);
-  }, [debouncedSetSearchTerm]);
+    debouncedSearch(e.target.value);
+  }, [debouncedSearch]);
 
   // Fetch users
   useEffect(() => {
@@ -227,10 +226,5 @@ function UserManagement() {
     </ErrorBoundary>
   );
 }
-
-UserManagement.propTypes = {
-  // This component doesn't have direct props, but including PropTypes
-  // definition is a good practice for documentation
-};
 
 export default UserManagement;
