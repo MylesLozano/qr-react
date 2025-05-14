@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
-import { db, logAudit } from "../../firebase";
+import PropTypes from "prop-types";
+import { collection, query, orderBy, onSnapshot, doc } from "firebase/firestore";
+import { db } from "../../firebase";
 import { useTheme } from "../../hooks/useTheme";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorBoundary from "../ErrorBoundary";
-import { toast } from "react-toastify";
 import Button from "../Button";
 import { useAuth } from "../../hooks/useAuth";
+import { useUserManagement } from "../../hooks/useUserManagement";
+import { debounce } from "../../utils/inventoryUtils";
 
 /**
  * UserManagement component - Unified component for managing users across admin and superadmin roles
@@ -16,39 +18,30 @@ import { useAuth } from "../../hooks/useAuth";
 function UserManagement() {
   const { isDarkMode } = useTheme();
   const { user, role } = useAuth();
+  const { updating, updateUserRole, getRoleColor, getRoleOptions } = useUserManagement(user);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
   const isSuperAdmin = role === "superadmin";
-
+  
   // Memoize role options based on user's role
-  const roleOptions = useMemo(() => {
-    if (isSuperAdmin) {
-      return [
-        { value: "admin", label: "Admin", color: "blue" },
-        { value: "user", label: "User", color: "gray" },
-      ];
-    }
-    return [{ value: "user", label: "User", color: "gray" }];
-  }, [isSuperAdmin]);
-
-  // Helper function for role colors
-  const getRoleColor = useCallback((role) => {
-    switch (role) {
-      case "superadmin":
-        return "bg-purple-500";
-      case "admin":
-        return "bg-blue-500";
-      case "user":
-        return "bg-gray-500";
-      default:
-        return "bg-gray-500";
-    }
-  }, []);
+  const roleOptions = useMemo(() => getRoleOptions(role), [getRoleOptions, role]);
+  
+  // Debounced search function
+  const debouncedSetSearchTerm = useCallback(
+    debounce((value) => {
+      setSearchTerm(value);
+    }, 300),
+    []
+  );
+  
+  // Handle search input change with debouncing
+  const handleSearchChange = useCallback((e) => {
+    debouncedSetSearchTerm(e.target.value);
+  }, [debouncedSetSearchTerm]);
 
   // Fetch users
   useEffect(() => {
@@ -100,35 +93,7 @@ function UserManagement() {
     });
   }, [users, searchTerm, roleFilter]);
 
-  // Update user role
-  const updateUserRole = useCallback(async (userId, newRole, email) => {
-    if (!window.confirm(`Are you sure you want to change ${email}'s role to ${newRole}?`)) {
-      return;
-    }
-
-    setUpdating(true);
-    try {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, { 
-        role: newRole,
-        sessionRevoked: true,
-        updatedAt: new Date().toISOString(),
-        updatedBy: user.email
-      });
-      
-      await logAudit("user_role_updated", user.email, "user", {
-        targetUserEmail: email,
-        newRole: newRole,
-      });
-      
-      toast.success(`Role updated to ${newRole} for ${email}`);
-    } catch (error) {
-      console.error("Error updating user role:", error);
-      toast.error(`Failed to update ${email}'s role`);
-    } finally {
-      setUpdating(false);
-    }
-  }, [user]);
+  // Using updateUserRole from useUserManagement hook
 
   if (loading) {
     return (
@@ -152,18 +117,23 @@ function UserManagement() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Manage Users</h2>
           <div className="flex gap-4">
+            <label className="sr-only" htmlFor="user-search">Search users by email</label>
             <input
+              id="user-search"
               type="text"
               placeholder="Search by email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className={`px-4 py-2 rounded-lg ${
                 isDarkMode
                   ? "bg-gray-700 text-white"
                   : "bg-white text-gray-900"
               }`}
+              aria-label="Search users by email"
             />
+            
+            <label className="sr-only" htmlFor="role-filter">Filter by role</label>
             <select
+              id="role-filter"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className={`px-4 py-2 rounded-lg ${
@@ -171,6 +141,7 @@ function UserManagement() {
                   ? "bg-gray-700 text-white"
                   : "bg-white text-gray-900"
               }`}
+              aria-label="Filter users by role"
             >
               <option value="all">All Roles</option>
               <option value="user">User</option>
@@ -184,61 +155,71 @@ function UserManagement() {
             className={`w-full border-collapse ${
               isDarkMode ? "border-gray-700" : "border-gray-300"
             }`}
+            aria-label="User management table"
           >
             <thead>
               <tr className={isDarkMode ? "bg-gray-800" : "bg-gray-100"}>
-                <th className="p-4 text-left">Email</th>
-                <th className="p-4 text-left">Role</th>
-                <th className="p-4 text-left">Created At</th>
-                <th className="p-4 text-left">Actions</th>
+                <th scope="col" className="p-4 text-left">Email</th>
+                <th scope="col" className="p-4 text-left">Role</th>
+                <th scope="col" className="p-4 text-left">Created At</th>
+                <th scope="col" className="p-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
-                <tr
-                  key={user.id}
-                  className={`border-t ${
-                    isDarkMode ? "border-gray-700" : "border-gray-200"
-                  }`}
-                >
-                  <td className="p-4">{user.email}</td>
-                  <td className="p-4">
-                    <span
-                      className={`px-2 py-1 rounded text-white ${getRoleColor(
-                        user.role
-                      )}`}
-                    >
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    {user.createdAt?.toDate().toLocaleDateString() || "N/A"}
-                  </td>
-                  <td className="p-4">
-                    {user.role !== "superadmin" && (
-                      <div className="flex space-x-2">
-                        {roleOptions.map((option) => (
-                          <Button
-                            key={option.value}
-                            onClick={() =>
-                              updateUserRole(user.id, option.value, user.email)
-                            }
-                            disabled={updating || user.role === option.value}
-                            color={option.color}
-                            size="sm"
-                          >
-                            {updating ? (
-                              <LoadingSpinner size="small" />
-                            ) : (
-                              `${user.role === option.value ? "Current" : option.label}`
-                            )}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((userItem) => (
+                  <tr
+                    key={userItem.id}
+                    className={`border-t ${
+                      isDarkMode ? "border-gray-700" : "border-gray-200"
+                    }`}
+                  >
+                    <td className="p-4">{userItem.email}</td>
+                    <td className="p-4">
+                      <span
+                        className={`px-2 py-1 rounded text-white ${getRoleColor(
+                          userItem.role
+                        )}`}
+                      >
+                        {userItem.role}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      {userItem.createdAt?.toDate().toLocaleDateString() || "N/A"}
+                    </td>
+                    <td className="p-4">
+                      {userItem.role !== "superadmin" && (
+                        <div className="flex space-x-2">
+                          {roleOptions.map((option) => (
+                            <Button
+                              key={option.value}
+                              onClick={() =>
+                                updateUserRole(userItem.id, option.value, userItem.email)
+                              }
+                              disabled={updating || userItem.role === option.value}
+                              color={option.color}
+                              size="sm"
+                              aria-label={`Change ${userItem.email}'s role to ${option.label}`}
+                            >
+                              {updating ? (
+                                <LoadingSpinner size="sm" showText={false} />
+                              ) : (
+                                `${userItem.role === option.value ? "Current" : option.label}`
+                              )}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="p-4 text-center">
+                    No users found matching your search criteria
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -246,5 +227,10 @@ function UserManagement() {
     </ErrorBoundary>
   );
 }
+
+UserManagement.propTypes = {
+  // This component doesn't have direct props, but including PropTypes
+  // definition is a good practice for documentation
+};
 
 export default UserManagement;

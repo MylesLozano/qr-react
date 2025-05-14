@@ -12,12 +12,9 @@ function CategoryDetails({
   onDelete,
   onPreviewQr,
   isLoading,
-  role,
-  isDarkMode
+  role
 }) {
-  const { isDarkMode: componentDarkMode } = useTheme();
-  const currentIsDarkMode = isDarkMode !== undefined ? isDarkMode : componentDarkMode;
-
+  const { isDarkMode } = useTheme();
   // Filter and memoize category items with error handling
   const categoryItems = useMemo(() => {
     if (!Array.isArray(items)) return [];
@@ -59,7 +56,7 @@ function CategoryDetails({
     console.error("CategoryDetails received invalid items:", items);
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className={`p-6 rounded-lg ${currentIsDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'}`}>
+        <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'}`}>
           <p>Error: Invalid items data</p>
           <Button onClick={onClose} color="gray" className="mt-4">Close</Button>
         </div>
@@ -68,14 +65,13 @@ function CategoryDetails({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl shadow-xl 
-        ${currentIsDarkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">      <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl shadow-xl 
+        ${isDarkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}>
         {/* Header - Fixed */}
         <div className="flex justify-between items-center p-6 border-b border-gray-700/50">
           <div>
             <h2 className="text-2xl font-bold" role="heading" aria-level="2">{category}</h2>
-            <p className={`text-sm ${currentIsDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               {categoryItems.length} {categoryItems.length === 1 ? 'item' : 'items'} •
               Total Quantity: {totalQuantity}
             </p>
@@ -96,8 +92,7 @@ function CategoryDetails({
           {isLoading ? (
             <div className="flex items-center justify-center h-full min-h-[200px]">
               <LoadingSpinner size="lg" />
-            </div>
-          ) : categoryItems.length > 0 ? (
+            </div>          ) : categoryItems.length > 0 ? (
             <div className="h-full overflow-y-auto">
               <InventoryList
                 items={categoryItems}
@@ -106,12 +101,11 @@ function CategoryDetails({
                 onPreviewQr={onPreviewQr}
                 isLoading={false}
                 role={role}
-                isDarkMode={currentIsDarkMode}
               />
             </div>
           ) : (
             <div className={`flex items-center justify-center h-full min-h-[200px] rounded-lg 
-              ${currentIsDarkMode ? 'bg-gray-700/50 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+              ${isDarkMode ? 'bg-gray-700/50 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
               <p className="text-lg">No items found in this category.</p>
             </div>
           )}

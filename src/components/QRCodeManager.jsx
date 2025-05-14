@@ -1,6 +1,6 @@
 // File: src/components/QRCodeManager.jsx
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useQRCode } from '../hooks/useQRCode';
 import { useAuth } from '../hooks/useAuth';
@@ -24,6 +24,7 @@ function QRCodeManager({
     const { handleQRCode } = useQRCode(user);
     const handleError = useErrorHandler();
     const { isDarkMode } = useTheme();
+    const qrCodeRef = useRef(null);
 
     const validateQrData = useCallback((qrObject) => {
         if (!qrObject || typeof qrObject !== 'object') {
@@ -56,45 +57,61 @@ function QRCodeManager({
             validateQrData(qrData);
             setLocalQrData(qrData);
         }
-    }, [qrData, validateQrData]);
-
-    const handleDownload = async () => {
+    }, [qrData, validateQrData]);    const handleDownload = async () => {
         if (!localQrData) {
             toast.error("No QR code data available to download");
             return;
         }
 
         try {
+            // Get the SVG element directly from our ref
+            if (!qrCodeRef.current) {
+                throw new Error("QR code reference not available");
+            }
+
+            // Create a serialized SVG string from the QR code element
+            const svgElement = qrCodeRef.current;
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svgElement);
+            
+            // Create canvas with padding
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const padding = 20;
 
+            // Set canvas dimensions with padding
             canvas.width = size + (padding * 2);
             canvas.height = size + (padding * 2);
 
-            ctx.fillStyle = '#FFFFFF';
+            // Fill background
+            ctx.fillStyle = isDarkMode ? "#1F2937" : "#FFFFFF"; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const img = new Image();
-            const svgBlob = new Blob([null], { type: 'image/svg+xml;charset=utf-8' });
+            // Create a blob from the SVG string
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
             const URL = window.URL || window.webkitURL || window;
             const svgUrl = URL.createObjectURL(svgBlob);
 
+            // Load the SVG into an image
+            const img = new Image();
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
                 img.src = svgUrl;
             });
 
+            // Draw the QR code with padding
             ctx.drawImage(img, padding, padding, size, size);
             URL.revokeObjectURL(svgUrl);
 
+            // Convert canvas to downloadable image
             canvas.toBlob((blob) => {
                 const fileName = `QR_${item?.name || 'code'}_${new Date().toISOString().split('T')[0]}.png`;
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = fileName;
                 link.click();
+                URL.revokeObjectURL(link.href); // Clean up
             });
 
             toast.success('QR code downloaded successfully');
@@ -108,9 +125,9 @@ function QRCodeManager({
         <ErrorBoundary>
             <div className={`w-full max-w-sm mx-auto ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}>
                 <div className="p-4">
-                    <div className="flex flex-col items-center justify-center min-h-[200px]">
-                        {localQrData ? (
+                    <div className="flex flex-col items-center justify-center min-h-[200px]">                        {localQrData ? (
                             <QRCodeSVG
+                                ref={qrCodeRef}
                                 value={JSON.stringify(localQrData)}
                                 size={size}
                                 bgColor={isDarkMode ? "#1F2937" : "#FFFFFF"}

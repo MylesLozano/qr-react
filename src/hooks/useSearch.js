@@ -1,5 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
-import { debounce, groupByCategory, sanitizeInput } from "../utils/inventoryUtils";
+import {
+  debounce,
+  groupByCategory,
+  sanitizeInput,
+} from "../utils/inventoryUtils";
 
 export default function useSearch(items) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,6 +18,13 @@ export default function useSearch(items) {
       return [];
     }
   });
+
+  // Memoized debounced function to update the search term
+  const memoizedDebouncedSetSearchTerm = useMemo(() => {
+    return debounce((newSearchTerm) => {
+      setSearchTerm(newSearchTerm);
+    }, 300);
+  }, []); // setSearchTerm is stable, debounce is from utils.
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -48,33 +59,25 @@ export default function useSearch(items) {
     [filteredItems]
   );
 
-  // Fixed debounced search with proper dependency handling
-  const debouncedSearch = useCallback(
-    (value) => {
-      const debouncedFn = debounce((val) => {
-        setSearchTerm(sanitizeInput(val));
-      }, 300);
-      debouncedFn(value);
-    },
-    [] // Empty dependency array as we're creating the debounced function inside
-  );
-
   // Handle search change
-  const handleSearchChange = useCallback((e) => {
-    const value = sanitizeInput(e.target.value);
-    debouncedSearch(value);
+  const handleSearchChange = useCallback(
+    (e) => {
+      const sanitizedValue = sanitizeInput(e.target.value); // Sanitize input once
+      memoizedDebouncedSetSearchTerm(sanitizedValue); // Call the memoized debounced function
 
-    if (value.trim()) {
-      setSearchHistory((prevHistory) => {
-        const newHistory = [
-          value,
-          ...prevHistory.filter((item) => item !== value),
-        ].slice(0, 10);
-        localStorage.setItem("searchHistory", JSON.stringify(newHistory));
-        return newHistory;
-      });
-    }
-  }, [debouncedSearch]);
+      if (sanitizedValue.trim()) {
+        setSearchHistory((prevHistory) => {
+          const newHistory = [
+            sanitizedValue,
+            ...prevHistory.filter((item) => item !== sanitizedValue),
+          ].slice(0, 10);
+          localStorage.setItem("searchHistory", JSON.stringify(newHistory));
+          return newHistory;
+        });
+      }
+    },
+    [memoizedDebouncedSetSearchTerm]
+  ); // sanitizeInput is an import, assumed stable.
 
   return {
     searchTerm,

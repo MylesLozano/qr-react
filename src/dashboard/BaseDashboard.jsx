@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../hooks/useTheme';
-import { useAuth } from '../hooks/useAuth';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -183,20 +182,18 @@ function BaseDashboard({ children }) {
     try {
       setIsLoading(true);
       // Capture user info before logout
-      const userEmail = user?.email;
-      const userId = user?.uid;
+      const userEmail = user?.email || 'unknown';
+      const userId = user?.uid || 'unknown';
 
       // Log the logout action to audit logs before signing out
       try {
-        console.log("Logging user sign-out event before auth.signOut()");
-        const auditLogId = await logAudit('user_signed_out', userEmail, 'user', {
+        await logAudit('user_signed_out', userEmail, 'user', {
           timestamp: new Date().toISOString(),
           userId: userId
         });
-        console.log(`Sign-out audit logged with ID: ${auditLogId}`);
       } catch (auditError) {
+        // Log audit error but continue with logout
         console.error("Error logging sign-out audit:", auditError);
-        // Continue with logout even if audit logging fails
       }
 
       // Proceed with logout
@@ -205,7 +202,7 @@ function BaseDashboard({ children }) {
       navigate('/login');
     } catch (error) {
       console.error("Error signing out:", error);
-      toast.error("Failed to log out");
+      toast.error(`Failed to log out: ${error.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }

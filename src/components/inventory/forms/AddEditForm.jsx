@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, logAudit } from "../../../firebase";
 import { toast } from "react-toastify";
-import Button from "../../Button";
 import { sanitizeInput, sanitizeNumber } from "../../../utils/inventoryUtils";
 import { useInventoryValidation } from "../../../hooks/useInventoryValidation";
 import { useAuth } from "../../../hooks/useAuth";
 import { useTheme } from "../../../hooks/useTheme";
+import FormField from "./FormField";
+import FormActions from "./FormActions";
 
 function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   const { isDarkMode } = useTheme();
@@ -102,12 +103,6 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
     }
   };
 
-  const inputClass = `p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'
-    }`;
-
-  const getErrorClass = (fieldName) =>
-    validationErrors[fieldName] ? "border-red-500" : "";
-
   return (
     <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} max-h-[85vh] overflow-y-auto`}>
       <h2 className="text-xl font-semibold sticky top-0 bg-inherit py-2 mb-4 z-10">
@@ -116,179 +111,133 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <input
-              type="text"
-              name="name"
-              placeholder="Name *"
-              value={formData.name}
-              onChange={handleChange}
-              className={`${inputClass} ${getErrorClass("name")} w-full`}
-              required
-            />
-            {validationErrors.name && (
-              <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>
-            )}
-          </div>
+          {/* Basic Information */}
+          <FormField
+            type="text"
+            name="name"
+            placeholder="Name *"
+            value={formData.name}
+            onChange={handleChange}
+            required={true}
+            error={validationErrors.name}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <input
-              type="text"
-              name="brand"
-              placeholder="Brand"
-              value={formData.brand}
-              onChange={handleChange}
-              className={`${inputClass} w-full`}
-            />
-          </div>
+          <FormField
+            type="text"
+            name="brand"
+            placeholder="Brand"
+            value={formData.brand}
+            onChange={handleChange}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <input
-              type="text"
-              name="serialNumber"
-              placeholder="Serial Number"
-              value={formData.serialNumber}
-              onChange={handleChange}
-              className={`${inputClass} w-full`}
-            />
-          </div>
+          <FormField
+            type="text"
+            name="serialNumber"
+            placeholder="Serial Number"
+            value={formData.serialNumber}
+            onChange={handleChange}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <input
-              type="text"
-              name="category"
-              placeholder="Category *"
-              value={formData.category}
-              onChange={handleChange}
-              className={`${inputClass} ${getErrorClass("category")} w-full`}
-              required
-            />
-            {validationErrors.category && (
-              <p className="text-red-500 text-xs mt-1">{validationErrors.category}</p>
-            )}
-          </div>
+          <FormField
+            type="text"
+            name="category"
+            placeholder="Category *"
+            value={formData.category}
+            onChange={handleChange}
+            required={true}
+            error={validationErrors.category}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <input
-              type="number"
-              name="quantity"
-              placeholder="Quantity *"
-              value={formData.quantity}
-              onChange={handleChange}
-              min="0"
-              className={`${inputClass} ${getErrorClass("quantity")} w-full`}
-              required
-            />
-            {validationErrors.quantity && (
-              <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
-            )}
-          </div>
+          <FormField
+            type="number"
+            name="quantity"
+            placeholder="Quantity *"
+            value={formData.quantity}
+            onChange={handleChange}
+            min="0"
+            required={true}
+            error={validationErrors.quantity}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <input
-              type="date"
-              name="dateAcquired"
-              placeholder="Date Acquired"
-              value={formData.dateAcquired}
-              onChange={handleChange}
-              className={`${inputClass} w-full`}
-            />
-          </div>
+          <FormField
+            type="date"
+            name="dateAcquired"
+            placeholder="Date Acquired"
+            value={formData.dateAcquired}
+            onChange={handleChange}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <select
-              name="itemCondition"
-              value={formData.itemCondition}
-              onChange={handleChange}
-              className={`${inputClass} w-full ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}
-            >
-              <option value="New">New</option>
-              <option value="Used">Used</option>
-              <option value="Damaged">Damaged</option>
-            </select>
-          </div>
+          <FormField
+            type="select"
+            name="itemCondition"
+            value={formData.itemCondition}
+            onChange={handleChange}
+            options={[
+              { value: "New", label: "New" },
+              { value: "Used", label: "Used" },
+              { value: "Damaged", label: "Damaged" }
+            ]}
+            isDarkMode={isDarkMode}
+          />
 
-          <div>
-            <select
-              name="lab"
-              value={formData.lab}
-              onChange={handleChange}
-              className={`${inputClass} w-full ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}
-            >
-              <option value="" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
-                Select Lab
-              </option>
-              <option value="Mac Lab" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
-                Mac Lab
-              </option>
-              <option value="EMC Lab" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
-                EMC Lab
-              </option>
-              <option value="Others" className={`${isDarkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}>
-                Others
-              </option>
-            </select>
-          </div>
+          <FormField
+            type="select"
+            name="lab"
+            value={formData.lab}
+            onChange={handleChange}
+            options={[
+              { value: "", label: "Select Lab" },
+              { value: "Mac Lab", label: "Mac Lab" },
+              { value: "EMC Lab", label: "EMC Lab" },
+              { value: "Others", label: "Others" }
+            ]}
+            isDarkMode={isDarkMode}
+          />
 
-          <div className="md:col-span-2 lg:col-span-1">
-            <label className="flex items-center mb-2">
-              <input
-                type="checkbox"
-                name="uniqueQR"
-                checked={formData.uniqueQR}
-                onChange={handleChange}
-                className="mr-2"
-              />
-              <span className="text-sm">Generate Unique QR Code</span>
-            </label>
-          </div>
+          <FormField
+            type="checkbox"
+            name="uniqueQR"
+            placeholder="Generate Unique QR Code"
+            value={formData.uniqueQR}
+            onChange={handleChange}
+            isDarkMode={isDarkMode}
+          />
 
+          {/* Description and Remarks */}
           <div className="col-span-full">
-            <textarea
+            <FormField
+              type="textarea"
               name="description"
               placeholder="Description"
               value={formData.description}
               onChange={handleChange}
-              className={`${inputClass} w-full`}
-              rows="2"
+              isDarkMode={isDarkMode}
             />
           </div>
 
           <div className="col-span-full">
-            <textarea
+            <FormField
+              type="textarea"
               name="remarks"
               placeholder="Remarks"
               value={formData.remarks}
               onChange={handleChange}
-              className={`${inputClass} w-full`}
-              rows="2"
+              isDarkMode={isDarkMode}
             />
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end space-x-4">
-          <Button
-            onClick={handleCancel}
-            color="gray"
-            size="md"
-            type="button"
-          >
-            Cancel
-          </Button>
-
-          <Button
-            color="blue"
-            size="md"
-            type="submit"
-            loading={isLoading}
-            disabled={isLoading}
-          >
-            {isLoading
-              ? 'Saving...'
-              : (isEditing ? 'Save Changes' : 'Add Item')
-            }
-          </Button>
-        </div>
+        <FormActions 
+          isLoading={isLoading} 
+          onCancel={handleCancel} 
+          isEditing={isEditing} 
+        />
       </form>
     </div>
   );
