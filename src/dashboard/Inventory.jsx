@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
@@ -27,6 +27,22 @@ function Inventory({ isInDashboard = false }) {
   // State to control form visibility
   const [showAddEditForm, setShowAddEditForm] = useState(false);
   
+  // More granular loading states for better UX
+  const [loadingStates, setLoadingStates] = useState({
+    fetchingInventory: true,    // Initial fetch of inventory items
+    addingItem: false,          // Adding a new inventory item
+    editingItem: false,         // Editing an existing item
+    deletingItem: false,        // Deleting an item
+    bulkUploading: false,       // Bulk uploading items from CSV
+    generatingQR: false,        // Generating QR code
+    exportingData: false,       // Exporting inventory data
+  });
+  
+  // Helper function to update loading states
+  const updateLoadingState = useCallback((stateKey, value) => {
+    setLoadingStates(prev => ({ ...prev, [stateKey]: value }));
+  }, []);
+  
   // Fetch inventory data and manage item state (from useInventory hook)
   const {
     items,
@@ -41,6 +57,18 @@ function Inventory({ isInDashboard = false }) {
     setCsvData,
     csvData,
   } = useInventory(user);
+
+  // Wrapper for bulkUpload to use our new loading states
+  const handleBulkUpload = useCallback(async () => {
+    try {
+      updateLoadingState('bulkUploading', true);
+      await bulkUpload();
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+    } finally {
+      updateLoadingState('bulkUploading', false);
+    }
+  }, [bulkUpload, updateLoadingState]);
 
   // Search and filter logic (from useSearch hook)
   const {
@@ -65,6 +93,29 @@ function Inventory({ isInDashboard = false }) {
     previewQrCode, // Handler to trigger the QR preview process
     closeQrPreview // Handler to close the QR preview modal and clear state
   } = useQRCode(items, user); // Pass items and user to the hook
+
+  // Wrapper for previewQrCode to use our granular loading states
+  const handlePreviewQrCode = useCallback(async (item) => {
+    try {
+      updateLoadingState('generatingQR', true);
+      await previewQrCode(item);
+    } finally {
+      // The loading state will be updated by our useEffect that watches isGeneratingQr
+    }
+  }, [previewQrCode, updateLoadingState]);
+
+  // Synchronize our loading states with the hook
+  useEffect(() => {
+    updateLoadingState('fetchingInventory', isLoading);
+  }, [isLoading, updateLoadingState]);
+  
+  useEffect(() => {
+    updateLoadingState('bulkUploading', isUploading);
+  }, [isUploading, updateLoadingState]);
+  
+  useEffect(() => {
+    updateLoadingState('generatingQR', isGeneratingQr);
+  }, [isGeneratingQr, updateLoadingState]);
 
   // State for managing category details modal
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -113,20 +164,21 @@ function Inventory({ isInDashboard = false }) {
     setEditingItem(null);
     setShowAddEditForm(false);
   }, [setEditingItem]);
-
   // Handler for deleting an item
   const handleDeleteItem = useCallback(async (itemId, itemName) => {
     try {
       const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
       if (!confirmDelete) return;
-
+      
+      updateLoadingState('deletingItem', true);
       await deleteItem(itemId); // Use the deleteItem function from useInventory
-      toast.success(`${itemName} deleted successfully!`);
-    } catch (error) {
+      toast.success(`${itemName} deleted successfully!`);    } catch (error) {
       console.error("Error deleting item:", error);
       toast.error(`Failed to delete ${itemName}. ${error.message || ''}`);
+    } finally {
+      updateLoadingState('deletingItem', false);
     }
-  }, [deleteItem]);
+  }, [deleteItem, updateLoadingState]);
 
   // Permission check (simplified)
   const canEdit = canPerformAction(role, 'edit_inventory');
@@ -134,7 +186,7 @@ function Inventory({ isInDashboard = false }) {
   const canAddEditDelete = canEdit || canDelete; // Either can edit or delete
 
   // Early return for empty inventory
-  if (!isLoading && !error && (!items || items.length === 0)) {
+  if (!loadingStates.fetchingInventory && !error && (!items || items.length === 0)) {
     return (
       <ErrorBoundary>
         <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
@@ -175,7 +227,7 @@ function Inventory({ isInDashboard = false }) {
                         <BulkUploadSection
                           setCsvData={setCsvData}
                           csvData={csvData || []}
-                          bulkUpload={bulkUpload}
+                          bulkUpload={handleBulkUpload}
                           isUploading={isUploading}
                           isDarkMode={isDarkMode}
                         />
@@ -206,7 +258,7 @@ function Inventory({ isInDashboard = false }) {
     <ErrorBoundary>
       <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Main Inventory Loading and Error Feedback */}
-        {isLoading && !error && <LoadingSpinner fullScreen />}
+        {loadingStates.fetchingInventory && !error && <LoadingSpinner fullScreen />}
         {error && (
           <div className="text-red-500 text-center mb-4">
             Error loading inventory: {error.message || error}
@@ -272,13 +324,12 @@ function Inventory({ isInDashboard = false }) {
                 toggleCategory={toggleCategory}
                 isDarkMode={isDarkMode}
               />
-              {/* The main InventoryList displaying filtered search results */}
-              <InventoryList
+              {/* The main InventoryList displaying filtered search results */}              <InventoryList
                 items={filteredItems} // Pass filtered items from search
                 onEdit={handleEdit}
                 onDelete={handleDeleteItem}
-                onPreviewQr={previewQrCode} // Pass the previewQrCode handler from useQRCode
-                isLoading={isLoading}
+                onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
+                isLoading={loadingStates.fetchingInventory}
                 role={role}
                 isDarkMode={isDarkMode}
               />
@@ -291,7 +342,7 @@ function Inventory({ isInDashboard = false }) {
                 <BulkUploadSection
                   setCsvData={setCsvData}
                   csvData={csvData || []}
-                  bulkUpload={bulkUpload}
+                  bulkUpload={handleBulkUpload}
                   isUploading={isUploading}
                   isDarkMode={isDarkMode}
                 />
@@ -304,15 +355,14 @@ function Inventory({ isInDashboard = false }) {
             )}
 
             {/* Category Details Modal */}
-            {showCategoryDetails && (
-              <CategoryDetails
+            {showCategoryDetails && (              <CategoryDetails
                 category={selectedCategory}
                 items={items} // Pass the *full* items list to CategoryDetails
                 onClose={closeCategoryDetails}
                 onEdit={handleEdit}
                 onDelete={handleDeleteItem}
-                onPreviewQr={previewQrCode} // Pass the previewQrCode handler
-                isLoading={isLoading}
+                onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
+                isLoading={loadingStates.fetchingInventory}
                 role={role}
                 isDarkMode={isDarkMode}
               />
@@ -324,7 +374,7 @@ function Inventory({ isInDashboard = false }) {
                 item={qrPreview} // Pass the item data
                 qrData={generatedQrData} // Pass the generated QR data
                 onClose={closeQrPreview} // Pass the handler to close the modal
-                isGenerating={isGeneratingQr} // Pass loading state from hook
+                isGenerating={loadingStates.generatingQR} // Use granular loading states
                 qrError={qrError} // Pass error state from hook
               />
             )}

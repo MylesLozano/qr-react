@@ -64,27 +64,35 @@ function UnifiedReporting() {
     const { user, role } = useAuth();
 
     // Tabs state
-    const [activeTab, setActiveTab] = useState('reports');
-
-    // === SHARED STATE ===
-    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('reports');    // === SHARED STATE ===
     const [error, setError] = useState(null);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    
+    // === LOADING STATES ===
+    const [loadingStates, setLoadingStates] = useState({
+        initialLoad: true,            // Initial page load
+        fetchingReports: false,       // Fetching saved reports
+        generatingReport: false,      // Generating new report
+        exportingCSV: false,          // Exporting report to CSV
+        savingReport: false,          // Saving report to database
+        fetchingLogs: false,          // Fetching audit logs
+        exportingLogs: false,         // Exporting audit logs to CSV
+        loadingMoreLogs: false,       // Loading more audit logs
+        fetchingSpecificLogs: false   // Fetching specific log types (sign-out logs)
+    });
+
+    // Helper function to update loading states
+    const updateLoadingState = useCallback((stateKey, value) => {
+        setLoadingStates(prev => ({ ...prev, [stateKey]: value }));
+    }, []);
 
     // === REPORTS STATE ===
     const [reportType, setReportType] = useState('inventory');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterLab, setFilterLab] = useState('all');
-    const [isGenerating, setIsGenerating] = useState(false);
     const [reportData, setReportData] = useState([]);
-    const [availableReports, setAvailableReports] = useState([]);
-    const [isExporting, setIsExporting] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-
-    // === AUDIT LOGS STATE ===
+    const [availableReports, setAvailableReports] = useState([]);    // === AUDIT LOGS STATE ===
     const [logs, setLogs] = useState([]);
-    const [logsLoading, setLogsLoading] = useState(true);
-    const [exporting, setExporting] = useState(false);
     const [lastDoc, setLastDoc] = useState(null);
     const [hasMore, setHasMore] = useState(true);
     const [filters, setFilters] = useState({ action: '', entityType: '' });
@@ -145,14 +153,12 @@ function UnifiedReporting() {
         { value: 'report', label: 'Report' },
         { value: 'auditLog', label: 'Audit Log' },
         { value: 'system', label: 'System' },
-    ], []);
-
-    // === REPORTS EFFECT: load saved reports ===
+    ], []);    // === REPORTS EFFECT: load saved reports ===
     useEffect(() => {
         if (!user || activeTab !== 'reports') return;
         let unsubscribe;
         (async () => {
-            setLoading(true);
+            updateLoadingState('fetchingReports', true);
             try {
                 const q = query(collection(db, 'reports'), orderBy('generatedAt', 'desc'));
                 unsubscribe = onSnapshot(q, snap => {
@@ -167,7 +173,8 @@ function UnifiedReporting() {
                 toast.error('Initialization error');
                 setError('Initialization error');
             } finally {
-                setLoading(false);
+                updateLoadingState('fetchingReports', false);
+                updateLoadingState('initialLoad', false);
             }
         })();
         return () => unsubscribe && unsubscribe();
@@ -180,13 +187,11 @@ function UnifiedReporting() {
             return false;
         }
         return true;
-    }, [dateRange]);
-
-    // === REPORTS HANDLERS ===
+    }, [dateRange]);    // === REPORTS HANDLERS ===
     const generateReport = useCallback(async () => {
         if (!canGenerateReports) return toast.error("No permission to generate");
         if (!validateReportParams()) return;
-        setIsGenerating(true);
+        updateLoadingState('generatingReport', true);
         setReportData([]); // Clear previous data
         setError(null); // Clear previous errors
         try {
@@ -266,16 +271,13 @@ function UnifiedReporting() {
             } else {
                 toast.error('Failed to generate report: ' + err.message);
                 setError('Failed to generate report.');
-            }
-        } finally {
-            setIsGenerating(false);
+            }        } finally {
+            updateLoadingState('generatingReport', false);
         }
-    }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user, validateReportParams]);
-
-    const exportToCSV = useCallback(async () => {
+    }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user, validateReportParams]);    const exportToCSV = useCallback(async () => {
         if (!canExportReports) return toast.error("No permission to export");
         if (!reportData.length) return toast.warning('No data to export');
-        setIsExporting(true);
+        updateLoadingState('exportingCSV', true);
         try {
             const csv = Papa.unparse(reportData);
             saveAs(new Blob([csv], { type: 'text/csv' }), `${reportType}_report_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -286,14 +288,13 @@ function UnifiedReporting() {
             toast.success('Exported CSV');
         } catch (err) {
             console.error(err);
-            toast.error('Export failed');
-        } finally { setIsExporting(false); }
+            toast.error('Export failed');        } finally { updateLoadingState('exportingCSV', false); }
     }, [canExportReports, reportData, reportType, user]);
-
+    
     const saveReport = useCallback(async () => {
         if (!canSaveReports) return toast.error("No permission to save");
         if (!reportData.length) return toast.warning('No data to save');
-        setIsSaving(true);
+        updateLoadingState('savingReport', true);
         try {
             await addDoc(collection(db, 'reports'), {
                 type: reportType,
@@ -310,7 +311,7 @@ function UnifiedReporting() {
         } catch (err) {
             console.error(err);
             toast.error('Save failed');
-        } finally { setIsSaving(false); }
+        } finally { updateLoadingState('savingReport', false); }
     }, [canSaveReports, reportData, reportType, dateRange, filterStatus, filterLab, user]);
 
     // === AUDIT LOGS HANDLERS ===
@@ -327,11 +328,9 @@ function UnifiedReporting() {
             userAgent: safeToString(d.userAgent),
             platform: safeToString(d.platform)
         };
-    }, [safeToString]);
-
-    const fetchLogs = useCallback(async () => {
+    }, [safeToString]);    const fetchLogs = useCallback(async () => {
         if (!canViewAuditLogs) return setError("No permission to view logs");
-        setLogsLoading(true);
+        updateLoadingState('fetchingLogs', true);
         try {
             let constraints = [orderBy('timestamp', 'desc'), limit(20)];
             if (filters.action) constraints.push(where('action', '==', filters.action));
@@ -346,12 +345,15 @@ function UnifiedReporting() {
         } catch (err) {
             console.error(err);
             setError('Failed to fetch logs');
-        } finally { setLogsLoading(false); }
+        } finally { 
+            updateLoadingState('fetchingLogs', false);
+            updateLoadingState('initialLoad', false);
+        }
     }, [canViewAuditLogs, filters, dateRange, processLogData]);
-
+    
     const loadMore = useCallback(async () => {
         if (!lastDoc || !hasMore || !canViewAuditLogs) return;
-        setLogsLoading(true);
+        updateLoadingState('loadingMoreLogs', true);
         try {
             let constraints = [orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(20)];
             if (filters.action) constraints.push(where('action', '==', filters.action));
@@ -362,16 +364,15 @@ function UnifiedReporting() {
             const arr = snap.docs.map(processLogData);
             setLogs(prev => [...prev, ...arr]);
             setLastDoc(snap.docs[snap.docs.length - 1] || null);
-            setHasMore(snap.docs.length === 20);
-        } catch (err) {
+            setHasMore(snap.docs.length === 20);        } catch (err) {
             console.error(err);
             setError('Failed to load more logs');
-        } finally { setLogsLoading(false); }
-    }, [lastDoc, hasMore, canViewAuditLogs, filters, dateRange, processLogData]);
+        } finally { updateLoadingState('loadingMoreLogs', false); }
+    }, [lastDoc, hasMore, canViewAuditLogs, filters, dateRange, processLogData]);    
 
     const exportLogsToCsv = useCallback(async () => {
         if (!canExportReports) return toast.error("No permission to export");
-        setExporting(true);
+        updateLoadingState('exportingLogs', true);
         try {
             const csvData = logs.map(l => ({ ...l, details: typeof l.details === 'object' ? JSON.stringify(l.details) : String(l.details || '') }));
             const csv = Papa.unparse(csvData, { header: true });
@@ -384,14 +385,14 @@ function UnifiedReporting() {
             toast.success('Logs exported');
         } catch (err) {
             console.error(err); toast.error('Export failed');
-        } finally { setExporting(false); }
+        } finally { updateLoadingState('exportingLogs', false); }
     }, [canExportReports, logs, user, filters, dateRange]);
 
     // Function to filter for sign-out events specifically
     const fetchSignOutLogs = useCallback(async () => {
         if (!canViewAuditLogs) return;
         try {
-            setLogsLoading(true);
+            updateLoadingState('fetchingSpecificLogs', true);
             const signOutQuery = query(
                 collection(db, 'auditLogs'),
                 where('action', '==', 'user_signed_out'),
@@ -407,9 +408,7 @@ function UnifiedReporting() {
             } else {
                 console.log('No sign-out logs found');
                 toast.info('No sign-out logs found');
-            }
-
-            // Add a tab option to view only sign-out logs
+            }            // Add a tab option to view only sign-out logs
             setLogs(signOutLogs);
             setLastDoc(snap.docs[snap.docs.length - 1] || null);
             setHasMore(snap.docs.length === 20);
@@ -417,7 +416,7 @@ function UnifiedReporting() {
             console.error('Error fetching sign-out logs:', err);
             toast.error('Failed to fetch sign-out logs');
         } finally {
-            setLogsLoading(false);
+            updateLoadingState('fetchingSpecificLogs', false);
         }
     }, [canViewAuditLogs, processLogData]);
 
@@ -490,15 +489,13 @@ function UnifiedReporting() {
                                     </div>
                                 )}
                             </div>
-                            <div className="mt-6 flex gap-4 flex-wrap">
-                                <Button onClick={generateReport} disabled={!canGenerateReports || isGenerating} className="px-4 py-2 rounded">
-                                    {isGenerating ? <LoadingSpinner size="small" /> : 'Generate'}
+                            <div className="mt-6 flex gap-4 flex-wrap">                                <Button onClick={generateReport} disabled={!canGenerateReports || loadingStates.generatingReport} className="px-4 py-2 rounded">
+                                    {loadingStates.generatingReport ? <LoadingSpinner size="small" /> : 'Generate'}
                                 </Button>
-                                <Button onClick={exportToCSV} disabled={!canExportReports || !reportData.length || isExporting} className="px-4 py-2 rounded">
-                                    {isExporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
-                                </Button>
-                                <Button onClick={saveReport} disabled={!canSaveReports || !reportData.length || isSaving} className="px-4 py-2 rounded">
-                                    {isSaving ? <LoadingSpinner size="small" /> : 'Save'}
+                                <Button onClick={exportToCSV} disabled={!canExportReports || !reportData.length || loadingStates.exportingCSV} className="px-4 py-2 rounded">
+                                    {loadingStates.exportingCSV ? <LoadingSpinner size="small" /> : 'Export CSV'}
+                                </Button>                                <Button onClick={saveReport} disabled={!canSaveReports || !reportData.length || loadingStates.savingReport} className="px-4 py-2 rounded">
+                                    {loadingStates.savingReport ? <LoadingSpinner size="small" /> : 'Save'}
                                 </Button>
                             </div>
                         </div>
@@ -521,7 +518,7 @@ function UnifiedReporting() {
                         {/* Saved Reports */}
                         <div className={`p-6 rounded border ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
                             <h2 className="text-xl font-semibold mb-4">Saved Reports</h2>
-                            {loading ? <LoadingSpinner /> : availableReports.length ? (
+                            {loadingStates.fetchingReports ? <LoadingSpinner /> : availableReports.length ? (
                                 <div className="overflow-auto">
                                     <table className="min-w-full">
                                         <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}>
@@ -569,12 +566,10 @@ function UnifiedReporting() {
                                     </span>
                                 </Button>
                                 
-                                <div className="flex gap-2">
-                                    <Button onClick={fetchSignOutLogs} disabled={logsLoading} className="px-4 py-2 rounded">
-                                        {logsLoading ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
-                                    </Button>
-                                    <Button onClick={exportLogsToCsv} disabled={exporting || !logs.length} className="px-4 py-2 rounded">
-                                        {exporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
+                                <div className="flex gap-2">                                    <Button onClick={fetchSignOutLogs} disabled={loadingStates.fetchingSpecificLogs} className="px-4 py-2 rounded">
+                                        {loadingStates.fetchingSpecificLogs ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
+                                    </Button>                                    <Button onClick={exportLogsToCsv} disabled={loadingStates.exportingLogs || !logs.length} className="px-4 py-2 rounded">
+                                        {loadingStates.exportingLogs ? <LoadingSpinner size="small" /> : 'Export CSV'}
                                     </Button>
                                 </div>
                             </div>
@@ -677,7 +672,7 @@ function UnifiedReporting() {
                         </div>
 
                         {/* Table Section */}
-                        {logsLoading && !logs.length ? <LoadingSpinner /> : (
+                        {loadingStates.fetchingLogs && !logs.length ? <LoadingSpinner /> : (
                             <div className="overflow-auto rounded-lg border mb-4">
                                 <table className="min-w-full">
                                     <thead className={isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-700'}>
@@ -714,12 +709,11 @@ function UnifiedReporting() {
                                     </tbody>
                                 </table>
                             </div>
-                        )}
-                        {logsLoading && logs.length > 0 && <LoadingSpinner />}
-                        {hasMore && !logsLoading && logs.length > 0 && (
+                        )}                        {loadingStates.fetchingLogs && logs.length > 0 && <LoadingSpinner />}
+                        {hasMore && !loadingStates.loadingMoreLogs && logs.length > 0 && (
                             <div className="mt-4">
-                                <Button onClick={loadMore} className="w-full">
-                                    Load More
+                                <Button onClick={loadMore} className="w-full" disabled={loadingStates.loadingMoreLogs}>
+                                    {loadingStates.loadingMoreLogs ? <LoadingSpinner size="small" /> : 'Load More'}
                                 </Button>
                             </div>
                         )}

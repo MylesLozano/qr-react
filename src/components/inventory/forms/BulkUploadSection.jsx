@@ -43,8 +43,7 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
               ${isDarkMode ? 'file:bg-blue-900 file:text-white hover:file:bg-blue-800 text-gray-300' : 'text-gray-700'}
             `}
           />
-        </div>
-        <Button
+        </div>        <Button
           onClick={bulkUpload}
           disabled={isUploading || !csvData || csvData.length === 0}
           color="green"
