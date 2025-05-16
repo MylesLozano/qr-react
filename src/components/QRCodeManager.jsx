@@ -101,19 +101,32 @@ function QRCodeManager({
 
             // Draw the QR code with padding
             ctx.drawImage(img, padding, padding, size, size);
-            URL.revokeObjectURL(svgUrl);
+            URL.revokeObjectURL(svgUrl);            // Convert canvas to downloadable image and save to Firebase
+            canvas.toBlob(async (blob) => {
+                try {
+                    const fileName = `QR_${item?.name || 'code'}_${new Date().toISOString().split('T')[0]}.png`;
+                    
+                    // First save to Firebase
+                    const dataUrl = canvas.toDataURL('image/png');
+                    await handleQRCode(item.id, dataUrl, {
+                        qrData: JSON.stringify(localQrData),
+                        itemName: item.name,
+                        fileName: fileName
+                    });
+                    
+                    // Then create download
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = fileName;
+                    link.click();
+                    URL.revokeObjectURL(link.href); // Clean up
 
-            // Convert canvas to downloadable image
-            canvas.toBlob((blob) => {
-                const fileName = `QR_${item?.name || 'code'}_${new Date().toISOString().split('T')[0]}.png`;
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                link.click();
-                URL.revokeObjectURL(link.href); // Clean up
+                    toast.success('QR code saved and downloaded successfully');
+                } catch (error) {
+                    handleError(error);
+                    toast.error('Error saving QR code to database');
+                }
             });
-
-            toast.success('QR code downloaded successfully');
         } catch (err) {
             handleError(err);
             toast.error('Failed to download QR code');

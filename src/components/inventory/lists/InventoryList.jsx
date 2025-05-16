@@ -16,11 +16,11 @@ function InventoryList({
   role
 }) {
   const { isDarkMode } = useTheme();
-
   // Permission checks
   const canEdit = canPerformAction(role, 'edit_inventory');
   const canDelete = canPerformAction(role, 'delete_inventory');
-  const canGenerateQr = canPerformAction(role, 'generate_reports');
+  // Allow all users to view QR codes, but generating might be restricted
+  const canGenerateQr = true; // Changed to always allow QR button access
 
   const stockStatusColor = (qty) => {
     if (qty <= 0) return "text-red-500";
@@ -90,14 +90,17 @@ function InventoryList({
                   >
                     Delete
                   </Button>
-                )}
-                {canGenerateQr && (
+                )}                {canGenerateQr && (
                   <Button
                     onClick={() => onPreviewQr(item)}
                     color="green"
                     size="sm"
-                    className="min-w-[60px]"
+                    className="min-w-[60px] flex items-center gap-1"
+                    title="Generate/View QR Code"
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    </svg>
                     QR
                   </Button>
                 )}

@@ -1,5 +1,6 @@
 // File: src/components/inventory/QRCodePreview.jsx
 
+import { useState, useEffect } from 'react';
 import { useTheme } from '../../../hooks/useTheme';
 import QRCodeManager from '../../QRCodeManager';
 import Button from '../../Button';
@@ -13,6 +14,26 @@ function QRCodePreview({
   onClose = () => {} 
 }) {
   const { isDarkMode } = useTheme();
+  const [localQrData, setLocalQrData] = useState(qrData);
+  
+  // Listen for QR code generation events
+  useEffect(() => {
+    const handleQrGenerated = () => {
+      if (item && item.qrData) {
+        setLocalQrData(item.qrData);
+      }
+    };
+    
+    window.addEventListener('qr-generated', handleQrGenerated);
+    return () => {
+      window.removeEventListener('qr-generated', handleQrGenerated);
+    };
+  }, [item]);
+  
+  // Update local state when props change
+  useEffect(() => {
+    setLocalQrData(qrData);
+  }, [qrData]);
 
   if (!item) return null;
 
@@ -62,18 +83,43 @@ function QRCodePreview({
                     Category: {item.category}
                   </p>
                 )}
-              </div>
-
-              {isGenerating ? (
+              </div>              {isGenerating ? (
                 <div className="flex items-center justify-center p-4">
                   <div className="animate-pulse">Generating QR data...</div>
-                </div>
-              ) : qrData && (
+                </div>              ) : localQrData ? (
                 <QRCodeManager
                   item={item}
-                  qrData={qrData}
+                  qrData={localQrData}
                   showActions={true}
                 />
+              ): (
+                <div className="flex flex-col items-center gap-4 p-4">
+                  <div className="text-center">No QR code found for this item.</div>
+                  <Button 
+                    color="blue"
+                    onClick={() => {
+                      // Generate basic QR data
+                      const newQrData = {
+                        id: item.id,
+                        name: item.name,
+                        serialNumber: item.serialNumber || '',
+                        category: item.category || '',
+                        lab: item.lab || '',
+                        itemCondition: item.itemCondition || '',
+                        timestamp: new Date().toISOString(),
+                      };
+                      
+                      // Set the local state directly since we're accessing the object reference
+                      item.qrData = newQrData;
+                      
+                      // Force rerender with the new data
+                      if (typeof window !== 'undefined')
+                        window.dispatchEvent(new Event('qr-generated'));
+                    }}
+                  >
+                    Generate QR Code
+                  </Button>
+                </div>
               )}
             </>
           )}

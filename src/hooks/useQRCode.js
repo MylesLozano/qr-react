@@ -1,16 +1,21 @@
 // File: src/hooks/useQRCode.js
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   saveQRCodeToFirestore,
   getQRCodeFromFirestore,
   updateQRCodeLockStatus,
   logAudit,
 } from "../firebase";
+import { calculateQrStats } from "../utils/inventoryUtils";
 
-export function useQRCode(user) {
+export function useQRCode(items = [], user) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [qrStats, setQrStats] = useState({ totalWithQr: 0, totalWithoutQr: 0 });
+  const [qrPreview, setQrPreview] = useState(null);
+  const [generatedQrData, setGeneratedQrData] = useState(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
 
   const checkExistingRequest = useCallback(async (itemId) => {
     try {
@@ -89,11 +94,86 @@ export function useQRCode(user) {
     },
     [user?.email]
   );
+  // Generate QR data for an item
+  const generateQrData = useCallback((item) => {
+    if (!item || !item.id) return null;
+
+    return {
+      id: item.id,
+      name: item.name,
+      serialNumber: item.serialNumber || "",
+      category: item.category || "",
+      lab: item.lab || "",
+      itemCondition: item.itemCondition || "",
+      timestamp: new Date().toISOString(),
+    };
+  }, []);
+
+  // Preview QR code for an item
+  const previewQrCode = useCallback(
+    async (item) => {
+      if (!item || !item.id) {
+        setError("Invalid item selected");
+        return;
+      }
+
+      try {
+        setIsGeneratingQr(true);
+        setQrPreview(item);
+
+        // First check if we already have a QR code stored for this item
+        const existingQR = await checkExistingRequest(item.id);
+
+        if (existingQR && existingQR.qrCode) {
+          // Use the stored QR code data
+          try {
+            const qrData = existingQR.qrData
+              ? JSON.parse(existingQR.qrData)
+              : null;
+            setGeneratedQrData(qrData || generateQrData(item));
+          } catch (err) {
+            console.error("Error parsing stored QR data:", err);
+            setGeneratedQrData(generateQrData(item));
+          }
+        } else {
+          // Generate new QR code data
+          setGeneratedQrData(generateQrData(item));
+        }
+      } catch (err) {
+        setError(err.message || "Error generating QR preview");
+        console.error("QR preview error:", err);
+      } finally {
+        setIsGeneratingQr(false);
+      }
+    },
+    [checkExistingRequest, generateQrData]
+  );
+
+  // Close QR preview
+  const closeQrPreview = useCallback(() => {
+    setQrPreview(null);
+    setGeneratedQrData(null);
+    setError(null);
+  }, []);
+
+  // Update QR stats when items change
+  useEffect(() => {
+    if (Array.isArray(items) && items.length > 0) {
+      setQrStats(calculateQrStats(items));
+    }
+  }, [items]);
 
   return {
     loading,
     error,
     handleQRCode,
     updateQRLock,
+    qrStats,
+    qrPreview,
+    generatedQrData,
+    isGeneratingQr,
+    previewQrCode,
+    closeQrPreview,
+    qrError: error,
   };
 }
