@@ -12,7 +12,6 @@ import { useTheme } from '../hooks/useTheme';
 
 // Constants
 const MAX_QR_SIZE = 256;
-
 function QRCodeManager({
     item,
     qrData,
