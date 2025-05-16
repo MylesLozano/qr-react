@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import PropTypes from 'prop-types';
 
 function Tab({ 

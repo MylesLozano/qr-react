@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   collection,
   onSnapshot,
   doc,
   updateDoc,
   query,
-  where,
   orderBy,
   writeBatch,
   serverTimestamp
@@ -17,13 +16,89 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
-import { useTheme } from "../../context/ThemeContext";
-import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../hooks/useTheme";
+import { useAuth } from "../../hooks/useAuth";
 import { canPerformAction } from "../../utils/roleUtils";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import Button from "../../components/Button";
 
+// Add this component at the top of your file, after imports
+  const RequestDetailsModal = ({ request, onClose, isDarkMode }) => {
+    if (!request) return null;
+    
+    return (
+      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isDarkMode ? 'bg-black/70' : 'bg-gray-500/70'}`}>
+        <div className={`w-full max-w-2xl rounded-lg shadow-xl p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Request Details</h2>
+            <button 
+              onClick={onClose}
+              aria-label="Close details"
+              className={`p-2 rounded-full hover:bg-gray-200 ${isDarkMode ? 'hover:bg-gray-700' : ''}`}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <h3 className="font-semibold">Item</h3>
+              <p>{request.itemName}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Quantity</h3>
+              <p>{request.quantity}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Lab</h3>
+              <p>{request.lab}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Status</h3>
+              <p className="capitalize">{request.status}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Requested By</h3>
+              <p>{request.userEmail}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Date Requested</h3>
+              <p>{request.createdAt?.toDate().toLocaleString()}</p>
+            </div>
+            {request.updatedAt && (
+              <>
+                <div>
+                  <h3 className="font-semibold">Last Updated</h3>
+                  <p>{new Date(request.updatedAt.toDate()).toLocaleString()}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold">Updated By</h3>
+                  <p>{request.updatedBy}</p>
+                </div>
+              </>
+            )}
+          </div>
+          
+          {request.reason && (
+            <div className="mb-4">
+              <h3 className="font-semibold">Reason for Request</h3>
+              <p>{request.reason}</p>
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              onClick={onClose}
+              className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 /**
  * Requests component - Manages inventory requests
  * @component
@@ -143,6 +218,17 @@ function Requests() {
       if (unsubscribe) unsubscribe();
     };
   }, [user]);
+
+  // Add this within your Requests component, alongside other handler functions
+  const handleDateRangeChange = useCallback((field, value) => {
+    const newDateRange = { ...dateRange, [field]: value };
+    setDateRange(newDateRange);
+    
+    // Validate date range if both dates are set
+    if (newDateRange.start && newDateRange.end) {
+      validateDateRange();
+    }
+  }, [dateRange, validateDateRange]);
 
   // Validate date range
   const validateDateRange = useCallback(() => {
@@ -370,7 +456,7 @@ function Requests() {
   const Row = useCallback(({ index, style }) => {
     const request = filteredRequests[index];
     const isSelected = selectedRequests.has(request.id);
-
+  
     return (
       <div
         style={style}
@@ -504,23 +590,26 @@ function Requests() {
                   />
                 </div>
 
+                {/* Date Range Inputs */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Date Range</label>
                   <div className="flex gap-2">
                     <input
                       type="date"
                       value={dateRange.start}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                      className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                        }`}
+                      onChange={(e) => handleDateRangeChange('start', e.target.value)}
+                      className={`p-2 rounded border transition-colors duration-200 ${
+                        isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                      }`}
                       aria-label="Start date"
                     />
                     <input
                       type="date"
                       value={dateRange.end}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                      className={`p-2 rounded border transition-colors duration-200 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                        }`}
+                      onChange={(e) => handleDateRangeChange('end', e.target.value)}
+                      className={`p-2 rounded border transition-colors duration-200 ${
+                        isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                      }`}
                       aria-label="End date"
                     />
                   </div>
@@ -594,6 +683,14 @@ function Requests() {
           </div>
         )}
       </div>
+      {/* Modal for request details */}
+      {showDetails && (
+        <RequestDetailsModal
+          request={showDetails}
+          onClose={() => setShowDetails(null)}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </ErrorBoundary>
   );
 }

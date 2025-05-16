@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import LoadingSpinner from './LoadingSpinner';
-import { useTheme } from '../context/ThemeContext';
-import { getThemeStyles } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
+import { getThemeStyles } from '../utils/themeUtils';
 
 function SplashScreen({ minDuration = 2000 }) {
     const { isDarkMode } = useTheme();

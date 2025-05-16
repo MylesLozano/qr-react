@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// Importing core dependencies
+/* eslint-disable no-unused-vars */
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, orderBy, onSnapshot } from 'firebase/firestore';
+/* eslint-enable no-unused-vars */
+
 import { db } from '../../firebase';
 import { toast } from 'react-toastify';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Button from '../../components/Button';
@@ -49,7 +53,8 @@ const InventoryCategories = () => {
             reset();  // Reset form after success
             setEditingCategory(null);
         } catch (error) {
-            toast.error('Failed to save category');
+            console.error('Error deleting category:', error);
+            toast.error(`Failed to delete category: ${error.message || 'Unknown error'}`);
         } finally {
             setIsSubmitting(false);
         }

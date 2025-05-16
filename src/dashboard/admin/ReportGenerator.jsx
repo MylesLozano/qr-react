@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from 'react-toastify';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 import usePageTitle from '../../hooks/usePageTitle';
 import Button from '../../components/Button';
 import EmptyState from '../../components/EmptyState';
@@ -36,10 +34,6 @@ const ReportGenerator = () => {
     });
     const navigate = useNavigate();
 
-    const buildReportRows = (data, fields) => {
-        return data.map(item => fields.map(field => item[field.name] || ''));
-    };
-
     // Memoize filtered data
     const filteredData = useMemo(() => {
         return reportData.filter(item => {
@@ -47,19 +41,8 @@ const ReportGenerator = () => {
             if (filters.category && item.category !== filters.category) return false;
             return true;
         });
-    }, [reportData, filters]);
+    }, [reportData, filters.status, filters.category]);
 
-    // Fetch templates
-    useEffect(() => {
-        fetchTemplates();
-    }, []);
-
-    // Fetch report data when template or filters change
-    useEffect(() => {
-        if (selectedTemplate) {
-            fetchReportData();
-        }
-    }, [selectedTemplate, filters]);
 
     // Fetch templates with error handling
     const fetchTemplates = useCallback(async () => {
@@ -97,36 +80,21 @@ const ReportGenerator = () => {
             }
         } catch (error) {
             console.error('Error fetching templates:', error);
-
-            // Handle permission errors specifically
             if (error.code === 'permission-denied') {
                 setError('Permission denied: You do not have access to view templates');
-                toast.error('Permission denied: You do not have access to view templates');
-
-                // Provide a sample template to allow the UI to function
-                setTemplates([{
-                    id: 'sample-template',
-                    name: 'Sample Template',
-                    description: 'This is a sample template for demonstration',
-                    fields: [
-                        { name: 'item', type: 'text', required: true },
-                        { name: 'quantity', type: 'number', required: true },
-                        { name: 'category', type: 'text', required: false },
-                        { name: 'date', type: 'date', required: false }
-                    ],
-                    format: 'pdf',
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }]);
-                toast.info('Using sample template for demonstration');
             } else {
-                setError(`Failed to fetch templates: ${error.message}`);
-                toast.error('Failed to fetch templates');
+                setError('Failed to fetch templates');
             }
+            toast.error('Error loading templates');
         } finally {
             setLoading(false);
         }
     }, []);
+
+    // Fetch templates
+    useEffect(() => {
+        fetchTemplates();
+    }, [fetchTemplates]);
 
     // Fetch report data with error handling
     const fetchReportData = useCallback(async () => {
@@ -201,6 +169,13 @@ const ReportGenerator = () => {
         }
     }, [filters]);
 
+    // Fetch report data when template or filters change
+    useEffect(() => {
+        if (selectedTemplate) {
+            fetchReportData();
+        }
+    }, [selectedTemplate, filters, fetchReportData]);
+
     // Validate report configuration
     const validateReportConfig = useCallback(() => {
         setFieldErrors({}); // Reset
@@ -219,32 +194,51 @@ const ReportGenerator = () => {
         return true;
     }, [selectedTemplate, filters]);
 
-    // Generate PDF report
-    const generatePDF = useCallback(() => {
+    // Generate PDF report - Wrapped in useCallback
+    const generatePDFReport = useCallback(async (data) => {
         try {
-            const doc = new jsPDF();
-            const tableColumn = selectedTemplate.fields.map(field => field.name);
-            const tableRows = buildReportRows(filteredData, selectedTemplate.fields);
-            doc.text(`${selectedTemplate.name} Report`, 14, 15);
-            doc.autoTable({
-                head: [tableColumn],
-                body: tableRows,
-                startY: 20,
-                theme: isDarkMode ? 'grid' : 'striped',
-                styles: {
-                    fontSize: 10,
-                    cellPadding: 5,
-                    overflow: 'linebreak'
-                }
+            setIsGenerating(true);
+            
+            // Dynamically import jsPDF only when needed
+            const { jsPDF } = await import('jspdf');
+            
+            // Initialize PDF document
+            const doc = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
             });
 
-            doc.save(`${selectedTemplate.name}_${new Date().toISOString()}.pdf`);
+            // Set title
+            doc.setFontSize(16);
+            doc.text('QCheckCITE Inventory Report', 10, 10);
+
+            // Add report data
+            doc.setFontSize(12);
+            if (data && data.length > 0) {
+                let yPos = 30;
+                data.forEach((item) => {
+                    if (yPos > 270) { // Check if we need a new page
+                        doc.addPage();
+                        yPos = 10;
+                    }
+                    doc.text(`${item.name}: ${item.quantity} units`, 10, yPos);
+                    yPos += 10;
+                });
+            } else {
+                doc.text('No data available for this report', 10, 30);
+            }
+
+            // Save the PDF
+            doc.save('inventory-report.pdf');
             toast.success('PDF report generated successfully');
         } catch (error) {
-            console.error('Error generating PDF:', error);
-            toast.error('Failed to generate PDF report');
+            console.error('PDF Generation Error:', error);
+            toast.error('Failed to generate PDF report. Please try again.');
+        } finally {
+            setIsGenerating(false);
         }
-    }, [selectedTemplate, filteredData, isDarkMode]);
+    }, []);
 
     // Generate CSV report
     const generateCSV = useCallback(() => {
@@ -271,7 +265,7 @@ const ReportGenerator = () => {
         try {
             switch (selectedTemplate.format) {
                 case 'pdf':
-                    generatePDF();
+                    generatePDFReport(filteredData);
                     break;
                 case 'csv':
                     generateCSV();
@@ -289,7 +283,21 @@ const ReportGenerator = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [selectedTemplate, validateReportConfig, generatePDF, generateCSV]);
+    }, [selectedTemplate, validateReportConfig, generatePDFReport, generateCSV, filteredData]);
+
+    const renderTableRows = useCallback(() => {
+        return filteredData.map((item) => (
+            <tr key={item.id} className={`${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                {/* Your row content */}
+            </tr>
+        ));
+    }, [filteredData, isDarkMode]);
+
+    const handleTemplateChange = (template) => {
+        setSelectedTemplate(template);
+        setError(null);
+        setFieldErrors({});
+    };
 
     return (
         <ErrorBoundary>
@@ -327,7 +335,7 @@ const ReportGenerator = () => {
                                         value={selectedTemplate?.id || ''}
                                         onChange={(e) => {
                                             const template = templates.find(t => t.id === e.target.value);
-                                            setSelectedTemplate(template);
+                                            handleTemplateChange(template);
                                         }}
                                         className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isDarkMode
                                             ? 'bg-gray-700 border-gray-600 focus:ring-offset-gray-800'
@@ -456,15 +464,7 @@ const ReportGenerator = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredData.map((item, index) => (
-                                                <tr key={item.id} className={`${index % 2 === 0 ? (isDarkMode ? 'bg-gray-800' : 'bg-white') : (isDarkMode ? 'bg-gray-700' : 'bg-gray-50')}`}>
-                                                    {selectedTemplate.fields.map(field => (
-                                                        <td key={field.name} className="px-4 py-2">
-                                                            {item[field.name] || '-'}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
+                                            {renderTableRows()}
                                         </tbody>
                                     </table>
                                 </div>

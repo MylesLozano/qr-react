@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import logo from './assets/QCheckCITE_Logo.png';
 import { useNavigate, useLocation } from "react-router-dom";
 import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
@@ -7,10 +7,10 @@ import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import usePageTitle from "./hooks/usePageTitle";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useTheme } from "./context/ThemeContext";
+import { useTheme } from "./hooks/useTheme";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 import { getDashboardPath } from "./utils/roleUtils";
 
 // Constants

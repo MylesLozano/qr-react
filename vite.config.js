@@ -5,37 +5,36 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 3000, // Set the port if needed
+    port: 3000,
   },
   build: {
     outDir: "dist",
-    chunkSizeWarningLimit: 600, // Increased from default 500kb to accommodate vendor-firebase chunk
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
-      external: ["jspdf", "jspdf-autotable"],
       output: {
-        globals: {
-          jspdf: "jsPDF",
-          "jspdf-autotable": "jsPDFAutoTable",
-        },
+        format: 'es',
         manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-core": ["react", "react-dom", "react-router-dom"],
           "vendor-firebase": [
             "firebase/app",
             "firebase/auth",
             "firebase/firestore",
           ],
           "vendor-ui": ["react-toastify", "react-virtualized-auto-sizer"],
-          "dashboard-common": [
-            "./src/dashboard/BaseDashboard.jsx",
-            "./src/components/LoadingSpinner.jsx",
-            "./src/components/ErrorBoundary.jsx",
-            "./src/components/Button.jsx",
-          ],
         },
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'js/[name]-[hash].js',
+        entryFileNames: 'js/[name]-[hash].js',
       },
     },
   },
   optimizeDeps: {
-    include: ["jspdf", "jspdf-autotable"],
+    include: ["jspdf"],
+    esbuildOptions: {
+      target: 'es2020',
+    },
+  },
+  define: {
+    "process.env.NODE_DEBUG": "false",
   },
 });

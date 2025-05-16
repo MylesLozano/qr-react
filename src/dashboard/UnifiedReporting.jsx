@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import usePageTitle from '../hooks/usePageTitle';
 import {
     collection,
@@ -16,8 +16,8 @@ import { db, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -58,36 +58,45 @@ const getActionColor = (action) => {
  * @component
  * @returns {JSX.Element} The rendered UnifiedReporting component
  */
-const UnifiedReporting = () => {
+function UnifiedReporting() {
     usePageTitle('QCheckCITE - Reporting');
     const { isDarkMode } = useTheme();
     const { user, role } = useAuth();
 
     // Tabs state
-    const [activeTab, setActiveTab] = useState('reports');
-
-    // === SHARED STATE ===
-    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('reports');    // === SHARED STATE ===
     const [error, setError] = useState(null);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    
+    // === LOADING STATES ===
+    const [loadingStates, setLoadingStates] = useState({
+        initialLoad: true,            // Initial page load
+        fetchingReports: false,       // Fetching saved reports
+        generatingReport: false,      // Generating new report
+        exportingCSV: false,          // Exporting report to CSV
+        savingReport: false,          // Saving report to database
+        fetchingLogs: false,          // Fetching audit logs
+        exportingLogs: false,         // Exporting audit logs to CSV
+        loadingMoreLogs: false,       // Loading more audit logs
+        fetchingSpecificLogs: false   // Fetching specific log types (sign-out logs)
+    });
+
+    // Helper function to update loading states
+    const updateLoadingState = useCallback((stateKey, value) => {
+        setLoadingStates(prev => ({ ...prev, [stateKey]: value }));
+    }, []);
 
     // === REPORTS STATE ===
     const [reportType, setReportType] = useState('inventory');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterLab, setFilterLab] = useState('all');
-    const [isGenerating, setIsGenerating] = useState(false);
     const [reportData, setReportData] = useState([]);
-    const [availableReports, setAvailableReports] = useState([]);
-    const [isExporting, setIsExporting] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-
-    // === AUDIT LOGS STATE ===
+    const [availableReports, setAvailableReports] = useState([]);    // === AUDIT LOGS STATE ===
     const [logs, setLogs] = useState([]);
-    const [logsLoading, setLogsLoading] = useState(true);
-    const [exporting, setExporting] = useState(false);
     const [lastDoc, setLastDoc] = useState(null);
     const [hasMore, setHasMore] = useState(true);
     const [filters, setFilters] = useState({ action: '', entityType: '' });
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     // === PERMISSION CHECKS ===
     const canGenerateReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
@@ -144,14 +153,12 @@ const UnifiedReporting = () => {
         { value: 'report', label: 'Report' },
         { value: 'auditLog', label: 'Audit Log' },
         { value: 'system', label: 'System' },
-    ], []);
-
-    // === REPORTS EFFECT: load saved reports ===
+    ], []);    // === REPORTS EFFECT: load saved reports ===
     useEffect(() => {
         if (!user || activeTab !== 'reports') return;
         let unsubscribe;
         (async () => {
-            setLoading(true);
+            updateLoadingState('fetchingReports', true);
             try {
                 const q = query(collection(db, 'reports'), orderBy('generatedAt', 'desc'));
                 unsubscribe = onSnapshot(q, snap => {
@@ -166,11 +173,11 @@ const UnifiedReporting = () => {
                 toast.error('Initialization error');
                 setError('Initialization error');
             } finally {
-                setLoading(false);
+                updateLoadingState('fetchingReports', false);
+                updateLoadingState('initialLoad', false);
             }
-        })();
-        return () => unsubscribe && unsubscribe();
-    }, [user, activeTab]);
+        })();        return () => unsubscribe && unsubscribe();
+    }, [user, activeTab, updateLoadingState]);
 
     // === VALIDATION ===
     const validateReportParams = useCallback(() => {
@@ -179,13 +186,11 @@ const UnifiedReporting = () => {
             return false;
         }
         return true;
-    }, [dateRange]);
-
-    // === REPORTS HANDLERS ===
+    }, [dateRange]);    // === REPORTS HANDLERS ===
     const generateReport = useCallback(async () => {
         if (!canGenerateReports) return toast.error("No permission to generate");
         if (!validateReportParams()) return;
-        setIsGenerating(true);
+        updateLoadingState('generatingReport', true);
         setReportData([]); // Clear previous data
         setError(null); // Clear previous errors
         try {
@@ -265,34 +270,34 @@ const UnifiedReporting = () => {
             } else {
                 toast.error('Failed to generate report: ' + err.message);
                 setError('Failed to generate report.');
-            }
-        } finally {
-            setIsGenerating(false);
+            }        } finally {
+            updateLoadingState('generatingReport', false);
         }
-    }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user, validateReportParams]);
-
+    }, [canGenerateReports, reportType, dateRange, filterStatus, filterLab, user, validateReportParams, updateLoadingState]);
+    
     const exportToCSV = useCallback(async () => {
         if (!canExportReports) return toast.error("No permission to export");
         if (!reportData.length) return toast.warning('No data to export');
-        setIsExporting(true);
+        updateLoadingState('exportingCSV', true);
         try {
             const csv = Papa.unparse(reportData);
             saveAs(new Blob([csv], { type: 'text/csv' }), `${reportType}_report_${new Date().toISOString().slice(0, 10)}.csv`);
             await logAudit('report_exported', user.email, 'report', {
                 recordCount: reportData.length,
                 reportType,
-            });
-            toast.success('Exported CSV');
+            });            toast.success('Exported CSV');
         } catch (err) {
             console.error(err);
             toast.error('Export failed');
-        } finally { setIsExporting(false); }
-    }, [canExportReports, reportData, reportType, user]);
-
+        } finally { 
+            updateLoadingState('exportingCSV', false); 
+        }
+    }, [canExportReports, reportData, reportType, user, updateLoadingState]);
+    
     const saveReport = useCallback(async () => {
         if (!canSaveReports) return toast.error("No permission to save");
         if (!reportData.length) return toast.warning('No data to save');
-        setIsSaving(true);
+        updateLoadingState('savingReport', true);
         try {
             await addDoc(collection(db, 'reports'), {
                 type: reportType,
@@ -308,9 +313,8 @@ const UnifiedReporting = () => {
             toast.success('Report saved');
         } catch (err) {
             console.error(err);
-            toast.error('Save failed');
-        } finally { setIsSaving(false); }
-    }, [canSaveReports, reportData, reportType, dateRange, filterStatus, filterLab, user]);
+            toast.error('Save failed');        } finally { updateLoadingState('savingReport', false); }
+    }, [canSaveReports, reportData, reportType, dateRange, filterStatus, filterLab, user, updateLoadingState]);
 
     // === AUDIT LOGS HANDLERS ===
     const safeToString = useCallback(v => v == null ? 'N/A' : typeof v === 'object' ? JSON.stringify(v) : String(v), []);
@@ -326,11 +330,9 @@ const UnifiedReporting = () => {
             userAgent: safeToString(d.userAgent),
             platform: safeToString(d.platform)
         };
-    }, [safeToString]);
-
-    const fetchLogs = useCallback(async () => {
+    }, [safeToString]);    const fetchLogs = useCallback(async () => {
         if (!canViewAuditLogs) return setError("No permission to view logs");
-        setLogsLoading(true);
+        updateLoadingState('fetchingLogs', true);
         try {
             let constraints = [orderBy('timestamp', 'desc'), limit(20)];
             if (filters.action) constraints.push(where('action', '==', filters.action));
@@ -345,12 +347,14 @@ const UnifiedReporting = () => {
         } catch (err) {
             console.error(err);
             setError('Failed to fetch logs');
-        } finally { setLogsLoading(false); }
-    }, [canViewAuditLogs, filters, dateRange, processLogData]);
-
+        } finally { 
+            updateLoadingState('fetchingLogs', false);            updateLoadingState('initialLoad', false);
+        }
+    }, [canViewAuditLogs, filters, dateRange, processLogData, updateLoadingState]);
+    
     const loadMore = useCallback(async () => {
         if (!lastDoc || !hasMore || !canViewAuditLogs) return;
-        setLogsLoading(true);
+        updateLoadingState('loadingMoreLogs', true);
         try {
             let constraints = [orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(20)];
             if (filters.action) constraints.push(where('action', '==', filters.action));
@@ -361,16 +365,14 @@ const UnifiedReporting = () => {
             const arr = snap.docs.map(processLogData);
             setLogs(prev => [...prev, ...arr]);
             setLastDoc(snap.docs[snap.docs.length - 1] || null);
-            setHasMore(snap.docs.length === 20);
-        } catch (err) {
-            console.error(err);
-            setError('Failed to load more logs');
-        } finally { setLogsLoading(false); }
-    }, [lastDoc, hasMore, canViewAuditLogs, filters, dateRange, processLogData]);
+            setHasMore(snap.docs.length === 20);        } catch (err) {
+            console.error(err);            setError('Failed to load more logs');
+        } finally { updateLoadingState('loadingMoreLogs', false); }
+    }, [lastDoc, hasMore, canViewAuditLogs, filters, dateRange, processLogData, updateLoadingState]);
 
     const exportLogsToCsv = useCallback(async () => {
         if (!canExportReports) return toast.error("No permission to export");
-        setExporting(true);
+        updateLoadingState('exportingLogs', true);
         try {
             const csvData = logs.map(l => ({ ...l, details: typeof l.details === 'object' ? JSON.stringify(l.details) : String(l.details || '') }));
             const csv = Papa.unparse(csvData, { header: true });
@@ -380,17 +382,17 @@ const UnifiedReporting = () => {
                 filters,
                 dateRange,
             });
-            toast.success('Logs exported');
-        } catch (err) {
-            console.error(err); toast.error('Export failed');
-        } finally { setExporting(false); }
-    }, [canExportReports, logs, user, filters, dateRange]);
+            toast.success('Logs exported');        } catch (err) {
+            console.error(err);
+            toast.error('Export failed');
+        } finally { updateLoadingState('exportingLogs', false); }
+    }, [canExportReports, logs, user, filters, dateRange, updateLoadingState]);
 
     // Function to filter for sign-out events specifically
     const fetchSignOutLogs = useCallback(async () => {
         if (!canViewAuditLogs) return;
         try {
-            setLogsLoading(true);
+            updateLoadingState('fetchingSpecificLogs', true);
             const signOutQuery = query(
                 collection(db, 'auditLogs'),
                 where('action', '==', 'user_signed_out'),
@@ -406,19 +408,16 @@ const UnifiedReporting = () => {
             } else {
                 console.log('No sign-out logs found');
                 toast.info('No sign-out logs found');
-            }
-
-            // Add a tab option to view only sign-out logs
+            }            // Add a tab option to view only sign-out logs
             setLogs(signOutLogs);
             setLastDoc(snap.docs[snap.docs.length - 1] || null);
             setHasMore(snap.docs.length === 20);
         } catch (err) {
             console.error('Error fetching sign-out logs:', err);
-            toast.error('Failed to fetch sign-out logs');
-        } finally {
-            setLogsLoading(false);
+            toast.error('Failed to fetch sign-out logs');        } finally {
+            updateLoadingState('fetchingSpecificLogs', false);
         }
-    }, [canViewAuditLogs, processLogData]);
+    }, [canViewAuditLogs, processLogData, updateLoadingState]);
 
     // fetch audit logs on tab switch
     useEffect(() => { if (activeTab === 'auditLogs') fetchLogs(); }, [activeTab, fetchLogs]);
@@ -431,7 +430,7 @@ const UnifiedReporting = () => {
 
     return (
         <ErrorBoundary>
-            <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
+            <div className={`max-w-7xl mx-auto p-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
                 <h1 className="text-2xl font-bold mb-6">Unified Reporting</h1>
 
                 {/* Tabs */}
@@ -489,15 +488,13 @@ const UnifiedReporting = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="mt-6 flex gap-4 flex-wrap">
-                                <Button onClick={generateReport} disabled={!canGenerateReports || isGenerating} className="px-4 py-2 rounded">
-                                    {isGenerating ? <LoadingSpinner size="small" /> : 'Generate'}
+                            <div className="mt-6 flex gap-4 flex-wrap">                                <Button onClick={generateReport} disabled={!canGenerateReports || loadingStates.generatingReport} className="px-4 py-2 rounded">
+                                    {loadingStates.generatingReport ? <LoadingSpinner size="small" /> : 'Generate'}
                                 </Button>
-                                <Button onClick={exportToCSV} disabled={!canExportReports || !reportData.length || isExporting} className="px-4 py-2 rounded">
-                                    {isExporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
-                                </Button>
-                                <Button onClick={saveReport} disabled={!canSaveReports || !reportData.length || isSaving} className="px-4 py-2 rounded">
-                                    {isSaving ? <LoadingSpinner size="small" /> : 'Save'}
+                                <Button onClick={exportToCSV} disabled={!canExportReports || !reportData.length || loadingStates.exportingCSV} className="px-4 py-2 rounded">
+                                    {loadingStates.exportingCSV ? <LoadingSpinner size="small" /> : 'Export CSV'}
+                                </Button>                                <Button onClick={saveReport} disabled={!canSaveReports || !reportData.length || loadingStates.savingReport} className="px-4 py-2 rounded">
+                                    {loadingStates.savingReport ? <LoadingSpinner size="small" /> : 'Save'}
                                 </Button>
                             </div>
                         </div>
@@ -520,7 +517,7 @@ const UnifiedReporting = () => {
                         {/* Saved Reports */}
                         <div className={`p-6 rounded border ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
                             <h2 className="text-xl font-semibold mb-4">Saved Reports</h2>
-                            {loading ? <LoadingSpinner /> : availableReports.length ? (
+                            {loadingStates.fetchingReports ? <LoadingSpinner /> : availableReports.length ? (
                                 <div className="overflow-auto">
                                     <table className="min-w-full">
                                         <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}>
@@ -531,17 +528,21 @@ const UnifiedReporting = () => {
                                                 <th className="px-4 py-2 text-left">Records</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            {availableReports.map(r => (<tr key={r.id} className="border-b">
-                                                <td className="px-4 py-2">{r.type}</td>
-                                                <td className="px-4 py-2">{r.generatedBy}</td>
-                                                <td className="px-4 py-2">{r.generatedAt?.toDate().toLocaleString()}</td>
-                                                <td className="px-4 py-2">{r.data.length}</td>
-                                            </tr>))}
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            {availableReports.map(r => (
+                                                <tr key={r.id} className={`hover:${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">{r.type}</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">{r.generatedBy}</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                        {r.generatedAt?.toDate().toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm">{r.data.length}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
-                            ) : <p className="text-center">No saved reports.</p>}
+                            ) : <p className="text-center py-4">No saved reports.</p>}
                         </div>
                     </>
                 )}
@@ -549,28 +550,128 @@ const UnifiedReporting = () => {
                 {/* Audit Logs Tab */}
                 {activeTab === 'auditLogs' && canViewAuditLogs && (
                     <>
-                        <div className="flex justify-between mb-4">
-                            <div className="flex gap-4 flex-wrap">
-                                <select value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} className="p-2 rounded border">
-                                    {actionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                                <select value={filters.entityType} onChange={e => setFilters(f => ({ ...f, entityType: e.target.value }))} className="p-2 rounded border">
-                                    {entityOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                                <input type="date" value={dateRange.start} onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))} className="p-2 rounded border" />
-                                <input type="date" value={dateRange.end} onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} className="p-2 rounded border" />
-                                <Button onClick={fetchLogs} className="px-4 py-2 rounded">Filter</Button>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button onClick={fetchSignOutLogs} disabled={logsLoading} className="px-4 py-2 rounded">
-                                    {logsLoading ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
+                        <div className="relative">
+                            {/* Filter Button */}
+                            <div className="flex justify-between items-center mb-4">
+                                <Button 
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                    aria-expanded={isFilterOpen}
+                                    aria-haspopup="true"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <span>Filters</span>
+                                        <span className={`transform transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}>▼</span>
+                                    </span>
                                 </Button>
-                                <Button onClick={exportLogsToCsv} disabled={exporting || !logs.length} className="px-4 py-2 rounded">
-                                    {exporting ? <LoadingSpinner size="small" /> : 'Export CSV'}
-                                </Button>
+                                
+                                <div className="flex gap-2">                                    <Button onClick={fetchSignOutLogs} disabled={loadingStates.fetchingSpecificLogs} className="px-4 py-2 rounded">
+                                        {loadingStates.fetchingSpecificLogs ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
+                                    </Button>                                    <Button onClick={exportLogsToCsv} disabled={loadingStates.exportingLogs || !logs.length} className="px-4 py-2 rounded">
+                                        {loadingStates.exportingLogs ? <LoadingSpinner size="small" /> : 'Export CSV'}
+                                    </Button>
+                                </div>
                             </div>
+
+                            {/* Filter Dropdown */}
+                            {isFilterOpen && (
+                                <div className={`absolute z-10 mt-1 w-80 rounded-md shadow-lg ${
+                                    isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                                }`}>
+                                    <div className="p-4 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Action Type</label>
+                                            <select 
+                                                value={filters.action} 
+                                                onChange={e => setFilters(f => ({ ...f, action: e.target.value }))}
+                                                className={`w-full p-2 rounded border ${
+                                                    isDarkMode 
+                                                        ? 'bg-gray-700 border-gray-600 text-white' 
+                                                        : 'bg-white border-gray-300 text-black'
+                                                }`}
+                                            >
+                                                {actionOptions.map(o => 
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                )}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Entity Type</label>
+                                            <select 
+                                                value={filters.entityType} 
+                                                onChange={e => setFilters(f => ({ ...f, entityType: e.target.value }))}
+                                                className={`w-full p-2 rounded border ${
+                                                    isDarkMode 
+                                                        ? 'bg-gray-700 border-gray-600 text-white' 
+                                                        : 'bg-white border-gray-300 text-black'
+                                                }`}
+                                            >
+                                                {entityOptions.map(o => 
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                )}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Date Range</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input 
+                                                    type="date" 
+                                                    value={dateRange.start} 
+                                                    onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                    className={`w-full p-2 rounded border ${
+                                                        isDarkMode 
+                                                            ? 'bg-gray-700 border-gray-600 text-white' 
+                                                            : 'bg-white border-gray-300 text-black'
+                                                    }`}
+                                                />
+                                                <input 
+                                                    type="date" 
+                                                    value={dateRange.end} 
+                                                    onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                    className={`w-full p-2 rounded border ${
+                                                        isDarkMode 
+                                                            ? 'bg-gray-700 border-gray-600 text-white' 
+                                                            : 'bg-white border-gray-300 text-black'
+                                                    }`}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                            <Button
+                                                onClick={() => {
+                                                    setFilters({ action: '', entityType: '' });
+                                                    setDateRange({ start: '', end: '' });
+                                                    setIsFilterOpen(false);
+                                                    fetchLogs();
+                                                }}
+                                                className={`px-4 py-2 rounded ${
+                                                    isDarkMode 
+                                                        ? 'bg-gray-700 hover:bg-gray-600' 
+                                                        : 'bg-gray-100 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                Clear Filters
+                                            </Button>
+                                            <Button
+                                                onClick={() => {
+                                                    fetchLogs();
+                                                    setIsFilterOpen(false);
+                                                }}
+                                                className="px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white"
+                                            >
+                                                Apply Filters
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        {logsLoading && !logs.length ? <LoadingSpinner /> : (
+
+                        {/* Table Section */}
+                        {loadingStates.fetchingLogs && !logs.length ? <LoadingSpinner /> : (
                             <div className="overflow-auto rounded-lg border mb-4">
                                 <table className="min-w-full">
                                     <thead className={isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-700'}>
@@ -607,14 +708,19 @@ const UnifiedReporting = () => {
                                     </tbody>
                                 </table>
                             </div>
+                        )}                        {loadingStates.fetchingLogs && logs.length > 0 && <LoadingSpinner />}
+                        {hasMore && !loadingStates.loadingMoreLogs && logs.length > 0 && (
+                            <div className="mt-4">
+                                <Button onClick={loadMore} className="w-full" disabled={loadingStates.loadingMoreLogs}>
+                                    {loadingStates.loadingMoreLogs ? <LoadingSpinner size="small" /> : 'Load More'}
+                                </Button>
+                            </div>
                         )}
-                        {logsLoading && logs.length > 0 && <LoadingSpinner />}
-                        {hasMore && !logsLoading && logs.length > 0 && <Button onClick={loadMore} className="w-full">Load More</Button>}
                     </>
                 )}
             </div>
         </ErrorBoundary>
     );
-};
+}
 
 export default UnifiedReporting;

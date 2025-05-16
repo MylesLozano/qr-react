@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import Button from './Button';
@@ -51,7 +51,6 @@ function SessionTimeout({
 
   // Timer logic
   useEffect(() => {
-    const warningTime = timeoutMinutes - warningMinutes;
     const interval = setInterval(() => {
       const timeSinceLastActivity = (Date.now() - lastActivity) / 1000;
       const timeLeftInSeconds = Math.max(0, timeoutMinutes * 60 - timeSinceLastActivity);

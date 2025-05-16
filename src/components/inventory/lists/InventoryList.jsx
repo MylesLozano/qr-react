@@ -1,21 +1,21 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
-import Button from '../Button';
-import LoadingSpinner from '../LoadingSpinner';
-import { canPerformAction } from '../../utils/roleUtils';
+import { useTheme } from '../../../hooks/useTheme';
+import Button from '../../Button';
+import LoadingSpinner from '../../LoadingSpinner';
+import { canPerformAction } from '../../../utils/roleUtils';
 
 function InventoryList({
   items,
   onEdit,
   onDelete,
   onPreviewQr,
-  isLoading
+  isLoading,
+  role
 }) {
   const { isDarkMode } = useTheme();
-  const { role } = useAuth();
 
   // Permission checks
   const canEdit = canPerformAction(role, 'edit_inventory');
@@ -141,8 +141,25 @@ function InventoryList({
           </List>
         )}
       </AutoSizer>
-    </div>
-  );
+    </div>  );
 }
+
+InventoryList.propTypes = {
+  items: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string,
+    name: PropTypes.string,
+    brand: PropTypes.string,
+    serialNumber: PropTypes.string,
+    category: PropTypes.string,
+    lab: PropTypes.string,
+    itemCondition: PropTypes.string,
+    quantity: PropTypes.oneOfType([PropTypes.number, PropTypes.string])
+  })),
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onPreviewQr: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool,
+  role: PropTypes.string
+};
 
 export default InventoryList;

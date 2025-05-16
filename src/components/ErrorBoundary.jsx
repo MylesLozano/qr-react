@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -18,16 +18,19 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error to console in development
     if (process.env.NODE_ENV === 'development') {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
 
-    this.setState({
-      errorInfo: errorInfo
-    });
+    this.setState({ errorInfo });
 
-    // Here you could send to an error reporting service
+    //Show toast to user
+    if (typeof window !== 'undefined') {
+      import('react-toastify').then(({ toast }) => {
+        toast.error("Something broke! Try refreshing the page.");
+      });
+    }
+
     this.logErrorToService(error, errorInfo);
   }
 
