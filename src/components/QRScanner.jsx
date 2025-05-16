@@ -91,10 +91,13 @@ function QRScanner({ isInDashboard = false }) {
     setError(null);
     setScanResult(null);
   }, []);
-
   const handleBack = useCallback(() => {
-    navigate("/user-dashboard", { replace: true });
-  }, [navigate]);
+    if (isInDashboard) {
+      navigate("/user-dashboard", { replace: true });
+    } else {
+      navigate(-1);
+    }
+  }, [navigate, isInDashboard]);
 
   if (loadingComponent) {
     return (

@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 import { useTheme } from "../../hooks/useTheme";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import EmptyState from "../../components/EmptyState";
 import { format } from "date-fns";
 import Button from "../../components/Button";
 import { useNavigate } from "react-router-dom";
@@ -282,19 +283,15 @@ function MyRequests({ isInDashboard = false }) {
     }),
     []
   );
-
   // Extract the EmptyRequestsOptions component to improve readability
   const EmptyRequestsOptions = () => (
-    <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"} mb-6`}>
-      <h2 className="text-xl font-semibold mb-4">Get Started with Requests</h2>
-      <p className="mb-4">You haven't made any requests yet. Create your first request to get started.</p>
-
-      <div className="flex justify-center">
-        <Button onClick={() => setShowForm(true)} color="blue" size="md">
-          Create New Request
-        </Button>
-      </div>
-    </div>
+    <EmptyState
+      title="No Requests Found"
+      message="You haven't made any requests yet. Create your first request to get started."
+      icon="📋"
+      actionFn={() => setShowForm(true)}
+      actionLabel="Create New Request"
+    />
   );
 
   return (

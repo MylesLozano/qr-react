@@ -11,6 +11,7 @@ import Button from "../../components/Button";
 import QRScanner from "../../components/QRScanner";
 import Inventory from "../Inventory";
 import MyRequests from "./MyRequests";
+import BaseDashboard from "../BaseDashboard";
 
 /**
  * UserDashboard component - Main dashboard for regular users
@@ -26,20 +27,27 @@ function UserDashboard() {
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
-  const currentUser = useMemo(() => auth.currentUser, []);
-
-  const mainComponents = useMemo(() => [
+  const currentUser = useMemo(() => auth.currentUser, []);  const mainComponents = useMemo(() => [
     { key: 'inventory', path: 'inventory' },
     { key: 'requests', path: 'my-requests' },
     { key: 'scan', path: 'scan' },
   ], []);
-
+  // Navigation is now handled by BaseDashboard component
   const getActiveComponentFromUrl = useCallback(() => {
     const pathSegments = location.pathname.split('/');
     const lastSegment = pathSegments[pathSegments.length - 1];
-    return mainComponents.find(c => c.path === lastSegment)?.key || 'inventory';
-  }, [location.pathname, mainComponents]);
-
+    
+    // Map URL paths to component keys
+    if (lastSegment === 'inventory') return 'inventory';
+    if (lastSegment === 'my-requests') return 'requests';
+    if (lastSegment === 'scan') return 'scan';
+    
+    // Default to null (showing dashboard) if on the dashboard root path
+    if (lastSegment === 'user-dashboard') return null;
+    
+    // Fall back to dashboard if no match
+    return null;
+  }, [location.pathname]);
   // Active component state
   const [activeComponent, setActiveComponent] = useState(getActiveComponentFromUrl);
 
@@ -55,16 +63,28 @@ function UserDashboard() {
     };
     window.addEventListener('popstate', handleHistoryChange);
     return () => window.removeEventListener('popstate', handleHistoryChange);
-  }, [getActiveComponentFromUrl]);
-
-  // Update URL when active component changes
+  }, [getActiveComponentFromUrl]);  // We've replaced this with handleComponentSwitch for more reliable navigation
+  // This effect is now redundant and can cause navigation loops
+  
+  // Listen to URL changes from sidebar navigation with improved state handling
   useEffect(() => {
-    if (activeComponent && activeComponent !== getActiveComponentFromUrl()) {
-      const path = activeComponent === 'requests' ? 'my-requests' : activeComponent;
-      navigate(`/user-dashboard/${path}`);
+    const path = location.pathname;
+    
+    // Clear any stale state when navigating directly through URLs
+    if (path.endsWith('/user-dashboard')) {
+      setActiveComponent(null);
+      return;
     }
-  }, [activeComponent, navigate, getActiveComponentFromUrl]);
-
+    
+    if (path.includes('/user-dashboard/inventory')) {
+      setActiveComponent('inventory');
+    } else if (path.includes('/user-dashboard/my-requests')) {
+      setActiveComponent('requests');
+    } else if (path.includes('/user-dashboard/scan')) {
+      setActiveComponent('scan');
+    }
+  }, [location.pathname]);
+  
   // Consolidated effect for fetching counts
   useEffect(() => {
     if (!currentUser) {
@@ -148,6 +168,23 @@ function UserDashboard() {
     },
   ], [inventoryCount, myRequestsCount, approvedRequestsCount]);
 
+  // Handle component switching with better error handling
+  const handleComponentSwitch = useCallback((component) => {
+    try {
+      setActiveComponent(component);
+      if (component) {
+        const path = component === 'requests' ? 'my-requests' : component;
+        navigate(`/user-dashboard/${path}`, { replace: true });
+      } else {
+        navigate('/user-dashboard', { replace: true });
+      }
+    } catch (err) {
+      console.error('Navigation error:', err);
+      // Fallback to direct navigation
+      navigate('/user-dashboard');
+    }
+  }, [navigate]);
+
   // Render dashboard home
   const renderDashboard = () => (
     <>
@@ -155,7 +192,7 @@ function UserDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {summaryCards.map((card, index) => (
           <div
-            onClick={() => setActiveComponent(card.component)}
+            onClick={() => handleComponentSwitch(card.component)}
             key={index}
             className={`p-6 rounded-lg shadow-md transition-transform hover:scale-105 cursor-pointer ${isDarkMode ? "bg-gray-800" : "bg-white"}`}
             role="button"
@@ -175,89 +212,55 @@ function UserDashboard() {
             )}
           </div>
         ))}
-      </div>
-
-      {/* Quick Access Section */}
+      </div>      {/* Additional info section - replacing the Quick Access section which is now in the sidebar */}
       <div className={`p-6 rounded-lg shadow-md mb-6 ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
         <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
-          Quick Access
+          Dashboard Info
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div
-            onClick={() => setActiveComponent("inventory")}
-            className={`p-4 rounded-lg flex items-center cursor-pointer ${isDarkMode ? "bg-blue-900 hover:bg-blue-800" : "bg-blue-100 hover:bg-blue-200"}`}
-            role="button"
-            aria-label="Go to Browse Inventory"
-          >
-            <span className="text-2xl mr-3">📦</span>
-            <div>
-              <h3 className="font-bold">Browse Inventory</h3>
-              <p className="text-sm">View and request available items</p>
-            </div>
-          </div>
-          <div
-            onClick={() => setActiveComponent("requests")}
-            className={`p-4 rounded-lg flex items-center cursor-pointer ${isDarkMode ? "bg-green-900 hover:bg-green-800" : "bg-green-100 hover:bg-green-200"}`}
-            role="button"
-            aria-label="Go to My Requests"
-          >
-            <span className="text-2xl mr-3">📄</span>
-            <div>
-              <h3 className="font-bold">My Requests</h3>
-              <p className="text-sm">Track and manage your requests</p>
-            </div>
-          </div>
-          <div
-            onClick={() => setActiveComponent("scan")}
-            className={`p-4 rounded-lg flex items-center cursor-pointer ${isDarkMode ? "bg-purple-900 hover:bg-purple-800" : "bg-purple-100 hover:bg-purple-200"}`}
-            role="button"
-            aria-label="Go to Scan QR Code"
-          >
-            <span className="text-2xl mr-3">📱</span>
-            <div>
-              <h3 className="font-bold">Scan QR Code</h3>
-              <p className="text-sm">Quickly scan item QR codes</p>
-            </div>
-          </div>
+        <div className="p-4 rounded-lg bg-blue-900 bg-opacity-30 border border-blue-800">
+          <p>
+            You can use the sidebar menu to navigate between different sections of the application:
+          </p>
+          <ul className="mt-2 list-disc list-inside space-y-1 opacity-90">
+            <li>Browse inventory items and make requests</li>
+            <li>View and track your submitted requests</li>
+            <li>Scan QR codes to quickly access item information</li>
+          </ul>
         </div>
       </div>
     </>
-  );
-
-  return (
-    <ErrorBoundary>
-      <div className={`p-6 ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-gray-800"}`}>
-        {/* User Dashboard Header */}
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <h1 className="text-2xl font-bold" role="heading" aria-level="1">
-            User Dashboard
-          </h1>
-          {activeComponent && (
-            <Button
-              color="gray"
-              onClick={() => {
-                setActiveComponent(null);
-                navigate('/user-dashboard');
-              }}
+  );  return (
+    <BaseDashboard>
+      <ErrorBoundary>        {/* Dashboard header - always shown with dynamic title */}
+        <div className={`mb-6 ${activeComponent ? 'flex flex-col sm:flex-row justify-between items-start sm:items-center' : ''}`}>
+          <div>
+            <h1 className="text-2xl font-bold" role="heading" aria-level="1">
+              {activeComponent === 'inventory' ? 'Browse Inventory' : 
+               activeComponent === 'requests' ? 'My Requests' : 
+               activeComponent === 'scan' ? 'Scan QR Code' : 'User Dashboard'}
+            </h1>
+            {!activeComponent && (
+              <p className="text-sm opacity-75">Welcome back! View your dashboard summary below.</p>
+            )}
+          </div>
+            {activeComponent && (
+            <Button              color="gray"
+              onClick={() => handleComponentSwitch(null)}
               className="mt-2 sm:mt-0"
             >
               Back to Dashboard
             </Button>
           )}
-        </div>
-
-        {/* Main Content */}
-        <div className={`${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-          <Routes>
-            <Route path="/" element={renderDashboard()} />
-            <Route path="inventory" element={<Inventory isInDashboard={true} />} />
-            <Route path="my-requests" element={<MyRequests isInDashboard={true} />} />
-            <Route path="scan" element={<QRScanner isInDashboard={true} />} />
-            <Route path="*" element={<Navigate to="/user-dashboard" replace />} />
-          </Routes>
-        </div>
-      </div>
-    </ErrorBoundary>
+        </div>        {/* Main Content */}
+        <Routes>
+          <Route path="/" element={renderDashboard()} />
+          <Route path="inventory" element={<Inventory isInDashboard={true} />} />
+          <Route path="my-requests" element={<MyRequests isInDashboard={true} />} />
+          <Route path="scan" element={<QRScanner isInDashboard={true} />} />
+          <Route path="*" element={<Navigate to="/user-dashboard" replace />} />
+        </Routes>
+      </ErrorBoundary>
+    </BaseDashboard>
   );
 }
 

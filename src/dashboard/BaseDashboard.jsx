@@ -17,10 +17,10 @@ const NAV_CONFIG = [
   // User navigation
   {
     path: '/user-dashboard/inventory',
-    label: 'Inventory',
+    label: 'Browse Inventory',
     icon: '📦',
     action: 'view_inventory',
-    description: 'View available inventory items',
+    description: 'View and request available items',
     roles: ['user']
   },
   {
@@ -28,7 +28,15 @@ const NAV_CONFIG = [
     label: 'My Requests',
     icon: '📄',
     action: 'view_requests',
-    description: 'View and manage your requests',
+    description: 'Track and manage your requests',
+    roles: ['user']
+  },
+  {
+    path: '/user-dashboard/scan',
+    label: 'Scan QR Code',
+    icon: '📱',
+    action: 'view_inventory',
+    description: 'Quickly scan item QR codes',
     roles: ['user']
   },
 
@@ -241,13 +249,11 @@ function BaseDashboard({ children }) {
           Skip to main content
         </a>
 
-        {/* Sidebar Navigation for all roles */}
-        <nav className={`${themeStyles.nav} w-[280px] flex-shrink-0 
+        {/* Sidebar Navigation for all roles */}        <nav className={`${themeStyles.nav} w-[280px] flex-shrink-0 
           ${isMobile ? 'fixed inset-y-0 left-0 transform -translate-x-full z-40' : 'sticky top-0 h-screen'} 
           ${isMenuOpen ? 'translate-x-0' : ''} 
           transition-transform duration-300 ease-in-out border-r 
-          ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}
-          ${role === 'user' ? 'lg:hidden' : ''}`}
+          ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
         >
           <div className="h-full flex flex-col">
             {/* Logo Container */}
@@ -276,11 +282,10 @@ function BaseDashboard({ children }) {
 
             {/* Navigation Links */}
             <div className="flex-1 overflow-y-auto py-4 px-2">
-              {navItems.map((item, index) => (
-                <button
+              {navItems.map((item, index) => (                <button
                   key={item.path}
                   onClick={() => {
-                    navigate(item.path);
+                    navigate(item.path, { replace: true });
                     if (isMobile) setIsMenuOpen(false);
                   }}
                   className={`w-full text-left px-4 py-3 rounded-lg mb-1 flex items-center transition-colors duration-200 ${
@@ -315,10 +320,8 @@ function BaseDashboard({ children }) {
               </Button>
             </div>
           </div>
-        </nav>
-
-        {/* Hamburger menu button - shown for users at all sizes, only on mobile for admin/superadmin */}
-        {(isMobile || role === 'user') && (
+        </nav>        {/* Hamburger menu button - shown only on mobile for all roles */}
+        {isMobile && (
           <button
             ref={menuButtonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -336,13 +339,11 @@ function BaseDashboard({ children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-        )}
-
-        {/* Main Content */}
+        )}        {/* Main Content */}
         <main
           id="main-content"
           className={`flex-1 min-h-screen relative
-            ${role === 'user' ? 'max-w-7xl mx-auto' : 'w-full'}
+            max-w-7xl mx-auto
             ${isMobile ? 'pt-16' : ''}`}
         >
           <div className={`
