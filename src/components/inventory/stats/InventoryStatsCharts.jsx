@@ -142,71 +142,75 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
   };
 
   return (
-    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div
+      className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
+    >
       <h2 className="text-xl font-semibold mb-4">Inventory Statistics</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Lab Statistics */}
-        <div>
-          <h3 className="text-lg font-medium mb-2 text-center">Laboratory Distribution</h3>
-          <div className="h-64 relative">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Lab Distribution Chart */}
+        <div className="bg-opacity-50 rounded-lg p-3">
+          <h3 className="text-lg font-medium mb-2 text-center">Lab Distribution</h3>
+          <div className="h-56 lg:h-48 relative">
             <Doughnut data={labChartData} options={chartOptions} />
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+          <div className="grid grid-cols-3 gap-2 mt-4">
             {Object.entries(labStats).map(([lab, count]) => (
               <div
                 key={lab}
-                className="p-2 rounded bg-opacity-20"
-                style={{
-                  backgroundColor:
-                    lab === 'IT Lab'
-                      ? `${chartColors.itLab}20`
-                      : lab === 'EMC Lab'
-                        ? `${chartColors.emcLab}20`
-                        : `${chartColors.others}20`,
-                }}
+                className={`p-2 rounded text-center ${
+                  lab === 'IT Lab'
+                    ? isDarkMode
+                      ? 'bg-blue-900/30'
+                      : 'bg-blue-100'
+                    : lab === 'EMC Lab'
+                      ? isDarkMode
+                        ? 'bg-purple-900/30'
+                        : 'bg-purple-100'
+                      : isDarkMode
+                        ? 'bg-gray-700'
+                        : 'bg-gray-100'
+                } shadow-sm`}
               >
-                <p className="font-medium">{lab}</p>
-                <p className="text-lg font-bold">{count}</p>
+                <span className="text-xs block">{lab}</span>
+                <span className="font-bold">{count}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Condition Statistics */}
-        <div>
+        {/* Condition Distribution Chart */}
+        <div className="bg-opacity-50 rounded-lg p-3">
           <h3 className="text-lg font-medium mb-2 text-center">Condition Distribution</h3>
-          <div className="h-64 relative">
+          <div className="h-56 lg:h-48 relative">
             <Doughnut data={conditionChartData} options={chartOptions} />
           </div>
-          <div className="mt-4 grid grid-cols-4 gap-2 text-center text-sm">
-            {Object.entries(conditionStats).map(([condition, count]) => {
-              let bgColor;
-              switch (condition) {
-                case 'Good':
-                  bgColor = `${chartColors.good}20`;
-                  break;
-                case 'Used':
-                  bgColor = `${chartColors.used}20`;
-                  break;
-                case 'Damaged':
-                  bgColor = `${chartColors.damaged}20`;
-                  break;
-                default:
-                  bgColor = `${chartColors.unknown}20`;
-              }
-
-              return (
-                <div
-                  key={condition}
-                  className="p-2 rounded bg-opacity-20"
-                  style={{ backgroundColor: bgColor }}
-                >
-                  <p className="font-medium">{condition}</p>
-                  <p className="text-lg font-bold">{count}</p>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            {Object.entries(conditionStats).map(([condition, count]) => (
+              <div
+                key={condition}
+                className={`p-2 rounded text-center ${
+                  condition === 'Good'
+                    ? isDarkMode
+                      ? 'bg-green-900/30'
+                      : 'bg-green-100'
+                    : condition === 'Used'
+                      ? isDarkMode
+                        ? 'bg-yellow-900/30'
+                        : 'bg-yellow-100'
+                      : condition === 'Damaged'
+                        ? isDarkMode
+                          ? 'bg-red-900/30'
+                          : 'bg-red-100'
+                        : isDarkMode
+                          ? 'bg-gray-700'
+                          : 'bg-gray-100'
+                } shadow-sm`}
+              >
+                <span className="text-xs block">{condition}</span>
+                <span className="font-bold">{count}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -195,15 +195,12 @@ function Inventory({ isInDashboard = false }) {
   const canEdit = canPerformAction(role, 'edit_inventory');
   const canDelete = canPerformAction(role, 'delete_inventory');
   const canAddEditDelete = canEdit || canDelete; // Either can edit or delete
-
   // Early return for empty inventory
   if (!loadingStates.fetchingInventory && !error && (!items || items.length === 0)) {
     return (
       <ErrorBoundary>
-        <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-          <div
-            className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}
-          >
+        <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'} w-full`}>
+          <div className={`w-full p-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
             <div className="mb-8">
               {!isInDashboard && (
                 <Button
@@ -219,7 +216,7 @@ function Inventory({ isInDashboard = false }) {
               <h1 className="text-3xl font-bold mb-4">Inventory Management</h1>
 
               <div
-                className={`p-8 rounded-lg text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
+                className={`p-8 rounded-lg text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md`}
               >
                 <h2 className="text-xl mb-4">No Inventory Items Found</h2>
                 <p className="mb-4">There are currently no items in the inventory.</p>
@@ -271,7 +268,7 @@ function Inventory({ isInDashboard = false }) {
   // Rest of the component for non-empty inventory
   return (
     <ErrorBoundary>
-      <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'} w-full`}>
         {/* Main Inventory Loading and Error Feedback */}
         {loadingStates.fetchingInventory && !error && <LoadingSpinner fullScreen />}
         {error && (
@@ -280,9 +277,9 @@ function Inventory({ isInDashboard = false }) {
           </div>
         )}
 
-        {/* Use a responsive container with padding */}
-        <div className={`container mx-auto p-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-          <div className="mb-8">
+        {/* Full-width content */}
+        <div className={`w-full p-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+          <div className="mb-6">
             {/* Back Button */}
             {!isInDashboard && (
               <Button
@@ -323,50 +320,66 @@ function Inventory({ isInDashboard = false }) {
               setFilterLab={setFilterLab}
               isDarkMode={isDarkMode}
             />{' '}
-            {/* QR Stats Section (Moved to be shown alone) */}
-            <div className="mb-6">
-              <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
-            </div>
-            {/* Inventory Statistics Charts - Added to show lab and condition distribution */}
-            <div className="mb-6">
-              <InventoryStatsCharts items={items} isDarkMode={isDarkMode} />
+            {/* QR Stats and Inventory Charts in a responsive grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* QR Stats Section */}
+              <div className="w-full">
+                <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
+              </div>
+              {/* Inventory Statistics Charts */}
+              <div className="w-full">
+                <InventoryStatsCharts items={items} isDarkMode={isDarkMode} />
+              </div>
             </div>
             {/* Categories and Virtualized List side-by-side */}
-            {/* Adjust stacking on smaller screens */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-6">
-              {/* Category List */}
-              <CategoryList
-                categoryGroups={categoryGroups}
-                toggleCategory={toggleCategory}
-                isDarkMode={isDarkMode}
-              />
-              {/* The main InventoryList displaying filtered search results */}{' '}
-              <InventoryList
-                items={filteredItems} // Pass filtered items from search
-                onEdit={handleEdit}
-                onDelete={handleDeleteItem}
-                onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
-                isLoading={loadingStates.fetchingInventory}
-                role={role}
-                isDarkMode={isDarkMode}
-              />
-            </div>
-            {/* Add/Edit Item Form - only shown when needed */}
-            {canAddEditDelete && showAddEditForm && (
-              <div>
-                {/* BulkUploadSection shown with the Add New Item form */}
-                <BulkUploadSection
-                  setCsvData={setCsvData}
-                  csvData={csvData || []}
-                  bulkUpload={handleBulkUpload}
-                  isUploading={isUploading}
+            {/* Full-width layout with better distribution */}
+            <div className="flex flex-col lg:flex-row gap-6 mb-6">
+              {/* Category List - wider on desktop */}
+              <div className="lg:w-1/4">
+                <CategoryList
+                  categoryGroups={categoryGroups}
+                  toggleCategory={toggleCategory}
                   isDarkMode={isDarkMode}
                 />
-                <AddEditForm
-                  onSuccess={handleFormClose}
-                  editingItem={editingItem}
-                  defaultFormData={defaultFormData}
+              </div>
+              {/* The main InventoryList displaying filtered search results - takes up remaining space */}
+              <div className="lg:w-3/4">
+                <InventoryList
+                  items={filteredItems} // Pass filtered items from search
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteItem}
+                  onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
+                  isLoading={loadingStates.fetchingInventory}
+                  role={role}
+                  isDarkMode={isDarkMode}
                 />
+              </div>
+            </div>{' '}
+            {/* Add/Edit Item Form - only shown when needed */}
+            {canAddEditDelete && showAddEditForm && (
+              <div className="w-full">
+                <div className="grid grid-cols-1 gap-6 mb-6">
+                  {/* BulkUploadSection shown with the Add New Item form */}
+                  <BulkUploadSection
+                    setCsvData={setCsvData}
+                    csvData={csvData || []}
+                    bulkUpload={handleBulkUpload}
+                    isUploading={isUploading}
+                    isDarkMode={isDarkMode}
+                  />
+                  <div
+                    className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}
+                  >
+                    <h2 className="text-xl font-semibold mb-4">
+                      {editingItem?.id ? 'Edit Item' : 'Add New Item'}
+                    </h2>
+                    <AddEditForm
+                      onSuccess={handleFormClose}
+                      editingItem={editingItem}
+                      defaultFormData={defaultFormData}
+                    />
+                  </div>
+                </div>
               </div>
             )}
             {/* Category Details Modal */}

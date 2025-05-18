@@ -70,8 +70,9 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
 
       return (
         <div style={style} className="px-2">
+          {' '}
           <div
-            className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200`}
+            className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200 shadow-sm`}
           >
             {/* Checkbox for bulk selection - only shown in bulk mode */}
             {bulkMode && (
@@ -86,47 +87,72 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
               </div>
             )}
 
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold truncate">{item.name}</h3>
-              <div className="space-y-1 text-sm">
-                <p className="flex items-center gap-2">
-                  <span className="text-opacity-75">Brand:</span>
+            <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <h3 className="font-semibold truncate text-lg">{item.name}</h3>
+                <p className="flex items-center gap-2 mt-1">
+                  <span className="text-opacity-75 font-medium">Brand:</span>
                   <span>{item.brand || 'N/A'}</span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-opacity-75">Serial:</span>
+                  <span className="text-opacity-75 font-medium">Serial:</span>
                   <span>{item.serialNumber || 'N/A'}</span>
                 </p>
+              </div>
+
+              <div>
                 <p className="flex items-center gap-2">
-                  <span className="text-opacity-75">Category:</span>
-                  <span>{item.category}</span>
+                  <span className="text-opacity-75 font-medium">Category:</span>
+                  <span className="font-medium">{item.category}</span>
                 </p>
                 {item.lab && (
                   <p className="flex items-center gap-2">
-                    <span className="text-opacity-75">Lab:</span>
+                    <span className="text-opacity-75 font-medium">Lab:</span>
                     <span>{item.lab}</span>
                   </p>
-                )}
+                )}{' '}
                 {item.itemCondition && (
                   <p className="flex items-center gap-2">
-                    <span className="text-opacity-75">Condition:</span>
-                    <span>{item.itemCondition}</span>
+                    <span className="text-opacity-75 font-medium">Condition:</span>
+                    <span
+                      className={
+                        item.itemCondition === 'Good'
+                          ? 'text-green-500'
+                          : item.itemCondition === 'Used'
+                            ? 'text-yellow-500'
+                            : item.itemCondition === 'Damaged'
+                              ? 'text-red-500'
+                              : ''
+                      }
+                    >
+                      {item.itemCondition}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <span className={`font-semibold text-lg ${stockStatusColor(item.quantity)}`}>
+                  Qty: {item.quantity}
+                </span>
+                {item.lastUpdated && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Last updated: {new Date(item.lastUpdated).toLocaleDateString()}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-start sm:items-end gap-2 mt-2 sm:mt-0">
-              <span className={`font-semibold ${stockStatusColor(item.quantity)}`}>
-                Qty: {item.quantity}
-              </span>
+
+            <div className="flex flex-col items-end justify-center gap-2 ml-2">
               {(canEdit || canDelete || canGenerateQr) && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 w-full">
+                  {' '}
                   {canEdit && (
                     <Button
                       onClick={() => onEdit(item)}
                       color="blue"
                       size="sm"
-                      className="min-w-[60px]"
+                      className="min-w-[80px] w-full"
                     >
                       Edit
                     </Button>
@@ -136,7 +162,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
                       onClick={() => onDelete(item.id, item.name)}
                       color="red"
                       size="sm"
-                      className="min-w-[60px]"
+                      className="min-w-[80px] w-full"
                     >
                       Delete
                     </Button>
@@ -146,7 +172,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
                       onClick={() => onPreviewQr(item)}
                       color="green"
                       size="sm"
-                      className="min-w-[60px] flex items-center gap-1"
+                      className="min-w-[80px] w-full flex items-center justify-center gap-1"
                       title="Generate/View QR Code"
                     >
                       <svg
@@ -187,10 +213,9 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
       toggleItemSelection,
     ]
   );
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8 h-full">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -199,7 +224,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
   if (!Array.isArray(items) || items.length === 0) {
     return (
       <div
-        className={`p-8 text-center rounded-lg ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}
+        className={`p-8 text-center rounded-lg shadow-md h-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}
       >
         <p className="text-lg">No inventory items found matching your criteria.</p>
       </div>
@@ -210,7 +235,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
 
   return (
-    <div>
+    <div className="h-full shadow-md rounded-lg">
       {/* Bulk actions toolbar */}
       {canEdit && (
         <div
@@ -241,9 +266,8 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
             )}
           </div>
         </div>
-      )}
-
-      <div className="relative flex-1 min-h-[400px] h-[calc(100vh-20rem)]">
+      )}{' '}
+      <div className="relative flex-1 min-h-[600px] h-[calc(100vh-12rem)]">
         <AutoSizer>
           {({ height, width }) => (
             <List
@@ -251,7 +275,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
               itemCount={items.length}
               itemSize={180}
               width={width}
-              overscanCount={3}
+              overscanCount={5}
               className={`scrollbar-thin ${isDarkMode ? 'scrollbar-track-gray-800 scrollbar-thumb-gray-600' : 'scrollbar-track-gray-200 scrollbar-thumb-gray-400'}`}
             >
               {Row}

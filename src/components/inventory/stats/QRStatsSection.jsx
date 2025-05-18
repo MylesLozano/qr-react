@@ -75,31 +75,33 @@ function QRStatsSection({ qrStats = {}, isDarkMode }) {
   );
 
   return (
-    <div className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-      <h2 className="text-xl font-semibold mb-2">QR Code Statistics</h2>
+    <div
+      className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
+    >
+      <h2 className="text-xl font-semibold mb-4">QR Code Statistics</h2>
 
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row gap-4">
         {/* Chart Section */}
-        <div className="flex-1 h-52 md:h-40 relative mb-4 md:mb-0">
+        <div className="flex-1 h-52 md:h-44 relative mb-4 md:mb-0">
           <Pie data={chartData} options={chartOptions} />
         </div>
 
         {/* Stats Cards Section */}
-        <div className="flex-1 grid grid-cols-3 gap-3 items-center">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
           <div
-            className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}
+            className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} shadow-sm`}
           >
             <p className="text-sm text-opacity-75">With QR</p>
             <p className="text-xl font-bold">{safeStats.totalWithQr}</p>
           </div>
           <div
-            className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+            className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} shadow-sm`}
           >
             <p className="text-sm text-opacity-75">Without QR</p>
             <p className="text-xl font-bold">{safeStats.totalWithoutQr}</p>
           </div>
           <div
-            className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-green-900/30' : 'bg-green-100'}`}
+            className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-green-900/30' : 'bg-green-100'} shadow-sm`}
           >
             <p className="text-sm text-opacity-75">Coverage</p>
             <p className="text-xl font-bold">{qrPercentage}%</p>

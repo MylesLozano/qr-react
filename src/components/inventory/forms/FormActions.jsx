@@ -5,9 +5,11 @@ import Button from '../../Button';
 /**
  * Form action buttons component
  */
-function FormActions({ isLoading, onCancel, isEditing = false }) {
+function FormActions({ isLoading, onCancel, isEditing = false, isDarkMode }) {
   return (
-    <div className="mt-4 flex justify-end space-x-4">
+    <div
+      className={`mt-6 flex justify-end space-x-4 py-4 ${isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}`}
+    >
       <Button onClick={onCancel} color="gray" size="md" type="button">
         Cancel
       </Button>
@@ -23,6 +25,7 @@ FormActions.propTypes = {
   isLoading: PropTypes.bool.isRequired,
   onCancel: PropTypes.func.isRequired,
   isEditing: PropTypes.bool,
+  isDarkMode: PropTypes.bool,
 };
 
 export default React.memo(FormActions);

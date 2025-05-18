@@ -6,7 +6,7 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
   if (!categoryGroups || typeof categoryGroups !== 'object') {
     console.error('CategoryList: Invalid categoryGroups prop', categoryGroups);
     return (
-      <div className={`w-full lg:w-1/3 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}>
         <h2 className="text-xl font-semibold mb-4">Categories</h2>
         <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           No categories available
@@ -19,7 +19,7 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
 
   if (categoryEntries.length === 0) {
     return (
-      <div className={`w-full lg:w-1/3 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}>
         <h2 className="text-xl font-semibold mb-4">Categories</h2>
         <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           No categories found
@@ -29,7 +29,9 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
   }
 
   return (
-    <div className={`w-full lg:w-1/3 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div
+      className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
+    >
       <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
         Categories
       </h2>
@@ -38,7 +40,7 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
           <div
             key={category}
             onClick={() => toggleCategory(category)}
-            className={`p-4 rounded-lg cursor-pointer transition-colors 
+            className={`p-4 rounded-lg cursor-pointer transition-colors
               ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
             role="button"
             aria-label={`Select ${category} category`}

@@ -34,10 +34,14 @@ function SearchFilters({
   };
 
   return (
-    <div className="flex flex-wrap gap-4 mb-6">
+    <div
+      className={`w-full p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md`}
+    >
+      <h2 className="text-lg font-semibold mb-3">Search & Filters</h2>
+
       {error && (
         <div
-          className={`w-full p-2 rounded text-sm ${
+          className={`w-full p-2 mb-3 rounded text-sm ${
             isDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'
           }`}
           role="alert"
@@ -46,103 +50,111 @@ function SearchFilters({
         </div>
       )}
 
-      <select
-        value={searchField}
-        onChange={(e) => setSearchField(e.target.value)}
-        className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-black'}`}
-        aria-label="Search field"
-      >
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="name"
+      <div className="flex flex-wrap gap-4">
+        <select
+          value={searchField}
+          onChange={(e) => setSearchField(e.target.value)}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}
+          aria-label="Search field"
         >
-          Name
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="serialNumber"
-        >
-          Serial Number
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="brand"
-        >
-          Brand
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="category"
-        >
-          Category
-        </option>
-      </select>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="name"
+          >
+            Name
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="serialNumber"
+          >
+            Serial Number
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="brand"
+          >
+            Brand
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="category"
+          >
+            Category
+          </option>
+        </select>
 
-      <input
-        type="text"
-        placeholder={`Search by ${searchField}...`}
-        onChange={handleValidatedSearch}
-        className={`flex-1 min-w-[200px] p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
-        aria-label={`Search by ${searchField}`}
-      />
+        <input
+          type="text"
+          placeholder={`Search by ${searchField}...`}
+          onChange={handleValidatedSearch}
+          className={`flex-1 min-w-[200px] p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+          aria-label={`Search by ${searchField}`}
+        />
 
-      <select
-        value={filterCondition}
-        onChange={(e) => setFilterCondition(e.target.value)}
-        className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-black'}`}
-        aria-label="Filter by condition"
-      >
-        <option className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'} value="">
-          All Conditions
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="New"
+        <select
+          value={filterCondition}
+          onChange={(e) => setFilterCondition(e.target.value)}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}
+          aria-label="Filter by condition"
         >
-          New
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="Used"
-        >
-          Used
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="Damaged"
-        >
-          Damaged
-        </option>
-      </select>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value=""
+          >
+            All Conditions
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="New"
+          >
+            New
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="Used"
+          >
+            Used
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="Damaged"
+          >
+            Damaged
+          </option>
+        </select>
 
-      <select
-        value={filterLab}
-        onChange={(e) => setFilterLab(e.target.value)}
-        className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-black'}`}
-        aria-label="Filter by lab"
-      >
-        <option className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'} value="">
-          All Labs
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="Mac Lab"
+        <select
+          value={filterLab}
+          onChange={(e) => setFilterLab(e.target.value)}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-black'}`}
+          aria-label="Filter by lab"
         >
-          Mac Lab
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="EMC Lab"
-        >
-          EMC Lab
-        </option>
-        <option
-          className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-          value="Others"
-        >
-          Others
-        </option>
-      </select>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value=""
+          >
+            All Labs
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="Mac Lab"
+          >
+            Mac Lab
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="EMC Lab"
+          >
+            EMC Lab
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="Others"
+          >
+            Others
+          </option>
+        </select>
+      </div>
     </div>
   );
 }
