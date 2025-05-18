@@ -64,12 +64,32 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
   };
 
   // --- Routing and Authorization Logic ---
-
-  // 1. Handle loading state: Show a spinner while authentication state is being determined.
+  // Handle loading state: Show a spinner while authentication state is being determined.
   if (loading || delayedAuth) {
+    console.log('ProtectedRoute: Loading authentication state...');
     return (
-      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
+      <div className="flex flex-col items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
         <LoadingSpinner fullScreen />
+        <p className="mt-4 text-gray-600">Loading authentication data...</p>
+      </div>
+    );
+  }
+
+  // Handle error state - show a clear error message
+  if (error) {
+    console.error('ProtectedRoute: Authentication error:', error);
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4" role="alert">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative max-w-md">
+          <strong className="font-bold">Authentication Error!</strong>
+          <span className="block sm:inline ml-2">{error.message || 'Unknown error occurred'}</span>
+          <p className="mt-2">Please try refreshing the page or logging in again.</p>
+          <button 
+            onClick={() => navigate('/login', { replace: true })}
+            className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Back to Login
+          </button>
+        </div>
       </div>
     );
   }

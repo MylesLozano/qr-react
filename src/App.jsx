@@ -46,36 +46,39 @@ function App() {
   const { user, role, loading } = useAuth();
   const location = useLocation();
   const isAuthenticated = useMemo(() => user !== null, [user]);
-
   // Preload dashboard components based on user role
   useEffect(() => {
     if (role) {
       const preloadComponents = async () => {
-        switch (role) {
-          case 'superadmin':
-            await Promise.all([
-              import("./dashboard/superadmin/SuperAdminDashboard"),
-              import("./dashboard/UnifiedReporting"),
-              import("./components/users/UserManagement"),
-              import("./dashboard/Inventory")
-            ]);
-            break;
-          case 'admin':
-            await Promise.all([
-              import("./dashboard/admin/AdminDashboard"),
-              import("./dashboard/admin/Requests"),
-              import("./dashboard/admin/ReportGenerator"),
-              import("./dashboard/UnifiedReporting"),
-              import("./dashboard/Inventory")
-            ]);
-            break;
-          case 'user':
-            await Promise.all([
-              import("./dashboard/user/UserDashboard"),
-              import("./dashboard/user/MyRequests"),
-              import("./dashboard/Inventory")
-            ]);
-            break;
+        try {
+          console.log(`Preloading components for role: ${role}`);
+          switch (role) {
+            case 'superadmin':
+              // Load components sequentially to prevent overwhelming the browser
+              console.log('Loading SuperAdmin components...');
+              await import("./dashboard/superadmin/SuperAdminDashboard");
+              await import("./components/users/UserManagement");
+              await import("./dashboard/Inventory");
+              await import("./dashboard/UnifiedReporting");
+              console.log('SuperAdmin components loaded successfully');
+              break;
+            case 'admin':
+              console.log('Loading Admin components...');
+              await import("./dashboard/admin/AdminDashboard");
+              await import("./dashboard/admin/Requests");
+              await import("./dashboard/admin/ReportGenerator");
+              await import("./dashboard/UnifiedReporting");
+              await import("./dashboard/Inventory");
+              break;
+            case 'user':
+              console.log('Loading User components...');
+              await import("./dashboard/user/UserDashboard");
+              await import("./dashboard/user/MyRequests");
+              await import("./dashboard/Inventory");
+              break;
+          }
+        } catch (error) {
+          console.error('Error preloading components:', error);
         }
       };
       preloadComponents();
@@ -89,11 +92,10 @@ function App() {
       console.log(`Page view: ${location.pathname} by ${user.email}`);
     }
   }, [location.pathname, user]);
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen" role="status" aria-label="Loading application">
-        <LoadingSpinner fullScreen />
+      <div className="flex flex-col items-center justify-center min-h-screen" role="status" aria-label="Loading application">
+        <LoadingSpinner fullScreen size="lg" text="Loading application..." />
       </div>
     );
   }
@@ -115,7 +117,12 @@ function App() {
           warningMinutes={SESSION_WARNING_MINUTES}
         />
       )}
-      <Suspense fallback={<LoadingSpinner fullScreen />}>
+      <Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <LoadingSpinner fullScreen size="lg" text="Loading components..." />
+          {console.log('Suspense fallback triggered - component loading in progress')}
+        </div>
+      }>
         <Routes>
           <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={getDashboardPath(role)} replace />} />
           <Route path="/" element={isAuthenticated ? <Navigate to={getDashboardPath(role)} replace /> : <Navigate to="/login" replace />} />

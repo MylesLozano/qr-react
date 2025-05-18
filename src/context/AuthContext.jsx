@@ -25,17 +25,40 @@ export function AuthProvider({ children }) {
     const handleWarning = (timeLeft) => {
         const minutes = Math.floor(timeLeft / 60);
         toast.warning(`Your session will expire in ${minutes} minutes`);
-    };
-
-    useEffect(() => {
+    };    useEffect(() => {
         let isMounted = true;
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             try {
                 if (currentUser?.email.endsWith('@jmc.edu.ph')) {
-                    await checkAndAssignUserRole(currentUser); // ✅ Assign + audit
+                    console.log(`Auth state changed - User: ${currentUser.email}`);
+                    
+                    // Assign role and capture result
+                    try {
+                        await checkAndAssignUserRole(currentUser);
+                        console.log('User role checked and assigned successfully');
+                    } catch (roleError) {
+                        console.error('Role assignment error:', roleError);
+                        if (isMounted) {
+                            setError('Error assigning user role. Please try again.');
+                            setLoading(false);
+                        }
+                        return;
+                    }
 
+                    // Check if session was revoked
                     const userDocRef = doc(db, "users", currentUser.uid);
-                    const userSnap = await getDoc(userDocRef);
+                    let userSnap;
+                    try {
+                        userSnap = await getDoc(userDocRef);
+                    } catch (docError) {
+                        console.error('Error fetching user document:', docError);
+                        if (isMounted) {
+                            setError('Failed to fetch user data. Please refresh the page.');
+                            setLoading(false);
+                        }
+                        return;
+                    }
+                    
                     if (userSnap.exists() && userSnap.data()?.sessionRevoked) {
                         await updateDoc(userDocRef, { sessionRevoked: false }); // Reset
                         toast.error("Your session was revoked. Please log in again.");
@@ -43,8 +66,21 @@ export function AuthProvider({ children }) {
                         return;
                     }
 
+                    // Set user and get role
                     setUser(currentUser);
-                    const userRole = await getUserRole(currentUser.uid);
+                    let userRole;
+                    try {
+                        userRole = await getUserRole(currentUser.uid);
+                        console.log(`User role retrieved: ${userRole}`);
+                    } catch (roleError) {
+                        console.error('Error getting user role:', roleError);
+                        if (isMounted) {
+                            setError('Failed to get user role. Please try again.');
+                            setLoading(false);
+                        }
+                        return;
+                    }
+                    
                     setRole(userRole);
                     setError(null);
                 } else {

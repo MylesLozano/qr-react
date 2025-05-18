@@ -10,6 +10,9 @@ import usePageTitle from "../../hooks/usePageTitle";
 import { useTheme } from "../../hooks/useTheme";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import ProtectedRoute from "../../ProtectedRoute";
+import { useAuth } from "../../hooks/useAuth";
+import { useState, useEffect } from "react";
+import LoadingSpinner from "../../components/LoadingSpinner";
 
 /**
  * SuperAdminDashboard component - Main dashboard for superadmin users
@@ -19,6 +22,28 @@ import ProtectedRoute from "../../ProtectedRoute";
 function SuperAdminDashboard() {
   usePageTitle("QCheckCITE - SuperAdmin Dashboard");
   const { isDarkMode } = useTheme();
+  const { role } = useAuth();
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Add a small delay to ensure components are properly loaded
+    console.log('SuperAdminDashboard mounted, role:', role);
+    
+    const timer = setTimeout(() => {
+      setIsReady(true);
+      console.log('SuperAdminDashboard ready to render');
+    }, 800);
+    
+    return () => clearTimeout(timer);
+  }, [role]);
+  
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner text="Loading SuperAdmin Dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>

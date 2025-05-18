@@ -26,12 +26,7 @@ function UserDashboard() {
   const [inventoryCount, setInventoryCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [approvedRequestsCount, setApprovedRequestsCount] = useState(0);
-  const [loadingCounts, setLoadingCounts] = useState(true);
-  const currentUser = useMemo(() => auth.currentUser, []);  const mainComponents = useMemo(() => [
-    { key: 'inventory', path: 'inventory' },
-    { key: 'requests', path: 'my-requests' },
-    { key: 'scan', path: 'scan' },
-  ], []);
+  const [loadingCounts, setLoadingCounts] = useState(true);  const currentUser = useMemo(() => auth.currentUser, []);
   // Navigation is now handled by BaseDashboard component
   const getActiveComponentFromUrl = useCallback(() => {
     const pathSegments = location.pathname.split('/');
