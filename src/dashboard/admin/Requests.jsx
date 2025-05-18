@@ -211,15 +211,22 @@ function Requests() {
       } finally {
         setLoading(false);
       }
-    };
-
-    setupListener();
+    };    setupListener();
     return () => {
       if (unsubscribe) unsubscribe();
     };
   }, [user]);
 
-  // Add this within your Requests component, alongside other handler functions
+  // Validate date range - defined first
+  const validateDateRange = useCallback(() => {
+    if (dateRange.start && dateRange.end && new Date(dateRange.start) > new Date(dateRange.end)) {
+      toast.error("End date must be after start date");
+      return false;
+    }
+    return true;
+  }, [dateRange]);
+
+  // Now we can use validateDateRange in this function
   const handleDateRangeChange = useCallback((field, value) => {
     const newDateRange = { ...dateRange, [field]: value };
     setDateRange(newDateRange);
@@ -229,15 +236,6 @@ function Requests() {
       validateDateRange();
     }
   }, [dateRange, validateDateRange]);
-
-  // Validate date range
-  const validateDateRange = useCallback(() => {
-    if (dateRange.start && dateRange.end && new Date(dateRange.start) > new Date(dateRange.end)) {
-      toast.error("End date must be after start date");
-      return false;
-    }
-    return true;
-  }, [dateRange]);
 
   // Update request status with error handling
   const updateRequestStatus = useCallback(async (id, status) => {
