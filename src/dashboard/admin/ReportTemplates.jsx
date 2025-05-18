@@ -219,15 +219,13 @@ const ReportTemplates = () => {
             } finally {
                 setLoading(false);
             }
-        };
-
-        setupListeners();
+        };        setupListeners();
 
         return () => {
             if (unsubscribeTemplates) unsubscribeTemplates();
             if (unsubscribeAuditLogs) unsubscribeAuditLogs();
         };
-    }, [canViewTemplates]);
+    }, [canViewTemplates, user?.role]);
 
     // Log audit action with error handling
     const logAuditAction = useCallback(async (action, details) => {
