@@ -25,6 +25,84 @@ export const sanitizeNumber = (input) => {
 };
 
 /**
+ * Parses date strings with formats like "Jan. 2022" or "Jan. 12 2022"
+ * @param {string} dateStr - Date string to parse
+ * @return {string} ISO date string or null if parsing fails
+ */
+export const parseAbbreviatedDate = (dateStr) => {
+  if (!dateStr) return null;
+
+  // Trim and standardize the input
+  const cleanStr = String(dateStr).trim();
+  if (!cleanStr) return null;
+
+  // Month abbreviations
+  const monthAbbr = {
+    jan: 0,
+    feb: 1,
+    mar: 2,
+    apr: 3,
+    may: 4,
+    jun: 5,
+    jul: 6,
+    aug: 7,
+    sep: 8,
+    oct: 9,
+    nov: 10,
+    dec: 11,
+  };
+
+  try {
+    // Pattern 1: MonthAbbr. Year (e.g., "Jan. 2022")
+    const pattern1 = /^([a-z]{3})\.?\s+(\d{4})$/i;
+
+    // Pattern 2: MonthAbbr. Day Year (e.g., "Jan. 12 2022")
+    const pattern2 = /^([a-z]{3})\.?\s+(\d{1,2})\s+(\d{4})$/i;
+
+    let match = cleanStr.match(pattern1);
+    if (match) {
+      const [, monthStr, yearStr] = match;
+      const month = monthAbbr[monthStr.toLowerCase()];
+
+      if (month === undefined) return null;
+
+      const year = parseInt(yearStr, 10);
+      // Create date - day defaults to 1st of month
+      const date = new Date(year, month, 1);
+      return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+    }
+
+    match = cleanStr.match(pattern2);
+    if (match) {
+      const [, monthStr, dayStr, yearStr] = match;
+      const month = monthAbbr[monthStr.toLowerCase()];
+
+      if (month === undefined) return null;
+
+      const day = parseInt(dayStr, 10);
+      const year = parseInt(yearStr, 10);
+
+      // Validate day
+      if (day < 1 || day > 31) return null;
+
+      const date = new Date(year, month, day);
+      return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+    }
+
+    // If no pattern matches, try standard date parsing as fallback
+    const fallbackDate = new Date(cleanStr);
+    if (!isNaN(fallbackDate.getTime())) {
+      return fallbackDate.toISOString().split("T")[0];
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("Date parsing error:", error);
+    return null;
+  }
+};
+
+/**
  * Implements debounce pattern for search inputs
  * @param {Function} func - Function to debounce
  * @param {number} delay - Delay in milliseconds
@@ -242,8 +320,11 @@ export const prepareBulkUploadData = (csvData) => {
         unitNumber: sanitizeInput(row.unitNum || row.unitNumber || ""),
         name: sanitizeInput(row.name || ""),
         brand: sanitizeInput(row.brand || ""),
-        serialNumber: sanitizeInput(row.serialNum || row.serialNumber || ""),
-        dateAcquired: row.dateAcquired || row.dateAcqui || null,
+        serialNumber: sanitizeInput(row.serialNum || row.serialNumber) || "N/A",
+        dateAcquired:
+          row.dateAcquired || row.dateAcqui
+            ? parseAbbreviatedDate(row.dateAcquired || row.dateAcqui)
+            : null,
         quantity: sanitizeNumber(row.quantity || 0),
         category: sanitizeInput(row.category || ""),
         lab: sanitizeInput(row.lab || ""),

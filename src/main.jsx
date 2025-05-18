@@ -47,9 +47,7 @@ const initializeApp = () => {
           </Router>
         </RootErrorBoundary>
       </React.StrictMode>
-    );
-
-    // Log successful initialization
+    );    // Log successful initialization
     console.log("Application initialized successfully");
   } catch (error) {
     console.error("Failed to initialize application:", error);

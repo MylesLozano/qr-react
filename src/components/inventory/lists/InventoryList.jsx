@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -21,13 +21,54 @@ function InventoryList({
   const canDelete = canPerformAction(role, 'delete_inventory');
   // Allow all users to view QR codes, but generating might be restricted
   const canGenerateQr = true; // Changed to always allow QR button access
+  
+  // State for bulk operations
+  const [selectedItems, setSelectedItems] = useState({});
+  const [bulkMode, setBulkMode] = useState(false);
+  
+  // Toggle item selection for bulk operations
+  const toggleItemSelection = useCallback((itemId) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }, []);
+  
+  // Toggle bulk mode on/off
+  const toggleBulkMode = useCallback(() => {
+    setBulkMode(prev => !prev);
+    if (bulkMode) {
+      // Clear selections when exiting bulk mode
+      setSelectedItems({});
+    }
+  }, [bulkMode]);
+  
+  // Bulk action handlers
+  const handleBulkDelete = useCallback(() => {
+    const selectedIds = Object.keys(selectedItems).filter(id => selectedItems[id]);
+    if (selectedIds.length === 0) {
+      return;
+    }
+    
+    // Confirmation before bulk delete
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected items?`)) {
+      selectedIds.forEach(id => {
+        const itemToDelete = items.find(item => item.id === id);
+        if (itemToDelete) {
+          onDelete(id, itemToDelete.name);
+        }
+      });
+      // Clear selections after delete
+      setSelectedItems({});
+    }
+  }, [selectedItems, items, onDelete]);
 
   const stockStatusColor = (qty) => {
     if (qty <= 0) return "text-red-500";
     if (qty <= 5) return "text-yellow-500";
     return "text-green-500";
   };
-
+  
   // Memoize the row renderer to prevent unnecessary re-renders
   const Row = useCallback(({ index, style }) => {
     const item = items[index];
@@ -36,6 +77,19 @@ function InventoryList({
     return (
       <div style={style} className="px-2">
         <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200`}>
+          {/* Checkbox for bulk selection - only shown in bulk mode */}
+          {bulkMode && (
+            <div className="flex items-center justify-center mr-2">
+              <input
+                type="checkbox"
+                checked={!!selectedItems[item.id]}
+                onChange={() => toggleItemSelection(item.id)}
+                className="h-5 w-5 rounded focus:ring-blue-500"
+                aria-label={`Select ${item.name}`}
+              />
+            </div>
+          )}
+          
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold truncate">{item.name}</h3>
             <div className="space-y-1 text-sm">
@@ -90,7 +144,8 @@ function InventoryList({
                   >
                     Delete
                   </Button>
-                )}                {canGenerateQr && (
+                )}
+                {canGenerateQr && (
                   <Button
                     onClick={() => onPreviewQr(item)}
                     color="green"
@@ -110,7 +165,7 @@ function InventoryList({
         </div>
       </div>
     );
-  }, [items, isDarkMode, canEdit, canDelete, canGenerateQr, onEdit, onDelete, onPreviewQr]);
+  }, [items, isDarkMode, canEdit, canDelete, canGenerateQr, onEdit, onDelete, onPreviewQr, bulkMode, selectedItems, toggleItemSelection]);
 
   if (isLoading) {
     return (
@@ -127,24 +182,64 @@ function InventoryList({
       </div>
     );
   }
+  
+  // Calculate how many items are selected
+  const selectedCount = Object.values(selectedItems).filter(Boolean).length;
 
   return (
-    <div className="relative flex-1 min-h-[400px] h-[calc(100vh-20rem)]">
-      <AutoSizer>
-        {({ height, width }) => (
-          <List
-            height={height}
-            itemCount={items.length}
-            itemSize={180}
-            width={width}
-            overscanCount={3}
-            className={`scrollbar-thin ${isDarkMode ? 'scrollbar-track-gray-800 scrollbar-thumb-gray-600' : 'scrollbar-track-gray-200 scrollbar-thumb-gray-400'}`}
-          >
-            {Row}
-          </List>
-        )}
-      </AutoSizer>
-    </div>  );
+    <div>
+      {/* Bulk actions toolbar */}
+      {canEdit && (
+        <div className={`mb-4 p-3 rounded-lg flex items-center justify-between ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={toggleBulkMode}
+              color={bulkMode ? "blue" : "gray"}
+              size="sm"
+              className="flex items-center"
+            >
+              {bulkMode ? "Exit Bulk Mode" : "Bulk Edit"}
+            </Button>
+            
+            {bulkMode && (
+              <>
+                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  {selectedCount} items selected
+                </span>
+                
+                {selectedCount > 0 && canDelete && (
+                  <Button
+                    onClick={handleBulkDelete}
+                    color="red"
+                    size="sm"
+                  >
+                    Delete Selected
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    
+      <div className="relative flex-1 min-h-[400px] h-[calc(100vh-20rem)]">
+        <AutoSizer>
+          {({ height, width }) => (
+            <List
+              height={height}
+              itemCount={items.length}
+              itemSize={180}
+              width={width}
+              overscanCount={3}
+              className={`scrollbar-thin ${isDarkMode ? 'scrollbar-track-gray-800 scrollbar-thumb-gray-600' : 'scrollbar-track-gray-200 scrollbar-thumb-gray-400'}`}
+            >
+              {Row}
+            </List>
+          )}
+        </AutoSizer>
+      </div>
+    </div>
+  );
 }
 
 InventoryList.propTypes = {

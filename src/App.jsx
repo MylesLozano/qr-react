@@ -157,8 +157,7 @@ function App() {
 
           {/* Direct access routes for common user actions */}
           <Route path="/scan-qr" element={<ProtectedRoute requiredRole="user" requiredAction="view_inventory">
-            <QRScanner />
-          </ProtectedRoute>} />
+            <QRScanner />          </ProtectedRoute>} />
 
           <Route path="/my-requests" element={<ProtectedRoute requiredRole="user" requiredAction="view_requests">
             <MyRequests />

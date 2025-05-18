@@ -114,8 +114,19 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           {/* Basic Information */}
           <FormField
             type="text"
+            name="unitNumber"
+            placeholder="Unit Number"
+            label="Unit Number"
+            value={formData.unitNumber}
+            onChange={handleChange}
+            isDarkMode={isDarkMode}
+          />
+          
+          <FormField
+            type="text"
             name="name"
-            placeholder="Name *"
+            placeholder="Name"
+            label="Item Name"
             value={formData.name}
             onChange={handleChange}
             required={true}
@@ -126,7 +137,8 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           <FormField
             type="text"
             name="brand"
-            placeholder="Brand"
+            placeholder="Brand name"
+            label="Brand"
             value={formData.brand}
             onChange={handleChange}
             isDarkMode={isDarkMode}
@@ -136,6 +148,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             type="text"
             name="serialNumber"
             placeholder="Serial Number"
+            label="Serial Number"
             value={formData.serialNumber}
             onChange={handleChange}
             isDarkMode={isDarkMode}
@@ -144,7 +157,8 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           <FormField
             type="text"
             name="category"
-            placeholder="Category *"
+            placeholder="Category"
+            label="Category"
             value={formData.category}
             onChange={handleChange}
             required={true}
@@ -155,7 +169,8 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           <FormField
             type="number"
             name="quantity"
-            placeholder="Quantity *"
+            placeholder="Quantity"
+            label="Quantity"
             value={formData.quantity}
             onChange={handleChange}
             min="0"
@@ -168,6 +183,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             type="date"
             name="dateAcquired"
             placeholder="Date Acquired"
+            label="Date Acquired"
             value={formData.dateAcquired}
             onChange={handleChange}
             isDarkMode={isDarkMode}
@@ -176,6 +192,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           <FormField
             type="select"
             name="itemCondition"
+            label="Condition"
             value={formData.itemCondition}
             onChange={handleChange}
             options={[
@@ -189,11 +206,12 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           <FormField
             type="select"
             name="lab"
+            label="Laboratory"
             value={formData.lab}
             onChange={handleChange}
             options={[
               { value: "", label: "Select Lab" },
-              { value: "Mac Lab", label: "Mac Lab" },
+              { value: "IT Lab", label: "IT Lab" },
               { value: "EMC Lab", label: "EMC Lab" },
               { value: "Others", label: "Others" }
             ]}
@@ -204,6 +222,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             type="checkbox"
             name="uniqueQR"
             placeholder="Generate Unique QR Code"
+            label="Unique QR Code"
             value={formData.uniqueQR}
             onChange={handleChange}
             isDarkMode={isDarkMode}
@@ -215,6 +234,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               type="textarea"
               name="description"
               placeholder="Description"
+              label="Description"
               value={formData.description}
               onChange={handleChange}
               isDarkMode={isDarkMode}
@@ -226,6 +246,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               type="textarea"
               name="remarks"
               placeholder="Remarks"
+              label="Remarks"
               value={formData.remarks}
               onChange={handleChange}
               isDarkMode={isDarkMode}

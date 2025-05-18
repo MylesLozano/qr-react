@@ -16,15 +16,28 @@ function FormField({
   error = "",
   className = "",
   isDarkMode,
+  label = "",
 }) {
   const inputClass = `p-2 rounded border ${
     isDarkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
   } w-full ${error ? "border-red-500" : ""} ${className}`;
 
+  // Common label element for all input types
+  const labelElement = label ? (
+    <label 
+      htmlFor={name} 
+      className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}
+    >
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+  ) : null;
+
   switch (type) {
     case "textarea":
       return (
         <div className="w-full">
+          {labelElement}
           <textarea
             name={name}
             placeholder={placeholder}
@@ -41,6 +54,7 @@ function FormField({
     case "select":
       return (
         <div className="w-full">
+          {labelElement}
           <select
             name={name}
             value={value}
@@ -65,15 +79,16 @@ function FormField({
     case "checkbox":
       return (
         <div className="w-full">
-          <label className="flex items-center mb-2">
-            <input
-              type="checkbox"
-              name={name}
-              checked={value}
-              onChange={onChange}
-              className="mr-2"
-              required={required}
-            />
+          {labelElement}
+          <label className="flex items-center mb-2">          <input
+            type="checkbox"
+            id={name}
+            name={name}
+            checked={value}
+            onChange={onChange}
+            className="mr-2"
+            required={required}
+          />
             <span className="text-sm">{placeholder}</span>
           </label>
           {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
@@ -83,8 +98,10 @@ function FormField({
     case "number":
       return (
         <div className="w-full">
+          {labelElement}
           <input
             type="number"
+            id={name}
             name={name}
             placeholder={placeholder}
             value={value}
@@ -100,8 +117,10 @@ function FormField({
     case "date":
       return (
         <div className="w-full">
+          {labelElement}
           <input
             type="date"
+            id={name}
             name={name}
             placeholder={placeholder}
             value={value}
@@ -116,6 +135,7 @@ function FormField({
     default: // text input is the default
       return (
         <div className="w-full">
+          {labelElement}
           <input
             type="text"
             name={name}
@@ -151,7 +171,8 @@ FormField.propTypes = {
   ),
   error: PropTypes.string,
   className: PropTypes.string,
-  isDarkMode: PropTypes.bool
+  isDarkMode: PropTypes.bool,
+  label: PropTypes.string,
 };
 
 export default React.memo(FormField);

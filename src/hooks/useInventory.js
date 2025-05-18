@@ -17,6 +17,7 @@ import {
   validateItem,
   sanitizeInput,
   sanitizeNumber,
+  parseAbbreviatedDate,
 } from "../utils/inventoryUtils";
 
 const defaultFormData = {
@@ -104,7 +105,10 @@ export default function useInventory(user) {
       };
 
       const newItemRef = await addDoc(collection(db, "inventory"), itemData);
-      await logAudit('inventory_added', user.email, 'inventory', { itemId: newItemRef.id, itemName: formData.name });
+      await logAudit("inventory_added", user.email, "inventory", {
+        itemId: newItemRef.id,
+        itemName: formData.name,
+      });
 
       toast.success("Item added successfully");
       setFormData(defaultFormData);
@@ -141,7 +145,10 @@ export default function useInventory(user) {
       };
 
       await updateDoc(doc(db, "inventory", editingItem.id), sanitizedData);
-      await logAudit('inventory_updated', user.email, 'inventory', { itemId: editingItem.id, itemName: sanitizedData.name });
+      await logAudit("inventory_updated", user.email, "inventory", {
+        itemId: editingItem.id,
+        itemName: sanitizedData.name,
+      });
 
       toast.success("Item updated successfully");
       setIsEditing(false);
@@ -163,7 +170,10 @@ export default function useInventory(user) {
       setError(null);
 
       await deleteDoc(doc(db, "inventory", id));
-      await logAudit('inventory_deleted', user.email, 'inventory', { itemId: id, itemName: name });
+      await logAudit("inventory_deleted", user.email, "inventory", {
+        itemId: id,
+        itemName: name,
+      });
 
       toast.success("Item deleted successfully");
     } catch (error) {
@@ -201,13 +211,16 @@ export default function useInventory(user) {
           skippedRows++;
           continue;
         }
-
         const sanitizedItem = {
           unitNumber: sanitizeInput(item.unitNum) || "",
           name,
           brand: sanitizeInput(item.brand) || "",
-          serialNumber: sanitizeInput(item.serialNum) || "",
-          dateAcquired: item.dateAcqui || null,
+          serialNumber:
+            sanitizeInput(item.serialNum || item.serialNumber) || "N/A", // Ensure serialNumber is a string and defaults to "N/A"
+          dateAcquired:
+            item.dateAcqui || item.dateAcquired
+              ? parseAbbreviatedDate(item.dateAcqui || item.dateAcquired)
+              : null, // Handle special date formats
           quantity,
           remarks: sanitizeInput(item.remarks) || "",
           category,
@@ -228,11 +241,11 @@ export default function useInventory(user) {
       await batch.commit();
       // Log only if items were actually added
       if (addedCount > 0) {
-        await logAudit('inventory_bulk_uploaded', user.email, 'inventory', {
+        await logAudit("inventory_bulk_uploaded", user.email, "inventory", {
           addedCount: addedCount,
           skippedCount: skippedRows,
           // Optionally include item IDs/names if not too large
-          // items: addedItemDetails 
+          // items: addedItemDetails
         });
       }
 

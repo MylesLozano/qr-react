@@ -8,6 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import SearchFilters from '../components/inventory/filters/SearchFilters';
 import BulkUploadSection from '../components/inventory/forms/BulkUploadSection';
 import QRStatsSection from '../components/inventory/stats/QRStatsSection';
+import InventoryStatsCharts from '../components/inventory/stats/InventoryStatsCharts';
 import CategoryList from '../components/inventory/lists/CategoryList';
 import InventoryList from '../components/inventory/lists/InventoryList';
 import AddEditForm from '../components/inventory/forms/AddEditForm';
@@ -308,11 +309,14 @@ function Inventory({ isInDashboard = false }) {
               filterLab={filterLab}
               setFilterLab={setFilterLab}
               isDarkMode={isDarkMode}
-            />
-
-            {/* QR Stats Section (Moved to be shown alone) */}
+            />            {/* QR Stats Section (Moved to be shown alone) */}
             <div className="mb-6">
               <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
+            </div>
+
+            {/* Inventory Statistics Charts - Added to show lab and condition distribution */}
+            <div className="mb-6">
+              <InventoryStatsCharts items={items} isDarkMode={isDarkMode} />
             </div>
 
             {/* Categories and Virtualized List side-by-side */}
