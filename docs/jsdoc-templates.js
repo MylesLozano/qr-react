@@ -1,18 +1,13 @@
 /**
- * JSDoc Templates for QCheckCITE
- *
- * These templates can be used to maintain consistent documentation across components.
- * Copy and paste these templates when creating new files or documenting existing ones.
+ * JSDoc Templates
  */
 
 /**
- * Component Template
- *
  * @component
- * @param {Object} props - Component props
- * @param {string} props.name - Description of this prop
- * @param {boolean} [props.optional] - Optional prop with default value
- * @returns {JSX.Element} Rendered component
+ * @param {Object} props
+ * @param {string} props.name - Description
+ * @param {boolean} [props.optional] - Optional with default
+ * @returns {JSX.Element}
  */
 // eslint-disable-next-line no-unused-vars
 function ComponentTemplate({ name, optional = false }) {
@@ -20,13 +15,11 @@ function ComponentTemplate({ name, optional = false }) {
 }
 
 /**
- * Custom Hook Template
- *
  * @hook
  * @param {string} param - Parameter description
- * @returns {Object} The returned value
- * @returns {boolean} return.isLoading - Whether the operation is in progress
- * @returns {function} return.handleAction - Function to perform an action
+ * @returns {Object} Hook return values
+ * @returns {boolean} return.isLoading - Loading state
+ * @returns {function} return.handleAction - Action handler
  */
 // eslint-disable-next-line no-unused-vars
 function useHookTemplate(param) {
@@ -37,12 +30,10 @@ function useHookTemplate(param) {
 }
 
 /**
- * Utility Function Template
- *
  * @function
- * @param {Object} param - The input object
- * @param {string} param.id - A unique identifier
- * @returns {Object} The transformed object
+ * @param {Object} param - Input object
+ * @param {string} param.id - Identifier
+ * @returns {Object} Result
  */
 // eslint-disable-next-line no-unused-vars
 function utilityTemplate({ id }) {

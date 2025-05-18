@@ -1,33 +1,43 @@
-# QCheckCITE React Code Style Guide
+# Code Style Guide
 
-This document outlines the coding standards and best practices for the QCheckCITE React project.
+## Naming
 
-## General Guidelines
-
-- Write clean, readable, and maintainable code
-- Follow the principle of "code is read more often than it's written"
-- Implement consistent patterns throughout the codebase
-- Comment complex logic, but prefer self-explanatory code
-
-## Naming Conventions
-
-- **Components**: PascalCase (e.g., `InventoryList`, `QRCodeManager`)
-- **Hooks**: camelCase with `use` prefix (e.g., `useAuth`, `useInventory`)
-- **Functions**: camelCase (e.g., `handleSubmit`, `validateForm`)
-- **Constants**: UPPERCASE with underscores (e.g., `MAX_QR_SIZE`, `DEFAULT_ROLE`)
-- **Files**: Components match component name (e.g., `Button.jsx`)
+- **Components**: PascalCase (e.g., `InventoryList`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useAuth`)
+- **Functions**: camelCase (e.g., `handleSubmit`)
+- **Constants**: UPPERCASE (e.g., `MAX_QR_SIZE`)
+- **Files**: Match component name (e.g., `Button.jsx`)
 
 ## Component Structure
 
-1. Imports (grouped by external/internal)
+1. Imports
 2. Constants
 3. Component definition
-4. State declarations
-5. Effect hooks
-6. Event handlers and callbacks
-7. Helper functions
-8. Return statement with JSX
-9. Export statement
+4. State and effects
+5. Handlers
+6. Return JSX
+7. Export
+
+## Formatting
+
+- Use single quotes
+- 2 space indentation
+- Max line length: 120 characters
+- Semicolons required
+
+## Comments
+
+- JSDoc for components and hooks
+- Only comment complex logic
+- No commented-out code
+
+## Best Practices
+
+- Avoid nested ternaries
+- One component per file
+- Extract reusable logic to hooks
+- Use destructuring for props
+- Handle all loading/error states
 
 ```jsx
 // Example component structure
@@ -59,11 +69,7 @@ function MyComponent({ items }) {
     // Processing logic
   };
 
-  return (
-    <div>
-      {/* JSX structure */}
-    </div>
-  );
+  return <div>{/* JSX structure */}</div>;
 }
 
 export default MyComponent;
@@ -100,6 +106,7 @@ export default MyComponent;
 Format: `type(scope): description`
 
 Types:
+
 - feat: New feature
 - fix: Bug fix
 - docs: Documentation changes

@@ -1,34 +1,45 @@
-# QCheckCITE - QR-Based Inventory Management System
+# QCheckCITE
 
-## 📌 Project Overview
+## Overview
 
-QCheckCITE is a **QR-Based Inventory Management System** designed for the **College of Information Technology Education (CITE)** at JMC. It streamlines inventory tracking, request management, and reporting through QR code integration and role-based access control.
+QR-Based Inventory Management System for the College of Information Technology Education.
 
-## 🚀 Features
+## Features
 
-### Authentication & Security
-- **Secure Google Sign-In** (Restricted to `@jmc.edu.ph` emails)
-- **Role-Based Access Control** (Superadmin, Admin, User)
-- **Comprehensive Audit Logging**
+- Authentication with Google Sign-In
+- Role-based access (Superadmin, Admin, User)
+- QR code generation and scanning
+- Inventory tracking and management
+- Request processing system
+- Reporting and analytics
+- Mobile-responsive design
 
-### Inventory Management
-- **Advanced Search & Filtering**
-  - Search by name, category, lab
-  - Filter by condition, date range
-  - Search history tracking
-- **Bulk Operations**
-  - CSV import/export
-  - Batch QR code generation
-- **Category Management**
-  - Group items by category
-  - Track quantities and conditions
-- **QR Code Integration**
-  - Generate unique QR codes
-  - Scan and identify items
-  - Track item history
+## Quick Start
 
-### Request System
-- **User Requests**
+```
+npm install
+npm run dev
+```
+
+## Project Structure
+
+- `/src/components` - UI components
+- `/src/context` - React contexts (Auth, Theme)
+- `/src/dashboard` - Dashboard views by role
+- `/src/hooks` - Custom React hooks
+- `/src/utils` - Utility functions
+
+## Development
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [GUIDELINES.md](./docs/GUIDELINES.md) for development standards.
+
+## Technologies
+
+- React 19
+- Firebase
+- Tailwind CSS
+- Vite
+- ESLint + Prettier
   - Submit item requests
   - Track request status
   - View request history
@@ -38,6 +49,7 @@ QCheckCITE is a **QR-Based Inventory Management System** designed for the **Coll
   - Generate request reports
 
 ### Reporting & Analytics
+
 - **Custom Report Templates**
 - **Export Options** (PDF, CSV)
 - **Inventory Statistics**
@@ -62,12 +74,14 @@ QCheckCITE is a **QR-Based Inventory Management System** designed for the **Coll
 ## 🧑‍💻 Role-Based Access
 
 ### User
+
 - View inventory items
 - Submit and track requests
 - Scan QR codes
 - Search inventory
 
 ### Admin
+
 - Manage inventory (CRUD operations)
 - Generate QR codes
 - Handle user requests
@@ -75,6 +89,7 @@ QCheckCITE is a **QR-Based Inventory Management System** designed for the **Coll
 - Manage categories
 
 ### Superadmin
+
 - All Admin privileges
 - User management
 - View audit logs
@@ -83,6 +98,7 @@ QCheckCITE is a **QR-Based Inventory Management System** designed for the **Coll
 ## 📥 Installation
 
 1. **Clone & Install**
+
 ```sh
 git clone [repository-url]
 cd qcheckcite
@@ -90,7 +106,8 @@ npm install
 ```
 
 2. **Environment Setup**
-Create a `.env` file:
+   Create a `.env` file:
+
 ```env
 VITE_FIREBASE_API_KEY=your_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
@@ -101,6 +118,7 @@ VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 3. **Run Development Server**
+
 ```sh
 npm run dev
 ```
@@ -108,11 +126,13 @@ npm run dev
 ## 📤 Deployment
 
 1. **Build the Project**
+
 ```sh
 npm run build
 ```
 
 2. **Deploy to Firebase**
+
 ```sh
 firebase deploy
 ```

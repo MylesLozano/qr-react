@@ -1,46 +1,68 @@
 # Contributing to QCheckCITE
 
-Thank you for your interest in contributing to the QCheckCITE project! This document provides guidelines and instructions for contributing to our codebase.
+## Setup
 
-## Getting Started
+1. **Requirements**
 
-1. **Set up your development environment**
    - Node.js (v18+)
    - npm (v8+)
-   - VS Code (recommended)
 
-2. **Install recommended extensions**
-   - ESLint
-   - Prettier
-   - EditorConfig for VS Code
-   - Tailwind CSS IntelliSense
+2. **Installation**
 
-3. **Clone and install**
-   ```powershell
+   ```
    git clone <repository-url>
    cd qr-react
    npm install
    ```
 
-4. **Run the development server**
-   ```powershell
+3. **Development**
+   ```
    npm run dev
    ```
 
-## Development Workflow
+## Workflow
+
+1. Create a feature branch
+2. Make your changes
+3. Format code: `npm run format`
+4. Run linting: `npm run lint`
+5. Submit PR
+
+## Code Style
+
+Follow the [Code Style Guide](./docs/CODE_STYLE.md)
+
+## Testing
+
+- Test on desktop and mobile views
+- Handle error states
+- Check accessibility
+
+## Commit Messages
+
+Use clear, descriptive commit messages:
+
+- feat: Add new feature
+- fix: Fix a bug
+- docs: Update documentation
+- style: Format code
+- refactor: Restructure code
 
 1. **Branch naming convention**
+
    - `feature/description` - For new features
    - `bugfix/description` - For bug fixes
    - `refactor/description` - For code refactoring
    - `docs/description` - For documentation updates
 
 2. **Code style**
+
    - Follow the project's [CODE_STYLE.md](./CODE_STYLE.md) guidelines
    - Run `npm run format` to auto-format your code
    - Run `npm run lint:fix` to fix linting issues
 
 3. **Committing changes**
+
    - Use conventional commit messages (`feat:`, `fix:`, `docs:`, etc.)
    - Keep commits focused on a single logical change
 
@@ -90,6 +112,7 @@ Thank you for your interest in contributing to the QCheckCITE project! This docu
 The project uses Firebase Hosting for deployment:
 
 1. Build the production version:
+
    ```powershell
    npm run build
    ```
@@ -102,6 +125,7 @@ The project uses Firebase Hosting for deployment:
 ## Need Help?
 
 If you have questions or need help, please:
+
 - Check existing documentation
 - Review closed issues and PRs
 - Ask in the project's communication channels
