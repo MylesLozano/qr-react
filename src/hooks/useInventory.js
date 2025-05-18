@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   addDoc,
@@ -10,29 +10,29 @@ import {
   updateDoc,
   serverTimestamp,
   writeBatch,
-} from "firebase/firestore";
-import { db, logAudit } from "../firebase";
-import { toast } from "react-toastify";
+} from 'firebase/firestore';
+import { db, logAudit } from '../firebase';
+import { toast } from 'react-toastify';
 import {
   validateItem,
   sanitizeInput,
   sanitizeNumber,
   parseAbbreviatedDate,
-} from "../utils/inventoryUtils";
+} from '../utils/inventoryUtils';
 
 const defaultFormData = {
-  unitNumber: "",
-  name: "",
-  brand: "",
-  serialNumber: "",
-  dateAcquired: "",
+  unitNumber: '',
+  name: '',
+  brand: '',
+  serialNumber: '',
+  dateAcquired: '',
   quantity: 1,
-  remarks: "",
-  category: "",
-  description: "",
-  lab: "",
+  remarks: '',
+  category: '',
+  description: '',
+  lab: '',
   uniqueQR: false,
-  itemCondition: "New",
+  itemCondition: 'New',
 };
 
 export default function useInventory(user) {
@@ -50,10 +50,7 @@ export default function useInventory(user) {
   useEffect(() => {
     if (!user) return;
 
-    const inventoryQuery = query(
-      collection(db, "inventory"),
-      orderBy("createdAt", "desc")
-    );
+    const inventoryQuery = query(collection(db, 'inventory'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(
       inventoryQuery,
       (querySnapshot) => {
@@ -65,9 +62,9 @@ export default function useInventory(user) {
         setError(null);
       },
       (error) => {
-        console.error("Error fetching inventory:", error);
-        setError("Failed to load inventory data");
-        toast.error("Failed to load inventory data");
+        console.error('Error fetching inventory:', error);
+        setError('Failed to load inventory data');
+        toast.error('Failed to load inventory data');
       }
     );
 
@@ -80,7 +77,7 @@ export default function useInventory(user) {
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      toast.error(Object.values(errors).join(", "));
+      toast.error(Object.values(errors).join(', '));
       return false;
     }
 
@@ -104,18 +101,18 @@ export default function useInventory(user) {
         updatedBy: user.email,
       };
 
-      const newItemRef = await addDoc(collection(db, "inventory"), itemData);
-      await logAudit("inventory_added", user.email, "inventory", {
+      const newItemRef = await addDoc(collection(db, 'inventory'), itemData);
+      await logAudit('inventory_added', user.email, 'inventory', {
         itemId: newItemRef.id,
         itemName: formData.name,
       });
 
-      toast.success("Item added successfully");
+      toast.success('Item added successfully');
       setFormData(defaultFormData);
     } catch (error) {
-      console.error("Error adding item:", error);
-      setError("Failed to add item");
-      toast.error("Failed to add item");
+      console.error('Error adding item:', error);
+      setError('Failed to add item');
+      toast.error('Failed to add item');
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +122,7 @@ export default function useInventory(user) {
   const handleSaveEdit = async () => {
     if (!handleItemValidation()) return;
     if (!editingItem?.id) {
-      toast.error("Cannot update item: Missing item ID.");
+      toast.error('Cannot update item: Missing item ID.');
       return;
     }
 
@@ -144,18 +141,18 @@ export default function useInventory(user) {
         updatedBy: user.email,
       };
 
-      await updateDoc(doc(db, "inventory", editingItem.id), sanitizedData);
-      await logAudit("inventory_updated", user.email, "inventory", {
+      await updateDoc(doc(db, 'inventory', editingItem.id), sanitizedData);
+      await logAudit('inventory_updated', user.email, 'inventory', {
         itemId: editingItem.id,
         itemName: sanitizedData.name,
       });
 
-      toast.success("Item updated successfully");
+      toast.success('Item updated successfully');
       setIsEditing(false);
       setEditingItem(null);
       setFormData(defaultFormData);
     } catch (error) {
-      console.error("Error updating item:", error);
+      console.error('Error updating item:', error);
       setError(error.message);
       toast.error(`Failed to update item: ${error.message}`);
     } finally {
@@ -169,15 +166,15 @@ export default function useInventory(user) {
       setIsLoading(true);
       setError(null);
 
-      await deleteDoc(doc(db, "inventory", id));
-      await logAudit("inventory_deleted", user.email, "inventory", {
+      await deleteDoc(doc(db, 'inventory', id));
+      await logAudit('inventory_deleted', user.email, 'inventory', {
         itemId: id,
         itemName: name,
       });
 
-      toast.success("Item deleted successfully");
+      toast.success('Item deleted successfully');
     } catch (error) {
-      console.error("Error deleting item:", error);
+      console.error('Error deleting item:', error);
       setError(error.message);
       toast.error(`Failed to delete item: ${error.message}`);
       throw error;
@@ -189,7 +186,7 @@ export default function useInventory(user) {
   // Bulk upload items
   const bulkUpload = async () => {
     if (csvData.length === 0) {
-      toast.error("No data to upload!");
+      toast.error('No data to upload!');
       return;
     }
 
@@ -212,27 +209,26 @@ export default function useInventory(user) {
           continue;
         }
         const sanitizedItem = {
-          unitNumber: sanitizeInput(item.unitNum) || "",
+          unitNumber: sanitizeInput(item.unitNum) || '',
           name,
-          brand: sanitizeInput(item.brand) || "",
-          serialNumber:
-            sanitizeInput(item.serialNum || item.serialNumber) || "N/A", // Ensure serialNumber is a string and defaults to "N/A"
+          brand: sanitizeInput(item.brand) || '',
+          serialNumber: sanitizeInput(item.serialNum || item.serialNumber) || 'N/A', // Ensure serialNumber is a string and defaults to "N/A"
           dateAcquired:
             item.dateAcqui || item.dateAcquired
               ? parseAbbreviatedDate(item.dateAcqui || item.dateAcquired)
               : null, // Handle special date formats
           quantity,
-          remarks: sanitizeInput(item.remarks) || "",
+          remarks: sanitizeInput(item.remarks) || '',
           category,
           uniqueQR: false,
-          itemCondition: "New",
+          itemCondition: 'New',
           createdAt: serverTimestamp(),
           createdBy: user.email,
           updatedAt: serverTimestamp(),
           updatedBy: user.email,
         };
 
-        const newDocRef = doc(collection(db, "inventory"));
+        const newDocRef = doc(collection(db, 'inventory'));
         batch.set(newDocRef, sanitizedItem);
         addedCount++;
         addedItemDetails.push({ id: newDocRef.id, name: sanitizedItem.name }); // Collect details for audit
@@ -241,7 +237,7 @@ export default function useInventory(user) {
       await batch.commit();
       // Log only if items were actually added
       if (addedCount > 0) {
-        await logAudit("inventory_bulk_uploaded", user.email, "inventory", {
+        await logAudit('inventory_bulk_uploaded', user.email, 'inventory', {
           addedCount: addedCount,
           skippedCount: skippedRows,
           // Optionally include item IDs/names if not too large
@@ -251,14 +247,12 @@ export default function useInventory(user) {
 
       toast.success(
         `Successfully uploaded ${addedCount} items!${
-          skippedRows > 0
-            ? ` Skipped ${skippedRows} row(s) missing required fields.`
-            : ""
+          skippedRows > 0 ? ` Skipped ${skippedRows} row(s) missing required fields.` : ''
         }`
       );
       setCsvData([]);
     } catch (error) {
-      console.error("Error in bulk upload:", error);
+      console.error('Error in bulk upload:', error);
       toast.error(`Error in bulk upload: ${error.message}`);
     } finally {
       setIsUploading(false);

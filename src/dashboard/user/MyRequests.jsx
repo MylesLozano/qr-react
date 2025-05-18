@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   collection,
   query,
@@ -9,20 +9,20 @@ import {
   addDoc,
   serverTimestamp,
   getCountFromServer,
-} from "firebase/firestore";
-import { db, auth } from "../../firebase";
-import usePageTitle from "../../hooks/usePageTitle";
-import { toast } from "react-toastify";
-import { useTheme } from "../../hooks/useTheme";
-import LoadingSpinner from "../../components/LoadingSpinner";
-import ErrorBoundary from "../../components/ErrorBoundary";
-import EmptyState from "../../components/EmptyState";
-import { format } from "date-fns";
-import Button from "../../components/Button";
-import { useNavigate } from "react-router-dom";
+} from 'firebase/firestore';
+import { db, auth } from '../../firebase';
+import usePageTitle from '../../hooks/usePageTitle';
+import { toast } from 'react-toastify';
+import { useTheme } from '../../hooks/useTheme';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import EmptyState from '../../components/EmptyState';
+import { format } from 'date-fns';
+import Button from '../../components/Button';
+import { useNavigate } from 'react-router-dom';
 
 function MyRequests({ isInDashboard = false }) {
-  usePageTitle("QCheckCITE - My Requests");
+  usePageTitle('QCheckCITE - My Requests');
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
@@ -31,13 +31,13 @@ function MyRequests({ isInDashboard = false }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    itemName: "",
+    itemName: '',
     quantity: 1,
-    reason: "",
-    usageLocation: "",
+    reason: '',
+    usageLocation: '',
   });
   const [errors, setErrors] = useState({});
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -62,34 +62,34 @@ function MyRequests({ isInDashboard = false }) {
       try {
         // Total requests count
         const totalRequestsQuery = query(
-          collection(db, "requests"),
-          where("userId", "==", currentUser.uid)
+          collection(db, 'requests'),
+          where('userId', '==', currentUser.uid)
         );
         const totalCountSnapshot = await getCountFromServer(totalRequestsQuery);
         setTotalRequestsCount(totalCountSnapshot.data().count);
 
         // Approved requests count
         const approvedRequestsQuery = query(
-          collection(db, "requests"),
-          where("userId", "==", currentUser.uid),
-          where("status", "==", "approved")
+          collection(db, 'requests'),
+          where('userId', '==', currentUser.uid),
+          where('status', '==', 'approved')
         );
         const approvedCountSnapshot = await getCountFromServer(approvedRequestsQuery);
         setApprovedRequestsCount(approvedCountSnapshot.data().count);
 
         // Pending requests count
         const pendingRequestsQuery = query(
-          collection(db, "requests"),
-          where("userId", "==", currentUser.uid),
-          where("status", "==", "pending")
+          collection(db, 'requests'),
+          where('userId', '==', currentUser.uid),
+          where('status', '==', 'pending')
         );
         const pendingCountSnapshot = await getCountFromServer(pendingRequestsQuery);
         setPendingRequestsCount(pendingCountSnapshot.data().count);
 
         setLoadingCounts(false);
       } catch (error) {
-        console.error("Error fetching request counts:", error);
-        toast.error("Failed to fetch request counts");
+        console.error('Error fetching request counts:', error);
+        toast.error('Failed to fetch request counts');
         setLoadingCounts(false);
       }
     };
@@ -104,8 +104,8 @@ function MyRequests({ isInDashboard = false }) {
 
       try {
         const myRequestsQuery = query(
-          collection(db, "requests"),
-          where("userId", "==", currentUser.uid)
+          collection(db, 'requests'),
+          where('userId', '==', currentUser.uid)
         );
 
         // Fetch counts simultaneously
@@ -123,14 +123,14 @@ function MyRequests({ isInDashboard = false }) {
             setLoading(false);
           },
           (err) => {
-            console.error("Error fetching data:", err);
-            toast.error("Failed to fetch requests");
+            console.error('Error fetching data:', err);
+            toast.error('Failed to fetch requests');
             setLoading(false);
           }
         );
       } catch (err) {
-        console.error("Error in fetchData:", err);
-        toast.error("Failed to fetch request data");
+        console.error('Error in fetchData:', err);
+        toast.error('Failed to fetch request data');
         setLoading(false);
       }
     };
@@ -139,7 +139,7 @@ function MyRequests({ isInDashboard = false }) {
 
     // Return cleanup function
     return () => {
-      if (typeof unsubscribeRequests === "function") {
+      if (typeof unsubscribeRequests === 'function') {
         unsubscribeRequests();
       }
     };
@@ -153,9 +153,9 @@ function MyRequests({ isInDashboard = false }) {
     }
 
     const inventoryQuery = query(
-      collection(db, "inventory"),
-      where("name", ">=", searchTerm),
-      where("name", "<=", searchTerm + "\uf8ff")
+      collection(db, 'inventory'),
+      where('name', '>=', searchTerm),
+      where('name', '<=', searchTerm + '\uf8ff')
     );
 
     const unsubscribe = onSnapshot(
@@ -170,12 +170,12 @@ function MyRequests({ isInDashboard = false }) {
         }));
         setSearchResults(results);
         if (results.length === 0) {
-          toast.info("Item not found");
+          toast.info('Item not found');
         }
       },
       (error) => {
-        console.error("Error searching inventory:", error);
-        toast.error("Failed to search inventory");
+        console.error('Error searching inventory:', error);
+        toast.error('Failed to search inventory');
       }
     );
 
@@ -196,16 +196,16 @@ function MyRequests({ isInDashboard = false }) {
   const validateForm = useCallback(() => {
     const newErrors = {};
     if (!formData.itemName.trim()) {
-      newErrors.itemName = "Item name is required";
+      newErrors.itemName = 'Item name is required';
     }
     if (formData.quantity < 1) {
-      newErrors.quantity = "Quantity must be at least 1";
+      newErrors.quantity = 'Quantity must be at least 1';
     }
     if (!formData.reason.trim()) {
-      newErrors.reason = "Reason is required";
+      newErrors.reason = 'Reason is required';
     }
     if (!formData.usageLocation.trim()) {
-      newErrors.usageLocation = "Usage location is required";
+      newErrors.usageLocation = 'Usage location is required';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -217,11 +217,11 @@ function MyRequests({ isInDashboard = false }) {
       const { name, value } = e.target;
       setFormData((prev) => ({
         ...prev,
-        [name]: name === "quantity" ? parseInt(value) || 0 : value,
+        [name]: name === 'quantity' ? parseInt(value) || 0 : value,
       }));
       // Clear error when user types
       if (errors[name]) {
-        setErrors((prev) => ({ ...prev, [name]: "" }));
+        setErrors((prev) => ({ ...prev, [name]: '' }));
       }
     },
     [errors]
@@ -235,25 +235,25 @@ function MyRequests({ isInDashboard = false }) {
 
       setSubmitting(true);
       try {
-        await addDoc(collection(db, "requests"), {
+        await addDoc(collection(db, 'requests'), {
           userId: currentUser.uid,
           userEmail: currentUser.email,
           ...formData,
-          status: "pending",
+          status: 'pending',
           createdAt: serverTimestamp(),
         });
 
-        toast.success("Request submitted successfully!");
+        toast.success('Request submitted successfully!');
         setFormData({
-          itemName: "",
+          itemName: '',
           quantity: 1,
-          reason: "",
-          usageLocation: "",
+          reason: '',
+          usageLocation: '',
         });
         setShowForm(false);
       } catch (error) {
-        console.error("Error submitting request:", error);
-        toast.error("Failed to submit request. Please try again.");
+        console.error('Error submitting request:', error);
+        toast.error('Failed to submit request. Please try again.');
       } finally {
         setSubmitting(false);
       }
@@ -263,23 +263,23 @@ function MyRequests({ isInDashboard = false }) {
 
   // Handle request deletion
   const handleDelete = useCallback(async (id) => {
-    if (!window.confirm("Are you sure you want to cancel this request?")) return;
+    if (!window.confirm('Are you sure you want to cancel this request?')) return;
 
     try {
-      await deleteDoc(doc(db, "requests", id));
-      toast.success("Request cancelled successfully");
+      await deleteDoc(doc(db, 'requests', id));
+      toast.success('Request cancelled successfully');
     } catch (error) {
-      console.error("Error cancelling request:", error);
-      toast.error("Failed to cancel request. Please try again.");
+      console.error('Error cancelling request:', error);
+      toast.error('Failed to cancel request. Please try again.');
     }
   }, []);
 
   // Memoize status colors
   const statusColors = useMemo(
     () => ({
-      approved: "bg-green-500",
-      rejected: "bg-red-500",
-      pending: "bg-yellow-500",
+      approved: 'bg-green-500',
+      rejected: 'bg-red-500',
+      pending: 'bg-yellow-500',
     }),
     []
   );
@@ -296,7 +296,7 @@ function MyRequests({ isInDashboard = false }) {
 
   return (
     <ErrorBoundary>
-      <div className={`${isDarkMode ? "text-gray-200" : "text-gray-900"}`}>
+      <div className={`${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
         {!isInDashboard && (
           <div className="mb-4">
             <Button
@@ -338,7 +338,10 @@ function MyRequests({ isInDashboard = false }) {
 
         {/* Request Form */}
         {showForm && (
-          <div id="request-form" className={`rounded-lg shadow-md p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"} mb-6`}>
+          <div
+            id="request-form"
+            className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}
+          >
             <h2 className="text-xl font-semibold mb-4">Create Request</h2>
 
             {/* Search Inventory */}
@@ -351,7 +354,9 @@ function MyRequests({ isInDashboard = false }) {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={`p-2 rounded border flex-grow ${
-                    isDarkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"
+                    isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300'
                   }`}
                 />
                 <Button onClick={handleSearch}>Search</Button>
@@ -366,7 +371,9 @@ function MyRequests({ isInDashboard = false }) {
                         <li
                           key={item.id}
                           className={`p-2 rounded cursor-pointer mb-1 ${
-                            isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"
+                            isDarkMode
+                              ? 'bg-gray-700 hover:bg-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200'
                           }`}
                           onClick={() => handleSelectItem(item)}
                         >
@@ -394,10 +401,10 @@ function MyRequests({ isInDashboard = false }) {
                   value={formData.itemName}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 rounded border ${
-                    errors.itemName ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                    errors.itemName ? 'border-red-500' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}
                   aria-invalid={!!errors.itemName}
-                  aria-describedby={errors.itemName ? "itemName-error" : undefined}
+                  aria-describedby={errors.itemName ? 'itemName-error' : undefined}
                   disabled={!!selectedItem}
                 />
                 {errors.itemName && (
@@ -419,10 +426,10 @@ function MyRequests({ isInDashboard = false }) {
                   onChange={handleInputChange}
                   min="1"
                   className={`w-full px-3 py-2 rounded border ${
-                    errors.quantity ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                    errors.quantity ? 'border-red-500' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}
                   aria-invalid={!!errors.quantity}
-                  aria-describedby={errors.quantity ? "quantity-error" : undefined}
+                  aria-describedby={errors.quantity ? 'quantity-error' : undefined}
                 />
                 {errors.quantity && (
                   <p id="quantity-error" className="text-red-500 text-sm mt-1">
@@ -441,10 +448,10 @@ function MyRequests({ isInDashboard = false }) {
                   value={formData.reason}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 rounded border ${
-                    errors.reason ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                    errors.reason ? 'border-red-500' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}
                   aria-invalid={!!errors.reason}
-                  aria-describedby={errors.reason ? "reason-error" : undefined}
+                  aria-describedby={errors.reason ? 'reason-error' : undefined}
                 />
                 {errors.reason && (
                   <p id="reason-error" className="text-red-500 text-sm mt-1">
@@ -464,10 +471,10 @@ function MyRequests({ isInDashboard = false }) {
                   value={formData.usageLocation}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 rounded border ${
-                    errors.usageLocation ? "border-red-500" : "border-gray-300"
-                  } ${isDarkMode ? "bg-gray-700" : "bg-white"}`}
+                    errors.usageLocation ? 'border-red-500' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}
                   aria-invalid={!!errors.usageLocation}
-                  aria-describedby={errors.usageLocation ? "usageLocation-error" : undefined}
+                  aria-describedby={errors.usageLocation ? 'usageLocation-error' : undefined}
                 />
                 {errors.usageLocation && (
                   <p id="usageLocation-error" className="text-red-500 text-sm mt-1">
@@ -481,10 +488,10 @@ function MyRequests({ isInDashboard = false }) {
                   type="submit"
                   disabled={submitting}
                   color="blue"
-                  className={`${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   aria-label="Submit request"
                 >
-                  {submitting ? <LoadingSpinner size="small" /> : "Submit Request"}
+                  {submitting ? <LoadingSpinner size="small" /> : 'Submit Request'}
                 </Button>
                 <Button type="button" onClick={() => setShowForm(false)} color="gray">
                   Cancel
@@ -498,16 +505,18 @@ function MyRequests({ isInDashboard = false }) {
         {!loading && requests.length === 0 ? (
           <EmptyRequestsOptions />
         ) : (
-          <div className={`rounded-lg shadow-md p-6 ${isDarkMode ? "bg-gray-800" : "bg-white"} mb-6`}>
+          <div
+            className={`rounded-lg shadow-md p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} mb-6`}
+          >
             <h2 className="text-xl font-semibold mb-4">My Requests</h2>
             <div className="overflow-x-auto">
               <table
-                className={`min-w-full border ${isDarkMode ? "border-gray-700" : "border-gray-300"}`}
+                className={`min-w-full border ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                 role="table"
                 aria-label="List of requests"
               >
                 <thead>
-                  <tr className={isDarkMode ? "bg-gray-700" : "bg-gray-100"}>
+                  <tr className={isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}>
                     <th className="p-2 border">Item</th>
                     <th className="p-2 border">Quantity</th>
                     <th className="p-2 border">Reason</th>
@@ -521,24 +530,24 @@ function MyRequests({ isInDashboard = false }) {
                   {requests.map((req) => (
                     <tr
                       key={req.id}
-                      className={`text-center ${isDarkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
+                      className={`text-center ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
                     >
                       <td className="p-2 border">{req.itemName}</td>
                       <td className="p-2 border">{req.quantity}</td>
-                      <td className="p-2 border">{req.reason || "N/A"}</td>
-                      <td className="p-2 border">{req.usageLocation || "N/A"}</td>
+                      <td className="p-2 border">{req.reason || 'N/A'}</td>
+                      <td className="p-2 border">{req.usageLocation || 'N/A'}</td>
                       <td className="p-2 border">
                         <span
-                          className={`px-2 py-1 rounded text-white ${statusColors[req.status] || "bg-gray-500"}`}
+                          className={`px-2 py-1 rounded text-white ${statusColors[req.status] || 'bg-gray-500'}`}
                         >
-                          {req.status || "Pending"}
+                          {req.status || 'Pending'}
                         </span>
                       </td>
                       <td className="p-2 border">
-                        {req.createdAt ? format(req.createdAt, "MMM d, yyyy HH:mm") : "N/A"}
+                        {req.createdAt ? format(req.createdAt, 'MMM d, yyyy HH:mm') : 'N/A'}
                       </td>
                       <td className="p-2 border">
-                        {req.status === "pending" ? (
+                        {req.status === 'pending' ? (
                           <Button
                             onClick={() => handleDelete(req.id)}
                             color="red"

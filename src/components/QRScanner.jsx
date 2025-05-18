@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
-import { Scanner } from "@yudiel/react-qr-scanner";
+import { useState, useCallback, useEffect } from 'react';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { BrowserQRCodeReader } from '@zxing/browser';
-import { useTheme } from "../hooks/useTheme";
-import { toast } from "react-toastify";
-import Button from "./Button";
-import LoadingSpinner from "./LoadingSpinner";
-import { useNavigate } from "react-router-dom";
+import { useTheme } from '../hooks/useTheme';
+import { toast } from 'react-toastify';
+import Button from './Button';
+import LoadingSpinner from './LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
 
 function QRScanner({ isInDashboard = false }) {
   const { isDarkMode } = useTheme();
@@ -28,36 +28,39 @@ function QRScanner({ isInDashboard = false }) {
   // Make sure we have permissions
   useEffect(() => {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
         .then(() => {
-          console.log("Camera permission granted");
+          console.info('Camera permission granted');
         })
         .catch((err) => {
-          console.error("Camera permission denied:", err);
-          setError("Camera permission denied. Please allow camera access to scan QR codes.");
+          console.error('Camera permission denied:', err);
+          setError('Camera permission denied. Please allow camera access to scan QR codes.');
         });
     } else {
-      setError("Camera access is not supported in this browser.");
+      setError('Camera access is not supported in this browser.');
     }
   }, []);
 
-  
   const handleScanError = useCallback((err) => {
-    console.error("QR Scan Error:", err);
-    setError(err.message || "Failed to scan QR code");
+    console.error('QR Scan Error:', err);
+    setError(err.message || 'Failed to scan QR code');
     setScanning(false);
-    toast.error("Failed to scan QR code");
+    toast.error('Failed to scan QR code');
   }, []);
 
-  const handleScanResult = useCallback((result) => {
-    try {
-      setScanning(false);
-      setScanResult(result);
-      toast.success("QR code scanned successfully!");
-    } catch (err) {
-      handleScanError(err);
-    }
-  }, [handleScanError]);
+  const handleScanResult = useCallback(
+    (result) => {
+      try {
+        setScanning(false);
+        setScanResult(result);
+        toast.success('QR code scanned successfully!');
+      } catch (err) {
+        handleScanError(err);
+      }
+    },
+    [handleScanError]
+  );
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -66,23 +69,23 @@ function QRScanner({ isInDashboard = false }) {
 
     try {
       const image = await createImageBitmap(file);
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = image.width;
       canvas.height = image.height;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
       const reader = new BrowserQRCodeReader();
       const result = await reader.decodeFromImageElement(canvas);
       if (result?.text) {
         setScanResult(result.text);
-        toast.success("QR code decoded from image!");
+        toast.success('QR code decoded from image!');
       } else {
-        toast.error("Could not detect a QR code in this image.");
+        toast.error('Could not detect a QR code in this image.');
       }
     } catch (err) {
-      console.error("Image QR decode error:", err);
-      toast.error("Failed to decode image QR code");
+      console.error('Image QR decode error:', err);
+      toast.error('Failed to decode image QR code');
     }
   };
 
@@ -93,7 +96,7 @@ function QRScanner({ isInDashboard = false }) {
   }, []);
   const handleBack = useCallback(() => {
     if (isInDashboard) {
-      navigate("/user-dashboard", { replace: true });
+      navigate('/user-dashboard', { replace: true });
     } else {
       navigate(-1);
     }
@@ -108,7 +111,7 @@ function QRScanner({ isInDashboard = false }) {
   }
 
   return (
-    <div className={`p-6 rounded-lg shadow-md ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
+    <div className={`p-6 rounded-lg shadow-md ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">QR Code Scanner</h2>
         {!isInDashboard && (
@@ -146,29 +149,18 @@ function QRScanner({ isInDashboard = false }) {
           {!scanning ? (
             <>
               <div className="flex justify-center">
-                <Button
-                  onClick={startScanning}
-                  color="blue"
-                  size="lg"
-                  className="mr-2"
-                >
+                <Button onClick={startScanning} color="blue" size="lg" className="mr-2">
                   Start Scanning
                 </Button>
                 {!isInDashboard && (
-                  <Button
-                    onClick={handleBack}
-                    color="gray"
-                    size="lg"
-                  >
+                  <Button onClick={handleBack} color="gray" size="lg">
                     Cancel
                   </Button>
                 )}
               </div>
 
               <div className="mt-4">
-                <label className="block mb-2 text-sm font-medium">
-                  Upload QR Image
-                </label>
+                <label className="block mb-2 text-sm font-medium">Upload QR Image</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -183,11 +175,7 @@ function QRScanner({ isInDashboard = false }) {
                       alt="Uploaded preview"
                       className="max-h-40 rounded border"
                     />
-                    <Button
-                      onClick={() => setUploadedFile(null)}
-                      color="gray"
-                      size="sm"
-                    >
+                    <Button onClick={() => setUploadedFile(null)} color="gray" size="sm">
                       Clear Upload
                     </Button>
                   </div>

@@ -16,10 +16,10 @@
  * // Returns: "&lt;script&gt;alert('XSS')&lt;/script&gt;"
  */
 export const sanitizeInput = (input) => {
-  if (!input) return "";
+  if (!input) return '';
   return String(input)
     .trim()
-    .replace(/[<>]/g, (match) => (match === "<" ? "&lt;" : "&gt;"));
+    .replace(/[<>]/g, (match) => (match === '<' ? '&lt;' : '&gt;'));
 };
 
 /**
@@ -81,7 +81,7 @@ export const parseAbbreviatedDate = (dateStr) => {
       const year = parseInt(yearStr, 10);
       // Create date - day defaults to 1st of month
       const date = new Date(year, month, 1);
-      return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
     }
 
     match = cleanStr.match(pattern2);
@@ -98,18 +98,18 @@ export const parseAbbreviatedDate = (dateStr) => {
       if (day < 1 || day > 31) return null;
 
       const date = new Date(year, month, day);
-      return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
     }
 
     // If no pattern matches, try standard date parsing as fallback
     const fallbackDate = new Date(cleanStr);
     if (!isNaN(fallbackDate.getTime())) {
-      return fallbackDate.toISOString().split("T")[0];
+      return fallbackDate.toISOString().split('T')[0];
     }
 
     return null;
   } catch (error) {
-    console.warn("Date parsing error:", error);
+    console.warn('Date parsing error:', error);
     return null;
   }
 };
@@ -138,15 +138,15 @@ export const saveSearchHistory = (searchTerm) => {
   if (!searchTerm.trim()) return;
 
   try {
-    const history = JSON.parse(localStorage.getItem("searchHistory") || "[]");
+    const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
     // Add the new term and remove duplicates
-    const updatedHistory = [
-      searchTerm,
-      ...history.filter((term) => term !== searchTerm),
-    ].slice(0, 10); // Keep only the 10 most recent searches
-    localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
+    const updatedHistory = [searchTerm, ...history.filter((term) => term !== searchTerm)].slice(
+      0,
+      10
+    ); // Keep only the 10 most recent searches
+    localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
   } catch (error) {
-    console.error("Error saving search history:", error);
+    console.error('Error saving search history:', error);
   }
 };
 
@@ -159,21 +159,17 @@ export const saveSearch = (name, searchConfig) => {
   if (!name.trim()) return;
 
   try {
-    const savedSearches = JSON.parse(
-      localStorage.getItem("savedSearches") || "[]"
-    );
+    const savedSearches = JSON.parse(localStorage.getItem('savedSearches') || '[]');
     const newSearch = { name, config: searchConfig, timestamp: Date.now() };
 
     // Remove existing search with the same name if it exists
-    const updatedSearches = savedSearches.filter(
-      (search) => search.name !== name
-    );
+    const updatedSearches = savedSearches.filter((search) => search.name !== name);
     updatedSearches.unshift(newSearch); // Add new search at the beginning
 
-    localStorage.setItem("savedSearches", JSON.stringify(updatedSearches));
+    localStorage.setItem('savedSearches', JSON.stringify(updatedSearches));
     return true;
   } catch (error) {
-    console.error("Error saving search:", error);
+    console.error('Error saving search:', error);
     return false;
   }
 };
@@ -184,7 +180,7 @@ export const saveSearch = (name, searchConfig) => {
  */
 export const getSavedSearches = () => {
   try {
-    const searches = JSON.parse(localStorage.getItem("savedSearches") || "[]");
+    const searches = JSON.parse(localStorage.getItem('savedSearches') || '[]');
     return Array.isArray(searches) ? searches : [];
   } catch {
     return [];
@@ -199,16 +195,16 @@ export const getSavedSearches = () => {
 export const validateItem = (item) => {
   const errors = {};
 
-  if (!item.name || item.name.trim() === "") {
-    errors.name = "Item name is required";
+  if (!item.name || item.name.trim() === '') {
+    errors.name = 'Item name is required';
   }
 
-  if (!item.category || item.category.trim() === "") {
-    errors.category = "Category is required";
+  if (!item.category || item.category.trim() === '') {
+    errors.category = 'Category is required';
   }
 
   if (item.quantity === undefined || item.quantity < 0) {
-    errors.quantity = "Quantity must be 0 or greater";
+    errors.quantity = 'Quantity must be 0 or greater';
   }
 
   return errors;
@@ -234,10 +230,7 @@ export const calculateQrStats = (items) => {
         acc.totalWithQr++;
 
         const generatedDate = item.lastQRGenerated?.toDate();
-        if (
-          generatedDate &&
-          (!acc.lastGenerated || generatedDate > acc.lastGenerated)
-        ) {
+        if (generatedDate && (!acc.lastGenerated || generatedDate > acc.lastGenerated)) {
           acc.lastGenerated = generatedDate;
         }
       } else {
@@ -264,7 +257,7 @@ export const groupByCategory = (items) => {
   if (!items || !Array.isArray(items)) return {};
 
   return items.reduce((groups, item) => {
-    const category = item.category || "Uncategorized";
+    const category = item.category || 'Uncategorized';
 
     if (!groups[category]) {
       groups[category] = {
@@ -279,9 +272,8 @@ export const groupByCategory = (items) => {
     groups[category].totalQuantity += sanitizeNumber(item.quantity);
 
     // Track item conditions for statistics
-    const condition = item.itemCondition || "Unknown";
-    groups[category].conditions[condition] =
-      (groups[category].conditions[condition] || 0) + 1;
+    const condition = item.itemCondition || 'Unknown';
+    groups[category].conditions[condition] = (groups[category].conditions[condition] || 0) + 1;
 
     return groups;
   }, {});
@@ -296,24 +288,22 @@ export const formatItemsForExport = (items) => {
   if (!items || !Array.isArray(items)) return [];
 
   return items.map((item) => ({
-    unitNumber: item.unitNumber || "",
-    name: item.name || "",
-    brand: item.brand || "",
-    serialNumber: item.serialNumber || "",
-    dateAcquired: item.dateAcquired || "",
+    unitNumber: item.unitNumber || '',
+    name: item.name || '',
+    brand: item.brand || '',
+    serialNumber: item.serialNumber || '',
+    dateAcquired: item.dateAcquired || '',
     quantity: item.quantity || 0,
-    category: item.category || "",
-    lab: item.lab || "",
-    itemCondition: item.itemCondition || "",
-    description: item.description || "",
-    remarks: item.remarks || "",
-    hasQR: item.hasQR ? "Yes" : "No",
+    category: item.category || '',
+    lab: item.lab || '',
+    itemCondition: item.itemCondition || '',
+    description: item.description || '',
+    remarks: item.remarks || '',
+    hasQR: item.hasQR ? 'Yes' : 'No',
     lastQRGenerated: item.lastQRGenerated
       ? new Date(item.lastQRGenerated.toDate()).toLocaleString()
-      : "",
-    lastUpdated: item.updatedAt
-      ? new Date(item.updatedAt.toDate()).toLocaleString()
-      : "",
+      : '',
+    lastUpdated: item.updatedAt ? new Date(item.updatedAt.toDate()).toLocaleString() : '',
   }));
 };
 
@@ -329,22 +319,20 @@ export const prepareBulkUploadData = (csvData) => {
     .map((row) => {
       // Map CSV columns to our schema
       return {
-        unitNumber: sanitizeInput(row.unitNum || row.unitNumber || ""),
-        name: sanitizeInput(row.name || ""),
-        brand: sanitizeInput(row.brand || ""),
-        serialNumber: sanitizeInput(row.serialNum || row.serialNumber) || "N/A",
+        unitNumber: sanitizeInput(row.unitNum || row.unitNumber || ''),
+        name: sanitizeInput(row.name || ''),
+        brand: sanitizeInput(row.brand || ''),
+        serialNumber: sanitizeInput(row.serialNum || row.serialNumber) || 'N/A',
         dateAcquired:
           row.dateAcquired || row.dateAcqui
             ? parseAbbreviatedDate(row.dateAcquired || row.dateAcqui)
             : null,
         quantity: sanitizeNumber(row.quantity || 0),
-        category: sanitizeInput(row.category || ""),
-        lab: sanitizeInput(row.lab || ""),
-        itemCondition: sanitizeInput(
-          row.condition || row.itemCondition || "New"
-        ),
-        description: sanitizeInput(row.description || ""),
-        remarks: sanitizeInput(row.remarks || ""),
+        category: sanitizeInput(row.category || ''),
+        lab: sanitizeInput(row.lab || ''),
+        itemCondition: sanitizeInput(row.condition || row.itemCondition || 'New'),
+        description: sanitizeInput(row.description || ''),
+        remarks: sanitizeInput(row.remarks || ''),
         uniqueQR: false,
       };
     })
@@ -360,17 +348,17 @@ export const prepareBulkUploadData = (csvData) => {
  */
 export const getCSVTemplateHeaders = () => {
   return [
-    "unitNumber",
-    "name",
-    "brand",
-    "serialNumber",
-    "dateAcquired",
-    "quantity",
-    "category",
-    "lab",
-    "itemCondition",
-    "description",
-    "remarks",
+    'unitNumber',
+    'name',
+    'brand',
+    'serialNumber',
+    'dateAcquired',
+    'quantity',
+    'category',
+    'lab',
+    'itemCondition',
+    'description',
+    'remarks',
   ];
 };
 
@@ -380,7 +368,7 @@ export const getCSVTemplateHeaders = () => {
  * @return {string} CSS class name for appropriate color
  */
 export const stockStatusColor = (qty) => {
-  if (qty <= 0) return "text-red-500";
-  if (qty <= 5) return "text-yellow-500";
-  return "text-green-500";
+  if (qty <= 0) return 'text-red-500';
+  if (qty <= 5) return 'text-yellow-500';
+  return 'text-green-500';
 };

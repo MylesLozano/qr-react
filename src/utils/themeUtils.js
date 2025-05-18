@@ -1,6 +1,6 @@
 // Theme constants and utility functions
-export const THEME_STORAGE_KEY = "qcheckcite-theme-preference";
-export const DARK_THEME_CLASS = "dark";
+export const THEME_STORAGE_KEY = 'qcheckcite-theme-preference';
+export const DARK_THEME_CLASS = 'dark';
 
 /**
  * Returns the appropriate class name based on the current theme mode
@@ -16,9 +16,7 @@ export const getThemeStyles = (isDarkMode, options) => {
 };
 
 export const getSystemThemePreference = () => {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
 export const getStoredThemePreference = () => {

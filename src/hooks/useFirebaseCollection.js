@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
-import { collection, query, onSnapshot, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
-import { toast } from "react-toastify";
+import { useState, useEffect, useCallback } from 'react';
+import { collection, query, onSnapshot, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
+import { toast } from 'react-toastify';
 
 export function useFirebaseCollection(collectionName, qOptions = {}) {
   const [data, setData] = useState([]);
@@ -46,13 +46,7 @@ export function useFirebaseCollection(collectionName, qOptions = {}) {
     setUnsubscribe(() => unsubscribeFn);
 
     return cleanupSubscription;
-  }, [
-    collectionName,
-    qOptions,
-    handleSnapshot,
-    handleError,
-    cleanupSubscription,
-  ]);
+  }, [collectionName, qOptions, handleSnapshot, handleError, cleanupSubscription]);
 
   return { data, loading, error, refetch: fetchData };
 }

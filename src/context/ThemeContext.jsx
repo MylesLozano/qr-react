@@ -3,7 +3,7 @@ import {
   getSystemThemePreference,
   getStoredThemePreference,
   setStoredThemePreference,
-  toggleRootClass
+  toggleRootClass,
 } from '../utils/themeUtils';
 import { ThemeContext } from './ThemeContextDef';
 
@@ -15,7 +15,7 @@ export function ThemeProvider({ children }) {
   });
 
   const toggleTheme = useCallback(() => {
-    setIsDarkMode(prev => {
+    setIsDarkMode((prev) => {
       const newValue = !prev;
       setStoredThemePreference(newValue ? 'dark' : 'light');
       return newValue;
@@ -27,8 +27,6 @@ export function ThemeProvider({ children }) {
   }, [isDarkMode]);
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>{children}</ThemeContext.Provider>
   );
 }

@@ -1,18 +1,14 @@
-import { useState, useMemo, useCallback } from "react";
-import {
-  debounce,
-  groupByCategory,
-  sanitizeInput,
-} from "../utils/inventoryUtils";
+import { useState, useMemo, useCallback } from 'react';
+import { debounce, groupByCategory, sanitizeInput } from '../utils/inventoryUtils';
 
 export default function useSearch(items) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchField, setSearchField] = useState("name");
-  const [filterCondition, setFilterCondition] = useState("");
-  const [filterLab, setFilterLab] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchField, setSearchField] = useState('name');
+  const [filterCondition, setFilterCondition] = useState('');
+  const [filterLab, setFilterLab] = useState('');
   const [searchHistory, setSearchHistory] = useState(() => {
     try {
-      const history = JSON.parse(localStorage.getItem("searchHistory") || "[]");
+      const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
       return Array.isArray(history) ? history : [];
     } catch {
       return [];
@@ -33,16 +29,12 @@ export default function useSearch(items) {
     // Apply search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter((item) =>
-        item[searchField]?.toLowerCase().includes(term)
-      );
+      filtered = filtered.filter((item) => item[searchField]?.toLowerCase().includes(term));
     }
 
     // Apply condition filter
     if (filterCondition) {
-      filtered = filtered.filter(
-        (item) => item.itemCondition === filterCondition
-      );
+      filtered = filtered.filter((item) => item.itemCondition === filterCondition);
     }
 
     // Apply lab filter
@@ -54,10 +46,7 @@ export default function useSearch(items) {
   }, [items, searchTerm, searchField, filterCondition, filterLab]);
 
   // Group by category
-  const categoryGroups = useMemo(
-    () => groupByCategory(filteredItems),
-    [filteredItems]
-  );
+  const categoryGroups = useMemo(() => groupByCategory(filteredItems), [filteredItems]);
 
   // Handle search change
   const handleSearchChange = useCallback(
@@ -71,7 +60,7 @@ export default function useSearch(items) {
             sanitizedValue,
             ...prevHistory.filter((item) => item !== sanitizedValue),
           ].slice(0, 10);
-          localStorage.setItem("searchHistory", JSON.stringify(newHistory));
+          localStorage.setItem('searchHistory', JSON.stringify(newHistory));
           return newHistory;
         });
       }

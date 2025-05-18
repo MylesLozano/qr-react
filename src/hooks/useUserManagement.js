@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
-import { doc, updateDoc } from "firebase/firestore";
-import { db, logAudit } from "../firebase";
-import { toast } from "react-toastify";
+import { useState, useCallback } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db, logAudit } from '../firebase';
+import { toast } from 'react-toastify';
 
 /**
  * Custom hook for user management operations
@@ -23,21 +23,17 @@ export function useUserManagement(currentUser) {
   const updateUserRole = useCallback(
     async (userId, newRole, email) => {
       if (!currentUser?.email) {
-        toast.error("You must be logged in to perform this action");
+        toast.error('You must be logged in to perform this action');
         return false;
       }
 
-      if (
-        !window.confirm(
-          `Are you sure you want to change ${email}'s role to ${newRole}?`
-        )
-      ) {
+      if (!window.confirm(`Are you sure you want to change ${email}'s role to ${newRole}?`)) {
         return false;
       }
 
       setUpdating(true);
       try {
-        const userRef = doc(db, "users", userId);
+        const userRef = doc(db, 'users', userId);
         await updateDoc(userRef, {
           role: newRole,
           sessionRevoked: true,
@@ -45,7 +41,7 @@ export function useUserManagement(currentUser) {
           updatedBy: currentUser.email,
         });
 
-        await logAudit("user_role_updated", currentUser.email, "user", {
+        await logAudit('user_role_updated', currentUser.email, 'user', {
           targetUserEmail: email,
           newRole: newRole,
         });
@@ -53,7 +49,7 @@ export function useUserManagement(currentUser) {
         toast.success(`Role updated to ${newRole} for ${email}`);
         return true;
       } catch (error) {
-        console.error("Error updating user role:", error);
+        console.error('Error updating user role:', error);
         toast.error(`Failed to update ${email}'s role`);
         return false;
       } finally {
@@ -71,14 +67,14 @@ export function useUserManagement(currentUser) {
    */
   const getRoleColor = useCallback((role) => {
     switch (role) {
-      case "superadmin":
-        return "bg-purple-500";
-      case "admin":
-        return "bg-blue-500";
-      case "user":
-        return "bg-gray-500";
+      case 'superadmin':
+        return 'bg-purple-500';
+      case 'admin':
+        return 'bg-blue-500';
+      case 'user':
+        return 'bg-gray-500';
       default:
-        return "bg-gray-500";
+        return 'bg-gray-500';
     }
   }, []);
 
@@ -89,13 +85,13 @@ export function useUserManagement(currentUser) {
    * @returns {Array} Array of role options
    */
   const getRoleOptions = useCallback((userRole) => {
-    if (userRole === "superadmin") {
+    if (userRole === 'superadmin') {
       return [
-        { value: "admin", label: "Admin", color: "blue" },
-        { value: "user", label: "User", color: "gray" },
+        { value: 'admin', label: 'Admin', color: 'blue' },
+        { value: 'user', label: 'User', color: 'gray' },
       ];
     }
-    return [{ value: "user", label: "User", color: "gray" }];
+    return [{ value: 'user', label: 'User', color: 'gray' }];
   }, []);
 
   return {

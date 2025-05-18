@@ -1,13 +1,13 @@
 // File: src/hooks/useQRCode.js
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from 'react';
 import {
   saveQRCodeToFirestore,
   getQRCodeFromFirestore,
   updateQRCodeLockStatus,
   logAudit,
-} from "../firebase";
-import { calculateQrStats } from "../utils/inventoryUtils";
+} from '../firebase';
+import { calculateQrStats } from '../utils/inventoryUtils';
 
 export function useQRCode(items = [], user) {
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export function useQRCode(items = [], user) {
       const existingQR = await getQRCodeFromFirestore(itemId);
       return existingQR || null;
     } catch (err) {
-      console.error("Error checking existing QR:", err);
+      console.error('Error checking existing QR:', err);
       return null;
     }
   }, []);
@@ -34,13 +34,13 @@ export function useQRCode(items = [], user) {
           ...metadata,
           generatedBy: user?.email,
         });
-        await logAudit("qr_code_generated", user?.email, "qr", {
+        await logAudit('qr_code_generated', user?.email, 'qr', {
           itemId,
           ...metadata,
         });
         return true;
       } catch (err) {
-        console.error("Error saving QR code:", err);
+        console.error('Error saving QR code:', err);
         return false;
       }
     },
@@ -55,13 +55,13 @@ export function useQRCode(items = [], user) {
       try {
         const existingQR = await checkExistingRequest(itemId);
         if (existingQR?.isLocked) {
-          setError("This QR code is locked and cannot be modified.");
+          setError('This QR code is locked and cannot be modified.');
           return false;
         }
 
         const success = await createRequest(itemId, qrDataUrl, metadata);
         if (!success) {
-          setError("Failed to save QR code");
+          setError('Failed to save QR code');
           return false;
         }
 
@@ -80,15 +80,10 @@ export function useQRCode(items = [], user) {
     async (itemId, lock) => {
       try {
         await updateQRCodeLockStatus(itemId, lock);
-        await logAudit(
-          lock ? "qr_code_locked" : "qr_code_unlocked",
-          user?.email,
-          "qr",
-          { itemId }
-        );
+        await logAudit(lock ? 'qr_code_locked' : 'qr_code_unlocked', user?.email, 'qr', { itemId });
         return true;
       } catch (err) {
-        console.error("Error updating QR lock status:", err);
+        console.error('Error updating QR lock status:', err);
         return false;
       }
     },
@@ -101,10 +96,10 @@ export function useQRCode(items = [], user) {
     return {
       id: item.id,
       name: item.name,
-      serialNumber: item.serialNumber || "",
-      category: item.category || "",
-      lab: item.lab || "",
-      itemCondition: item.itemCondition || "",
+      serialNumber: item.serialNumber || '',
+      category: item.category || '',
+      lab: item.lab || '',
+      itemCondition: item.itemCondition || '',
       timestamp: new Date().toISOString(),
     };
   }, []);
@@ -113,7 +108,7 @@ export function useQRCode(items = [], user) {
   const previewQrCode = useCallback(
     async (item) => {
       if (!item || !item.id) {
-        setError("Invalid item selected");
+        setError('Invalid item selected');
         return;
       }
 
@@ -127,12 +122,10 @@ export function useQRCode(items = [], user) {
         if (existingQR && existingQR.qrCode) {
           // Use the stored QR code data
           try {
-            const qrData = existingQR.qrData
-              ? JSON.parse(existingQR.qrData)
-              : null;
+            const qrData = existingQR.qrData ? JSON.parse(existingQR.qrData) : null;
             setGeneratedQrData(qrData || generateQrData(item));
           } catch (err) {
-            console.error("Error parsing stored QR data:", err);
+            console.error('Error parsing stored QR data:', err);
             setGeneratedQrData(generateQrData(item));
           }
         } else {
@@ -140,8 +133,8 @@ export function useQRCode(items = [], user) {
           setGeneratedQrData(generateQrData(item));
         }
       } catch (err) {
-        setError(err.message || "Error generating QR preview");
-        console.error("QR preview error:", err);
+        setError(err.message || 'Error generating QR preview');
+        console.error('QR preview error:', err);
       } finally {
         setIsGeneratingQr(false);
       }

@@ -5,11 +5,11 @@ import { useTheme } from '../hooks/useTheme';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { 
-      hasError: false, 
+    this.state = {
+      hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: 0
+      retryCount: 0,
     };
   }
 
@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component {
     //Show toast to user
     if (typeof window !== 'undefined') {
       import('react-toastify').then(({ toast }) => {
-        toast.error("Something broke! Try refreshing the page.");
+        toast.error('Something broke! Try refreshing the page.');
       });
     }
 
@@ -39,7 +39,7 @@ class ErrorBoundary extends React.Component {
     console.error('Error logged:', {
       error: error,
       componentStack: errorInfo?.componentStack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -48,11 +48,11 @@ class ErrorBoundary extends React.Component {
   };
 
   handleRetry = () => {
-    this.setState(prevState => ({
-      hasError: false, 
+    this.setState((prevState) => ({
+      hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: prevState.retryCount + 1
+      retryCount: prevState.retryCount + 1,
     }));
   };
 
@@ -63,7 +63,7 @@ class ErrorBoundary extends React.Component {
     if (!hasError) return children;
 
     return (
-      <ErrorUI 
+      <ErrorUI
         error={error}
         customMessage={errorMessage}
         onRefresh={this.handleRefresh}
@@ -78,32 +78,40 @@ class ErrorBoundary extends React.Component {
 ErrorBoundary.propTypes = {
   children: PropTypes.node.isRequired,
   errorMessage: PropTypes.string,
-  maxRetries: PropTypes.number
+  maxRetries: PropTypes.number,
 };
 
-const ErrorUI = ({ 
-  error, 
-  customMessage, 
-  onRefresh, 
-  onRetry,
-  retryCount,
-  maxRetries
-}) => {
+const ErrorUI = ({ error, customMessage, onRefresh, onRetry, retryCount, maxRetries }) => {
   const { isDarkMode } = useTheme();
-  
+
   return (
-    <div className={`fixed inset-0 overflow-y-auto flex min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} p-4`}>
-      <div className={`relative m-auto flex w-full max-w-lg flex-col items-center rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-6 text-center shadow-xl`}>
-        <div className={`mb-4 rounded-full ${isDarkMode ? 'bg-red-900/50 text-red-400' : 'bg-red-100 text-red-500'} p-3`} aria-hidden="true">
+    <div
+      className={`fixed inset-0 overflow-y-auto flex min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} p-4`}
+    >
+      <div
+        className={`relative m-auto flex w-full max-w-lg flex-col items-center rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-6 text-center shadow-xl`}
+      >
+        <div
+          className={`mb-4 rounded-full ${isDarkMode ? 'bg-red-900/50 text-red-400' : 'bg-red-100 text-red-500'} p-3`}
+          aria-hidden="true"
+        >
           <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
         </div>
-        
-        <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`} role="alert">
+
+        <h2
+          className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}
+          role="alert"
+        >
           Something went wrong
         </h2>
-        
+
         {customMessage ? (
           <p className={`mb-6 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             {customMessage}
@@ -120,7 +128,7 @@ const ErrorUI = ({
             )}
           </>
         )}
-        
+
         <div className="space-y-3 w-full">
           {onRetry && (
             <button
@@ -158,7 +166,7 @@ ErrorUI.propTypes = {
   onRefresh: PropTypes.func.isRequired,
   onRetry: PropTypes.func,
   retryCount: PropTypes.number,
-  maxRetries: PropTypes.number
+  maxRetries: PropTypes.number,
 };
 
 export default ErrorBoundary;

@@ -10,7 +10,7 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
   // Define chart colors that work with both light and dark mode
   const chartColors = {
     // Condition colors
-    good: '#10B981', // Green 
+    good: '#10B981', // Green
     used: '#FBBF24', // Yellow/Amber
     damaged: '#EF4444', // Red
     unknown: '#6B7280', // Gray
@@ -24,14 +24,14 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
   // Calculate lab statistics
   const labStats = useMemo(() => {
     const stats = {
-      'IT Lab': 0, 
+      'IT Lab': 0,
       'EMC Lab': 0,
-      'Others': 0
+      Others: 0,
     };
 
     if (!Array.isArray(items) || items.length === 0) return stats;
 
-    items.forEach(item => {
+    items.forEach((item) => {
       if (!item || !item.lab) {
         stats['Others']++;
       } else if (item.lab === 'Mac Lab') {
@@ -49,15 +49,15 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
   // Calculate condition statistics
   const conditionStats = useMemo(() => {
     const stats = {
-      'Good': 0,
-      'Used': 0,
-      'Damaged': 0,
-      'Unknown': 0
+      Good: 0,
+      Used: 0,
+      Damaged: 0,
+      Unknown: 0,
     };
 
     if (!Array.isArray(items) || items.length === 0) return stats;
 
-    items.forEach(item => {
+    items.forEach((item) => {
       if (!item || !item.itemCondition) {
         stats['Unknown']++;
       } else if (item.itemCondition === 'Good' || item.itemCondition === 'New') {
@@ -80,11 +80,7 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
     datasets: [
       {
         data: Object.values(labStats),
-        backgroundColor: [
-          chartColors.itLab,
-          chartColors.emcLab,
-          chartColors.others
-        ],
+        backgroundColor: [chartColors.itLab, chartColors.emcLab, chartColors.others],
         borderWidth: 1,
         borderColor: isDarkMode ? '#374151' : '#F3F4F6',
       },
@@ -101,7 +97,7 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
           chartColors.good,
           chartColors.used,
           chartColors.damaged,
-          chartColors.unknown
+          chartColors.unknown,
         ],
         borderWidth: 1,
         borderColor: isDarkMode ? '#374151' : '#F3F4F6',
@@ -120,9 +116,9 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
           color: isDarkMode ? '#E5E7EB' : '#374151',
           padding: 20,
           font: {
-            size: 12
-          }
-        }
+            size: 12,
+          },
+        },
       },
       tooltip: {
         backgroundColor: isDarkMode ? '#4B5563' : '#FFF',
@@ -133,22 +129,22 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
         padding: 12,
         displayColors: true,
         callbacks: {
-          label: function(context) {
+          label: function (context) {
             const label = context.label || '';
             const value = context.raw || 0;
             const total = context.dataset.data.reduce((a, b) => a + b, 0);
             const percentage = total === 0 ? 0 : Math.round((value / total) * 100);
             return `${label}: ${value} (${percentage}%)`;
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   };
 
   return (
     <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
       <h2 className="text-xl font-semibold mb-4">Inventory Statistics</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Lab Statistics */}
         <div>
@@ -158,13 +154,18 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
             {Object.entries(labStats).map(([lab, count]) => (
-              <div key={lab} className="p-2 rounded bg-opacity-20" style={{ 
-                backgroundColor: lab === 'IT Lab' 
-                  ? `${chartColors.itLab}20` 
-                  : lab === 'EMC Lab' 
-                    ? `${chartColors.emcLab}20` 
-                    : `${chartColors.others}20`
-              }}>
+              <div
+                key={lab}
+                className="p-2 rounded bg-opacity-20"
+                style={{
+                  backgroundColor:
+                    lab === 'IT Lab'
+                      ? `${chartColors.itLab}20`
+                      : lab === 'EMC Lab'
+                        ? `${chartColors.emcLab}20`
+                        : `${chartColors.others}20`,
+                }}
+              >
                 <p className="font-medium">{lab}</p>
                 <p className="text-lg font-bold">{count}</p>
               </div>
@@ -181,15 +182,26 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
           <div className="mt-4 grid grid-cols-4 gap-2 text-center text-sm">
             {Object.entries(conditionStats).map(([condition, count]) => {
               let bgColor;
-              switch(condition) {
-                case 'Good': bgColor = `${chartColors.good}20`; break;
-                case 'Used': bgColor = `${chartColors.used}20`; break;
-                case 'Damaged': bgColor = `${chartColors.damaged}20`; break;
-                default: bgColor = `${chartColors.unknown}20`;
+              switch (condition) {
+                case 'Good':
+                  bgColor = `${chartColors.good}20`;
+                  break;
+                case 'Used':
+                  bgColor = `${chartColors.used}20`;
+                  break;
+                case 'Damaged':
+                  bgColor = `${chartColors.damaged}20`;
+                  break;
+                default:
+                  bgColor = `${chartColors.unknown}20`;
               }
-              
+
               return (
-                <div key={condition} className="p-2 rounded bg-opacity-20" style={{ backgroundColor: bgColor }}>
+                <div
+                  key={condition}
+                  className="p-2 rounded bg-opacity-20"
+                  style={{ backgroundColor: bgColor }}
+                >
                   <p className="font-medium">{condition}</p>
                   <p className="text-lg font-bold">{count}</p>
                 </div>
@@ -203,12 +215,14 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
 }
 
 InventoryStatsCharts.propTypes = {
-  items: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.string,
-    lab: PropTypes.string,
-    itemCondition: PropTypes.string,
-  })),
-  isDarkMode: PropTypes.bool
+  items: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      lab: PropTypes.string,
+      itemCondition: PropTypes.string,
+    })
+  ),
+  isDarkMode: PropTypes.bool,
 };
 
 export default InventoryStatsCharts;

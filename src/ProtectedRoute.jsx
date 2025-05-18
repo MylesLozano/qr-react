@@ -13,7 +13,6 @@ import { toast } from 'react-toastify';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 
-
 // ProtectedRoute component props:
 // children: The component(s) to render if the user is authorized.
 // requiredRole: The minimum role required to access the route (e.g., 'admin', 'superadmin'). Optional.
@@ -66,9 +65,13 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
   // --- Routing and Authorization Logic ---
   // Handle loading state: Show a spinner while authentication state is being determined.
   if (loading || delayedAuth) {
-    console.log('ProtectedRoute: Loading authentication state...');
+    console.info('ProtectedRoute: Loading authentication state...');
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen" role="status" aria-label="Loading authentication status">
+      <div
+        className="flex flex-col items-center justify-center min-h-screen"
+        role="status"
+        aria-label="Loading authentication status"
+      >
         <LoadingSpinner fullScreen />
         <p className="mt-4 text-gray-600">Loading authentication data...</p>
       </div>
@@ -84,9 +87,10 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
           <strong className="font-bold">Authentication Error!</strong>
           <span className="block sm:inline ml-2">{error.message || 'Unknown error occurred'}</span>
           <p className="mt-2">Please try refreshing the page or logging in again.</p>
-          <button 
+          <button
             onClick={() => navigate('/login', { replace: true })}
-            className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
             Back to Login
           </button>
         </div>
@@ -118,7 +122,9 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
         // It might indicate an issue with the user's role or the dashboard path configuration.
         // For now, we fall through, which means the Login component will be rendered (if children for /login is Login),
         // but a more robust application might redirect to a generic safe page or show an error.
-        console.warn("ProtectedRoute: User logged in at /login, but calculated dashboard path is invalid or '/login'.");
+        console.warn(
+          "ProtectedRoute: User logged in at /login, but calculated dashboard path is invalid or '/login'."
+        );
       }
     }
 
@@ -159,7 +165,9 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
     // If the user is logged in and has all necessary role and action permissions,
     // render the protected content.
     return (
-      <ErrorBoundary> {/* Wrap children with ErrorBoundary for error handling within protected routes */}
+      <ErrorBoundary>
+        {' '}
+        {/* Wrap children with ErrorBoundary for error handling within protected routes */}
         {children} {/* Render the component(s) for the matched protected route */}
       </ErrorBoundary>
     );

@@ -6,8 +6,8 @@
  * database utility functions for use throughout the application.
  */
 
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import {
   collection,
   doc,
@@ -18,16 +18,16 @@ import {
   initializeFirestore,
   persistentLocalCache,
   updateDoc,
-} from "firebase/firestore";
+} from 'firebase/firestore';
 
 /**
  * Constants for Firebase collections and configuration
  */
-const EMAIL_DOMAIN = "@jmc.edu.ph";
-const DEFAULT_ROLE = "user";
-const AUDIT_COLLECTION = "auditLogs";
-const USERS_COLLECTION = "users";
-const QR_COLLECTION = "qrCodes";
+const EMAIL_DOMAIN = '@jmc.edu.ph';
+const DEFAULT_ROLE = 'user';
+const AUDIT_COLLECTION = 'auditLogs';
+const USERS_COLLECTION = 'users';
+const QR_COLLECTION = 'qrCodes';
 
 /**
  * Firebase configuration object
@@ -50,27 +50,32 @@ const firebaseConfig = {
  */
 const validateFirebaseConfig = (config) => {
   const requiredFields = [
-    "apiKey",
-    "authDomain",
-    "projectId",
-    "storageBucket",
-    "messagingSenderId",
-    "appId",
+    'apiKey',
+    'authDomain',
+    'projectId',
+    'storageBucket',
+    'messagingSenderId',
+    'appId',
   ];
   const missingFields = requiredFields.filter((field) => !config[field]);
   if (missingFields.length > 0) {
-    throw new Error(
-      `Missing required Firebase config fields: ${missingFields.join(", ")}`
-    );
+    throw new Error(`Missing required Firebase config fields: ${missingFields.join(', ')}`);
   }
 };
 
-let auth, db, logAudit, getUserRole, checkAndAssignUserRole, firebaseApp, saveQRCodeToFirestore, getQRCodeFromFirestore, updateQRCodeLockStatus;
+let auth,
+  db,
+  logAudit,
+  getUserRole,
+  checkAndAssignUserRole,
+  firebaseApp,
+  saveQRCodeToFirestore,
+  getQRCodeFromFirestore,
+  updateQRCodeLockStatus;
 
 try {
   validateFirebaseConfig(firebaseConfig);
-  const app =
-    getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   auth = getAuth(app);
   firebaseApp = app;
 
@@ -93,28 +98,22 @@ try {
           role: DEFAULT_ROLE,
           lastLogin: serverTimestamp(),
         });
-        console.log(
-          `✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`
-        );
-        await logAudit("user_role_assigned", user.email, "user", {
+        console.info(`✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`);
+        await logAudit('user_role_assigned', user.email, 'user', {
           role: DEFAULT_ROLE,
           userId: user.uid,
         });
       } else {
         const userData = userSnap.data();
-        console.log(`ℹ️ User ${user.email} exists with role: ${userData.role}`);
-        await logAudit("user_role_verified", user.email, "user", {
+        console.info(`ℹ️ User ${user.email} exists with role: ${userData.role}`);
+        await logAudit('user_role_verified', user.email, 'user', {
           role: userData.role,
           userId: user.uid,
         });
-        await setDoc(
-          userRef,
-          { lastLogin: serverTimestamp() },
-          { merge: true }
-        );
+        await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
       }
     } catch (error) {
-      console.error("🚨 Error assigning user role:", error);
+      console.error('🚨 Error assigning user role:', error);
       throw error;
     }
   };
@@ -126,7 +125,7 @@ try {
       const userSnap = await getDoc(userRef);
       return userSnap.exists() ? userSnap.data().role : DEFAULT_ROLE;
     } catch (error) {
-      console.error("🚨 Error fetching user role:", error);
+      console.error('🚨 Error fetching user role:', error);
       return DEFAULT_ROLE;
     }
   };
@@ -138,16 +137,16 @@ try {
    * @param {string} entityType - The type of entity the action is related to (e.g., 'user', 'inventory', 'request')
    * @param {object} details - Optional object with additional details about the action (e.g., { itemId: 'abc', userName: '...' })
    */
-  logAudit = async (action, userEmail, entityType = "system", details = {}) => {
+  logAudit = async (action, userEmail, entityType = 'system', details = {}) => {
     if (!action || !userEmail) {
-      console.warn("Attempted to log audit without action or user email.");
+      console.warn('Attempted to log audit without action or user email.');
       return;
     }
 
     // Special handling for sign-out events to ensure they're properly captured
     const isSignOut = action === 'user_signed_out';
     if (isSignOut) {
-      console.log(`📝 Logging sign-out event for: ${userEmail}`);
+      console.info(`📝 Logging sign-out event for: ${userEmail}`);
     }
 
     try {
@@ -157,10 +156,8 @@ try {
         entityType,
         details,
         timestamp: serverTimestamp(),
-        userAgent:
-          typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
-        platform:
-          typeof navigator !== "undefined" ? navigator.platform : "unknown",
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+        platform: typeof navigator !== 'undefined' ? navigator.platform : 'unknown',
       };
 
       // For sign-out events, use clientTimestamp instead of serverTimestamp to ensure capture
@@ -170,20 +167,22 @@ try {
 
       const auditRef = await addDoc(collection(db, AUDIT_COLLECTION), auditData);
 
-      console.log(
-        `✅ Audit log added: ${userEmail} - ${action} (ID: ${auditRef.id})`
-      );
+      console.info(`✅ Audit log added: ${userEmail} - ${action} (ID: ${auditRef.id})`);
 
       // Additional logging for sign-out events
       if (isSignOut) {
-        console.log(`✅ Sign-out successfully logged for: ${userEmail}`);
+        console.info(`✅ Sign-out successfully logged for: ${userEmail}`);
       }
 
       return auditRef.id; // Return the ID for confirmation
     } catch (error) {
       console.error(`🚨 Error logging audit event (${action}):`, error);
       if (isSignOut) {
-        console.error("🚨 Failed to log sign-out event. Details:", { userEmail, entityType, details });
+        console.error('🚨 Failed to log sign-out event. Details:', {
+          userEmail,
+          entityType,
+          details,
+        });
       }
       // Don't throw the error for sign-out events to prevent disrupting the logout flow
       if (!isSignOut) {
@@ -204,7 +203,7 @@ try {
       });
       return true;
     } catch (error) {
-      console.error("Error saving QR code:", error);
+      console.error('Error saving QR code:', error);
       throw error;
     }
   };
@@ -219,7 +218,7 @@ try {
       }
       return null;
     } catch (error) {
-      console.error("Error retrieving QR code:", error);
+      console.error('Error retrieving QR code:', error);
       throw error;
     }
   };
@@ -231,15 +230,15 @@ try {
       await updateDoc(qrRef, {
         isLocked: isLocked,
       });
-      console.log(`✅ QR code lock status updated for item ${itemId}: ${isLocked}`);
+      console.info(`✅ QR code lock status updated for item ${itemId}: ${isLocked}`);
       return true;
     } catch (error) {
-      console.error("Error updating QR code lock status:", error);
+      console.error('Error updating QR code lock status:', error);
       throw error;
     }
   };
 } catch (error) {
-  console.error("🚨 Firebase initialization failed:", error);
+  console.error('🚨 Firebase initialization failed:', error);
   throw error;
 }
 

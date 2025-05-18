@@ -16,7 +16,7 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
       },
       error: (error) => {
         toast.error(`Error parsing CSV: ${error.message}`);
-      }
+      },
     });
   };
 
@@ -43,7 +43,8 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
               ${isDarkMode ? 'file:bg-blue-900 file:text-white hover:file:bg-blue-800 text-gray-300' : 'text-gray-700'}
             `}
           />
-        </div>        <Button
+        </div>{' '}
+        <Button
           onClick={bulkUpload}
           disabled={isUploading || !csvData || csvData.length === 0}
           color="green"
@@ -58,7 +59,9 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
           <p className={`text-sm ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
             {csvData.length} items ready to upload
           </p>
-          <div className={`mt-2 p-2 rounded max-h-40 overflow-y-auto text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <div
+            className={`mt-2 p-2 rounded max-h-40 overflow-y-auto text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+          >
             <p className="font-medium mb-1">CSV Preview:</p>
             <ul className="list-disc pl-5">
               {csvData.slice(0, 5).map((item, index) => (

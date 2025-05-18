@@ -33,9 +33,11 @@ import ErrorBoundary from './ErrorBoundary';
 function ComponentTemplate({ name, items, onAction, optionalProp = false }) {
   // Theme and auth context
   const { isDarkMode } = useTheme();
+  // eslint-disable-next-line no-unused-vars
   const { user, role } = useAuth();
 
   // State management
+  // eslint-disable-next-line no-unused-vars
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -44,27 +46,30 @@ function ComponentTemplate({ name, items, onAction, optionalProp = false }) {
   const processedItems = useMemo(() => {
     if (!items || !Array.isArray(items)) return [];
 
-    return items.map(item => ({
+    return items.map((item) => ({
       ...item,
-      processed: true
+      processed: true,
     }));
   }, [items]);
 
   // Event handlers
-  const handleAction = useCallback((item) => {
-    if (!item) return;
+  const handleAction = useCallback(
+    (item) => {
+      if (!item) return;
 
-    setLoading(true);
-    try {
-      // Do something with the item
-      onAction(item);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error in handleAction:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [onAction]);
+      setLoading(true);
+      try {
+        // Do something with the item
+        onAction(item);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error in handleAction:', err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onAction]
+  );
 
   // Side effects
   useEffect(() => {
@@ -112,14 +117,10 @@ function ComponentTemplate({ name, items, onAction, optionalProp = false }) {
         <div className="content">
           {processedItems.length > 0 ? (
             <ul>
-              {processedItems.map(item => (
+              {processedItems.map((item) => (
                 <li key={item.id}>
                   <span>{formatData(item.name)}</span>
-                  <Button
-                    onClick={() => handleAction(item)}
-                    color="blue"
-                    size="sm"
-                  >
+                  <Button onClick={() => handleAction(item)} color="blue" size="sm">
                     Action
                   </Button>
                 </li>
@@ -131,9 +132,7 @@ function ComponentTemplate({ name, items, onAction, optionalProp = false }) {
         </div>
 
         {optionalProp && (
-          <div className="optional-section">
-            This section only shows when optionalProp is true
-          </div>
+          <div className="optional-section">This section only shows when optionalProp is true</div>
         )}
       </div>
     </ErrorBoundary>
@@ -145,7 +144,7 @@ ComponentTemplate.propTypes = {
   name: PropTypes.string.isRequired,
   items: PropTypes.array,
   onAction: PropTypes.func.isRequired,
-  optionalProp: PropTypes.bool
+  optionalProp: PropTypes.bool,
 };
 
 export default ComponentTemplate;

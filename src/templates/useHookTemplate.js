@@ -28,11 +28,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
  */
 function useHookTemplate(initialData = null, options = {}) {
   // Default options
-  const {
-    enabled = true,
-    onSuccess = () => {},
-    onError = () => {},
-  } = options;
+  const { enabled = true, onSuccess = () => {}, onError = () => {} } = options;
 
   // State management
   const [data, setData] = useState(initialData);
@@ -58,39 +54,42 @@ function useHookTemplate(initialData = null, options = {}) {
   }, []);
 
   // Main action handler
-  const handleAction = useCallback(async (actionData) => {
-    if (!enabled) return;
+  const handleAction = useCallback(
+    async (actionData) => {
+      if (!enabled) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Perform the action
-      const result = await processData(actionData);
+      try {
+        // Perform the action
+        const result = await processData(actionData);
 
-      // Only update state if component is still mounted
-      if (isMounted.current) {
-        setData(result);
-        latestOnSuccess.current(result);
+        // Only update state if component is still mounted
+        if (isMounted.current) {
+          setData(result);
+          latestOnSuccess.current(result);
+        }
+
+        return result;
+      } catch (err) {
+        console.error('Error in hook action:', err);
+
+        // Only update state if component is still mounted
+        if (isMounted.current) {
+          setError(err.message || 'An unknown error occurred');
+          latestOnError.current(err);
+        }
+
+        return null;
+      } finally {
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
-
-      return result;
-    } catch (err) {
-      console.error('Error in hook action:', err);
-
-      // Only update state if component is still mounted
-      if (isMounted.current) {
-        setError(err.message || 'An unknown error occurred');
-        latestOnError.current(err);
-      }
-
-      return null;
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
-    }
-  }, [enabled]);
+    },
+    [enabled]
+  );
 
   // Example helper function
   const processData = async (inputData) => {

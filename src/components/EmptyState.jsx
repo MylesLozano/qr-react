@@ -3,7 +3,7 @@ import Button from './Button';
 
 /**
  * EmptyState component - Displays a friendly message when there's no content
- * 
+ *
  * @param {Object} props - Component properties
  * @param {string} props.title - The title for the empty state
  * @param {string} props.message - The message to display
@@ -13,36 +13,33 @@ import Button from './Button';
  * @returns {JSX.Element} The EmptyState component
  */
 const EmptyState = ({
-    title = "No Content Available",
-    message = "There is no content to display at this time.",
-    icon = "📭",
-    actionFn,
-    actionLabel
+  title = 'No Content Available',
+  message = 'There is no content to display at this time.',
+  icon = '📭',
+  actionFn,
+  actionLabel,
 }) => {
-    const { isDarkMode } = useTheme();
+  const { isDarkMode } = useTheme();
 
-    return (
-        <div className={`flex flex-col items-center justify-center p-10 rounded-lg
+  return (
+    <div
+      className={`flex flex-col items-center justify-center p-10 rounded-lg
       ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}
-        >
-            <span className="text-6xl mb-4" role="img" aria-hidden="true">
-                {icon}
-            </span>
+    >
+      <span className="text-6xl mb-4" role="img" aria-hidden="true">
+        {icon}
+      </span>
 
-            <h2 className="text-2xl font-semibold mb-4">{title}</h2>
-            <p className="text-center mb-6 max-w-md">{message}</p>
+      <h2 className="text-2xl font-semibold mb-4">{title}</h2>
+      <p className="text-center mb-6 max-w-md">{message}</p>
 
-            {actionFn && actionLabel && (
-                <Button
-                    onClick={actionFn}
-                    color="blue"
-                    size="md"
-                >
-                    {actionLabel}
-                </Button>
-            )}
-        </div>
-    );
+      {actionFn && actionLabel && (
+        <Button onClick={actionFn} color="blue" size="md">
+          {actionLabel}
+        </Button>
+      )}
+    </div>
+  );
 };
 
-export default EmptyState; 
+export default EmptyState;

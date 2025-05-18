@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
   // Validate inputs
   if (!categoryGroups || typeof categoryGroups !== 'object') {
-    console.error("CategoryList: Invalid categoryGroups prop", categoryGroups);
+    console.error('CategoryList: Invalid categoryGroups prop', categoryGroups);
     return (
       <div className={`w-full lg:w-1/3 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <h2 className="text-xl font-semibold mb-4">Categories</h2>
@@ -30,7 +30,9 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
 
   return (
     <div className={`w-full lg:w-1/3 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-      <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">Categories</h2>
+      <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
+        Categories
+      </h2>
       <div className="grid grid-cols-1 gap-4">
         {categoryEntries.map(([category, { items = [], totalQuantity = 0 }]) => (
           <div
@@ -43,7 +45,8 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
           >
             <h3 className="font-semibold">{category}</h3>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              {items.length} {items.length === 1 ? 'item' : 'items'} • Total Quantity: {totalQuantity}
+              {items.length} {items.length === 1 ? 'item' : 'items'} • Total Quantity:{' '}
+              {totalQuantity}
             </p>
           </div>
         ))}
@@ -53,12 +56,14 @@ function CategoryList({ categoryGroups = {}, toggleCategory, isDarkMode }) {
 }
 
 CategoryList.propTypes = {
-  categoryGroups: PropTypes.objectOf(PropTypes.shape({
-    items: PropTypes.array,
-    totalQuantity: PropTypes.number
-  })),
+  categoryGroups: PropTypes.objectOf(
+    PropTypes.shape({
+      items: PropTypes.array,
+      totalQuantity: PropTypes.number,
+    })
+  ),
   toggleCategory: PropTypes.func.isRequired,
-  isDarkMode: PropTypes.bool
+  isDarkMode: PropTypes.bool,
 };
 
 export default React.memo(CategoryList);

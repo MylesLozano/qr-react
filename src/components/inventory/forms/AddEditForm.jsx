@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db, logAudit } from "../../../firebase";
-import { toast } from "react-toastify";
-import { sanitizeInput, sanitizeNumber } from "../../../utils/inventoryUtils";
-import { useInventoryValidation } from "../../../hooks/useInventoryValidation";
-import { useAuth } from "../../../hooks/useAuth";
-import { useTheme } from "../../../hooks/useTheme";
-import FormField from "./FormField";
-import FormActions from "./FormActions";
+import { useState, useEffect } from 'react';
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db, logAudit } from '../../../firebase';
+import { toast } from 'react-toastify';
+import { sanitizeInput, sanitizeNumber } from '../../../utils/inventoryUtils';
+import { useInventoryValidation } from '../../../hooks/useInventoryValidation';
+import { useAuth } from '../../../hooks/useAuth';
+import { useTheme } from '../../../hooks/useTheme';
+import FormField from './FormField';
+import FormActions from './FormActions';
 
 function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   const { isDarkMode } = useTheme();
@@ -29,9 +29,9 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
     const { name, value, type } = e.target;
 
     // Handle different input types appropriately
-    if (type === "number") {
+    if (type === 'number') {
       setFormData({ ...formData, [name]: parseInt(value) || 0 });
-    } else if (type === "checkbox") {
+    } else if (type === 'checkbox') {
       setFormData({ ...formData, [name]: e.target.checked });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -65,12 +65,12 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
         description: sanitizeInput(formData.description),
         quantity: sanitizeNumber(formData.quantity),
         updatedAt: serverTimestamp(),
-        updatedBy: user.email
+        updatedBy: user.email,
       };
 
       if (isEditing) {
         // Update existing item
-        await updateDoc(doc(db, "inventory", editingItem.id), sanitizedData);
+        await updateDoc(doc(db, 'inventory', editingItem.id), sanitizedData);
         toast.success('Inventory item updated successfully!');
         // Standardized audit log action and entity type
         await logAudit('inventory_updated', user.email, 'inventory', {
@@ -82,7 +82,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
         // Add new item
         sanitizedData.createdAt = serverTimestamp();
         sanitizedData.createdBy = user.email;
-        const docRef = await addDoc(collection(db, "inventory"), sanitizedData);
+        const docRef = await addDoc(collection(db, 'inventory'), sanitizedData);
         toast.success('Inventory item added successfully!');
         // Standardized audit log action and entity type
         await logAudit('inventory_added', user.email, 'inventory', {
@@ -96,7 +96,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
       setFormData(defaultFormData);
       if (onSuccess) onSuccess();
     } catch (error) {
-      console.error("Error saving item:", error);
+      console.error('Error saving item:', error);
       toast.error(`Failed to ${isEditing ? 'update' : 'add'} item: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -104,7 +104,9 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
   };
 
   return (
-    <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} max-h-[85vh] overflow-y-auto`}>
+    <div
+      className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} max-h-[85vh] overflow-y-auto`}
+    >
       <h2 className="text-xl font-semibold sticky top-0 bg-inherit py-2 mb-4 z-10">
         {isEditing ? 'Edit Item' : 'Add New Item'}
       </h2>
@@ -121,7 +123,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             onChange={handleChange}
             isDarkMode={isDarkMode}
           />
-          
+
           <FormField
             type="text"
             name="name"
@@ -196,9 +198,9 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             value={formData.itemCondition}
             onChange={handleChange}
             options={[
-              { value: "New", label: "New" },
-              { value: "Used", label: "Used" },
-              { value: "Damaged", label: "Damaged" }
+              { value: 'New', label: 'New' },
+              { value: 'Used', label: 'Used' },
+              { value: 'Damaged', label: 'Damaged' },
             ]}
             isDarkMode={isDarkMode}
           />
@@ -210,10 +212,10 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
             value={formData.lab}
             onChange={handleChange}
             options={[
-              { value: "", label: "Select Lab" },
-              { value: "IT Lab", label: "IT Lab" },
-              { value: "EMC Lab", label: "EMC Lab" },
-              { value: "Others", label: "Others" }
+              { value: '', label: 'Select Lab' },
+              { value: 'IT Lab', label: 'IT Lab' },
+              { value: 'EMC Lab', label: 'EMC Lab' },
+              { value: 'Others', label: 'Others' },
             ]}
             isDarkMode={isDarkMode}
           />
@@ -254,11 +256,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
           </div>
         </div>
 
-        <FormActions 
-          isLoading={isLoading} 
-          onCancel={handleCancel} 
-          isEditing={isEditing} 
-        />
+        <FormActions isLoading={isLoading} onCancel={handleCancel} isEditing={isEditing} />
       </form>
     </div>
   );

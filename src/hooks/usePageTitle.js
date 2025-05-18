@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
 /**
  * Custom hook for managing the document title
@@ -10,15 +10,12 @@ import { useEffect } from "react";
  * @example
  * // Basic usage
  * usePageTitle('Dashboard');
- * 
+ *
  * // With options
  * usePageTitle('Dashboard', { defaultTitle: 'My App', preserveOnUnmount: true });
  */
 const usePageTitle = (title, options = {}) => {
-  const {
-    defaultTitle = 'QCheckCITE',
-    preserveOnUnmount = false
-  } = options;
+  const { defaultTitle = 'QCheckCITE', preserveOnUnmount = false } = options;
 
   useEffect(() => {
     try {

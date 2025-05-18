@@ -1,13 +1,13 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter as Router } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import { ThemeProvider } from "./context/ThemeContext";
-import App from "./App";
-import "./index.css";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import App from './App';
+import './index.css';
 
 // Constants
-const ROOT_ELEMENT_ID = "root";
+const ROOT_ELEMENT_ID = 'root';
 
 /**
  * Error boundary for the root application
@@ -28,7 +28,9 @@ const initializeApp = () => {
   const rootElement = document.getElementById(ROOT_ELEMENT_ID);
 
   if (!rootElement) {
-    console.error(`Root element with id "${ROOT_ELEMENT_ID}" not found`);
+    console.error(
+      `Root element with id "${ROOT_ELEMENT_ID}" not found`
+    );
     return;
   }
 
@@ -47,10 +49,10 @@ const initializeApp = () => {
           </Router>
         </RootErrorBoundary>
       </React.StrictMode>
-    );    // Log successful initialization
-    console.log("Application initialized successfully");
+    ); // Log successful initialization
+    console.info('Application initialized successfully');
   } catch (error) {
-    console.error("Failed to initialize application:", error);
+    console.error('Failed to initialize application:', error);
     // Fallback UI for initialization errors
     rootElement.innerHTML = `
       <div class="min-h-screen flex items-center justify-center bg-gray-100">

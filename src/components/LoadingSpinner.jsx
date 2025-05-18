@@ -3,24 +3,24 @@ import PropTypes from 'prop-types';
 const sizeClasses = {
   sm: 'w-4 h-4',
   md: 'w-8 h-8',
-  lg: 'w-12 h-12'
+  lg: 'w-12 h-12',
 };
 
-function LoadingSpinner({ 
-  size = 'md', 
-  fullScreen = false, 
-  className = '', 
+function LoadingSpinner({
+  size = 'md',
+  fullScreen = false,
+  className = '',
   text = 'Loading...',
-  showText = true
+  showText = true,
 }) {
   // Validate size prop
   const validSize = sizeClasses[size] ? size : 'md';
   const containerClasses = `${fullScreen ? 'min-h-screen flex items-center justify-center' : ''} ${className}`;
   const spinnerClasses = `${sizeClasses[validSize]} border-3 inline-block rounded-full animate-spin relative`;
-  
+
   const spinnerContent = (
     <div role="status" className={spinnerClasses}>
-      <div 
+      <div
         className="absolute inset-0 rounded-full border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent"
         aria-hidden="true"
       />
@@ -30,7 +30,10 @@ function LoadingSpinner({
 
   if (!showText) {
     return (
-      <div data-testid="loading-container" className={containerClasses}>
+      <div
+        data-testid="loading-container"
+        className={containerClasses}
+      >
         {spinnerContent}
       </div>
     );
@@ -41,10 +44,7 @@ function LoadingSpinner({
       <div className="flex items-center gap-2">
         {spinnerContent}
         {text && (
-          <span 
-            className="ml-2 text-sm" 
-            aria-live="polite"
-          >
+          <span className="ml-2 text-sm" aria-live="polite">
             {text}
           </span>
         )}
@@ -58,7 +58,7 @@ LoadingSpinner.propTypes = {
   fullScreen: PropTypes.bool,
   className: PropTypes.string,
   text: PropTypes.string,
-  showText: PropTypes.bool
+  showText: PropTypes.bool,
 };
 
 export default LoadingSpinner;
