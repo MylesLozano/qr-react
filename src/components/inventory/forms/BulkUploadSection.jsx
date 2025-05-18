@@ -8,30 +8,36 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
     const file = e.target.files[0];
     if (!file) return;
 
+    // Check if file is CSV or TXT
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
+      toast.error('Please upload a CSV or TXT file');
+      return;
+    }
+
     Papa.parse(file, {
       header: true,
       complete: (results) => {
         setCsvData(results.data);
-        toast.success(`${results.data.length} items parsed from CSV`);
+        toast.success(`${results.data.length} items parsed from file`);
       },
       error: (error) => {
-        toast.error(`Error parsing CSV: ${error.message}`);
+        toast.error(`Error parsing file: ${error.message}`);
       },
     });
   };
-
   return (
     <div className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}>
       <h2 className="text-xl font-semibold mb-4">Bulk Upload</h2>
       <div className="flex flex-col sm:flex-row items-center gap-4">
         <div className="w-full">
           <label htmlFor="csvUpload" className="block mb-2 text-sm font-medium">
-            Upload CSV File
+            Upload CSV or TXT File
           </label>
           <input
             id="csvUpload"
             type="file"
-            accept=".csv"
+            accept=".csv,.txt"
             onChange={handleCsvUpload}
             className={`
               block w-full text-sm
@@ -51,7 +57,7 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
           size="md"
           className="sm:w-auto w-full mt-2 sm:mt-0 whitespace-nowrap"
         >
-          {isUploading ? 'Uploading…' : 'Upload CSV'}
+          {isUploading ? 'Uploading…' : 'Upload File'}
         </Button>
       </div>
       {csvData && csvData.length > 0 && (
@@ -62,7 +68,7 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
           <div
             className={`mt-2 p-2 rounded max-h-40 overflow-y-auto text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
           >
-            <p className="font-medium mb-1">CSV Preview:</p>
+            <p className="font-medium mb-1">File Preview:</p>
             <ul className="list-disc pl-5">
               {csvData.slice(0, 5).map((item, index) => (
                 <li key={index}>
