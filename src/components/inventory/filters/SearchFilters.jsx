@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 
 function SearchFilters({
   searchField,
@@ -9,6 +10,7 @@ function SearchFilters({
   filterLab,
   setFilterLab,
   isDarkMode,
+  isCompact = false,
 }) {
   const [error, setError] = useState(null);
 
@@ -35,9 +37,9 @@ function SearchFilters({
 
   return (
     <div
-      className={`w-full p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md`}
+      className={`w-full ${isCompact ? 'p-2' : 'p-4'} rounded-lg mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md`}
     >
-      <h2 className="text-lg font-semibold mb-3">Search & Filters</h2>
+      {!isCompact && <h2 className="text-lg font-semibold mb-3">Search & Filters</h2>}
 
       {error && (
         <div
@@ -50,11 +52,11 @@ function SearchFilters({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-4">
+      <div className={`flex flex-wrap ${isCompact ? 'gap-2' : 'gap-4'}`}>
         <select
           value={searchField}
           onChange={(e) => setSearchField(e.target.value)}
-          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} ${isCompact ? 'text-sm' : ''}`}
           aria-label="Search field"
         >
           <option
@@ -87,14 +89,14 @@ function SearchFilters({
           type="text"
           placeholder={`Search by ${searchField}...`}
           onChange={handleValidatedSearch}
-          className={`flex-1 min-w-[200px] p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+          className={`flex-1 min-w-[200px] p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'} ${isCompact ? 'text-sm' : ''}`}
           aria-label={`Search by ${searchField}`}
         />
 
         <select
           value={filterCondition}
           onChange={(e) => setFilterCondition(e.target.value)}
-          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'}`}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} ${isCompact ? 'text-sm' : ''}`}
           aria-label="Filter by condition"
         >
           <option
@@ -126,7 +128,7 @@ function SearchFilters({
         <select
           value={filterLab}
           onChange={(e) => setFilterLab(e.target.value)}
-          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-black'}`}
+          className={`p-2 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-black'} ${isCompact ? 'text-sm' : ''}`}
           aria-label="Filter by lab"
         >
           <option
@@ -158,5 +160,17 @@ function SearchFilters({
     </div>
   );
 }
+
+SearchFilters.propTypes = {
+  searchField: PropTypes.string.isRequired,
+  setSearchField: PropTypes.func.isRequired,
+  handleSearchChange: PropTypes.func.isRequired,
+  filterCondition: PropTypes.string.isRequired,
+  setFilterCondition: PropTypes.func.isRequired,
+  filterLab: PropTypes.string.isRequired,
+  setFilterLab: PropTypes.func.isRequired,
+  isDarkMode: PropTypes.bool,
+  isCompact: PropTypes.bool,
+};
 
 export default React.memo(SearchFilters);

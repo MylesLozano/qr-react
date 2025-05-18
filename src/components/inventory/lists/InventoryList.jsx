@@ -61,9 +61,8 @@ function InventoryList({
     }
     setShowBulkEditForm(true);
   }, [selectedItems]);
-
   // Handle bulk edit success
-  const handleBulkEditSuccess = useCallback((updatedItemIds, updatedFields) => {
+  const handleBulkEditSuccess = useCallback((_updatedItemIds, _updatedFields) => {
     // Keep the form open to allow for additional edits
     // But provide user feedback (handled in BulkEditForm)
     // Optionally, we could clear selections:

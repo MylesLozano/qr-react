@@ -6,6 +6,7 @@ function CategoryList({
   toggleCategory,
   isDarkMode,
   selectedCategory = null,
+  isHorizontal = false,
 }) {
   // Validate inputs
   if (!categoryGroups || typeof categoryGroups !== 'object') {
@@ -35,16 +36,16 @@ function CategoryList({
 
   return (
     <div
-      className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
+      className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md ${isHorizontal ? 'overflow-x-auto' : 'h-full'}`}
     >
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold" role="heading" aria-level="2">
+        <h2 className="text-xl font-semibold whitespace-nowrap mr-4" role="heading" aria-level="2">
           Categories
         </h2>
         {selectedCategory && (
           <button
             onClick={() => toggleCategory(null)}
-            className={`text-sm px-2 py-1 rounded ${
+            className={`text-sm px-2 py-1 rounded whitespace-nowrap ${
               isDarkMode ? 'text-blue-300 hover:bg-gray-700' : 'text-blue-600 hover:bg-gray-100'
             }`}
             aria-label="Show all categories"
@@ -53,12 +54,12 @@ function CategoryList({
           </button>
         )}
       </div>
-      <div className="grid grid-cols-1 gap-4">
+      <div className={isHorizontal ? 'flex space-x-4 pb-2' : 'grid grid-cols-1 gap-4'}>
         {categoryEntries.map(([category, { items = [], totalQuantity = 0 }]) => (
           <div
             key={category}
             onClick={() => toggleCategory(category)}
-            className={`p-4 rounded-lg cursor-pointer transition-colors
+            className={`${isHorizontal ? 'min-w-[200px] flex-shrink-0' : ''} p-4 rounded-lg cursor-pointer transition-colors
               ${
                 selectedCategory === category
                   ? isDarkMode
@@ -94,6 +95,7 @@ CategoryList.propTypes = {
   toggleCategory: PropTypes.func.isRequired,
   isDarkMode: PropTypes.bool,
   selectedCategory: PropTypes.string,
+  isHorizontal: PropTypes.bool,
 };
 
 export default React.memo(CategoryList);

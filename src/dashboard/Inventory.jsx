@@ -254,7 +254,6 @@ function Inventory({ isInDashboard = false }) {
       </ErrorBoundary>
     );
   }
-
   // Rest of the component for non-empty inventory
   return (
     <ErrorBoundary>
@@ -266,7 +265,6 @@ function Inventory({ isInDashboard = false }) {
             Error loading inventory: {error.message || error}
           </div>
         )}
-
         {/* Full-width content */}
         <div className={`w-full p-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
           <div className="mb-6">
@@ -299,19 +297,9 @@ function Inventory({ isInDashboard = false }) {
                 )}
               </div>
             </div>
-            {/* Search and Filter Component */}
-            <SearchFilters
-              searchField={searchField}
-              setSearchField={setSearchField}
-              handleSearchChange={handleSearchChange}
-              filterCondition={filterCondition}
-              setFilterCondition={setFilterCondition}
-              filterLab={filterLab}
-              setFilterLab={setFilterLab}
-              isDarkMode={isDarkMode}
-            />{' '}
-            {/* QR Stats and Inventory Charts in a responsive grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+            {/* QR Stats and Inventory Charts in a responsive grid - MOVED UP TOP */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
               {/* QR Stats Section */}
               <div className="w-full">
                 <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
@@ -321,33 +309,49 @@ function Inventory({ isInDashboard = false }) {
                 <InventoryStatsCharts items={items} isDarkMode={isDarkMode} />
               </div>
             </div>
-            {/* Categories and Virtualized List side-by-side */}
-            {/* Full-width layout with better distribution */}
-            <div className="flex flex-col lg:flex-row gap-6 mb-6">
-              {/* Category List - wider on desktop */}
-              <div className="lg:w-1/4">
-                <CategoryList
-                  categoryGroups={categoryGroups}
-                  toggleCategory={handleCategoryToggle}
-                  isDarkMode={isDarkMode}
-                  selectedCategory={selectedCategory}
-                />
+
+            {/* Search and Filter Component - MADE MORE COMPACT */}
+            <SearchFilters
+              searchField={searchField}
+              setSearchField={setSearchField}
+              handleSearchChange={handleSearchChange}
+              filterCondition={filterCondition}
+              setFilterCondition={setFilterCondition}
+              filterLab={filterLab}
+              setFilterLab={setFilterLab}
+              isDarkMode={isDarkMode}
+              isCompact={true}
+            />
+
+            {/* Category List - CONVERTED TO HORIZONTAL SCROLLABLE */}
+            <div className="mb-4 overflow-x-auto">
+              <CategoryList
+                categoryGroups={categoryGroups}
+                toggleCategory={handleCategoryToggle}
+                isDarkMode={isDarkMode}
+                selectedCategory={selectedCategory}
+                isHorizontal={true}
+              />
+            </div>
+
+            {/* Category filtering heading */}
+            {selectedCategory && (
+              <div
+                className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}
+              >
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">Category: {selectedCategory}</h2>
+                  <Button onClick={() => setSelectedCategory(null)} color="gray" size="sm">
+                    Clear Filter
+                  </Button>
+                </div>
               </div>
-              {/* The main InventoryList displaying filtered search results - takes up remaining space */}
-              <div className="lg:w-3/4">
-                {/* Category filtering heading */}
-                {selectedCategory && (
-                  <div
-                    className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold">Category: {selectedCategory}</h2>
-                      <Button onClick={() => setSelectedCategory(null)} color="gray" size="sm">
-                        Clear Filter
-                      </Button>
-                    </div>
-                  </div>
-                )}
+            )}
+
+            {/* Inventory List and Add/Edit Form side by side */}
+            <div className="flex flex-col lg:flex-row gap-6 mb-6">
+              {/* The main InventoryList displaying filtered search results */}
+              <div className={`${canAddEditDelete && showAddEditForm ? 'lg:w-1/2' : 'w-full'}`}>
                 <InventoryList
                   items={filteredItems} // Pass filtered items from search
                   onEdit={handleEdit}
@@ -359,11 +363,10 @@ function Inventory({ isInDashboard = false }) {
                   filterByCategory={selectedCategory} // Pass the selected category for filtering
                 />
               </div>
-            </div>{' '}
-            {/* Add/Edit Item Form - only shown when needed */}
-            {canAddEditDelete && showAddEditForm && (
-              <div className="w-full">
-                <div className="grid grid-cols-1 gap-6 mb-6">
+
+              {/* Add/Edit Item Form - side by side with list when visible */}
+              {canAddEditDelete && showAddEditForm && (
+                <div className="lg:w-1/2">
                   {/* BulkUploadSection shown with the Add New Item form */}
                   <BulkUploadSection
                     setCsvData={setCsvData}
@@ -373,7 +376,7 @@ function Inventory({ isInDashboard = false }) {
                     isDarkMode={isDarkMode}
                   />
                   <div
-                    className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}
+                    className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md mt-4`}
                   >
                     <h2 className="text-xl font-semibold mb-4">
                       {editingItem?.id ? 'Edit Item' : 'Add New Item'}
@@ -385,8 +388,9 @@ function Inventory({ isInDashboard = false }) {
                     />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
             {/* QR Preview Modal (render if qrPreview item is set) */}
             {qrPreview && (
               <QRCodePreview
