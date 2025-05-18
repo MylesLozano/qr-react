@@ -25,32 +25,43 @@ import Button from '../components/Button';
 import Tab from '../components/Tab';
 
 // Add getActionColor function at the top with other utility functions
-const getActionColor = (action) => {
-    switch (action) {
-        case 'user_created':
-        case 'user_signed_in':
-        case 'user_role_assigned':
-        case 'user_role_verified':
-            return 'text-blue-500';
-        case 'user_signed_out':
-            return 'text-purple-800';
-        case 'inventory_added':
-        case 'inventory_updated':
-        case 'qr_code_generated':
-            return 'text-green-500';
-        case 'inventory_deleted':
-        case 'request_rejected':
-            return 'text-red-500';
-        case 'request_approved':
-        case 'report_generated':
-        case 'report_exported':
-            return 'text-purple-500';
-        case 'qr_code_downloaded':
-        case 'qr_code_previewed':
-            return 'text-yellow-500';
-        default:
-            return 'text-gray-500';
-    }
+const getActionColor = (action, isDarkMode = false) => {
+    const colors = {
+        // User actions
+        user_created: 'bg-blue-600',
+        user_signed_in: 'bg-blue-500',
+        user_role_assigned: 'bg-blue-700',
+        user_role_verified: 'bg-blue-400',
+        user_signed_out: 'bg-purple-600',
+        user_role_updated: 'bg-blue-800',
+        
+        // Inventory actions
+        inventory_added: 'bg-green-600',
+        inventory_updated: 'bg-green-500',
+        inventory_deleted: 'bg-red-600',
+        
+        // QR code actions
+        qr_code_generated: 'bg-green-700',
+        qr_code_downloaded: 'bg-yellow-600',
+        qr_code_previewed: 'bg-yellow-500',
+        
+        // Request actions
+        request_approved: 'bg-purple-500',
+        request_rejected: 'bg-red-500',
+        request_updated_status: 'bg-purple-600',
+        request_bulk_updated_status: 'bg-purple-700',
+        
+        // Report actions
+        report_generated: 'bg-purple-500',
+        report_exported: 'bg-purple-600',
+        report_saved: 'bg-purple-700',
+        audit_logs_exported: 'bg-purple-800',
+        
+        // System actions
+        system_action: isDarkMode ? 'bg-gray-600' : 'bg-gray-500',
+    };
+    
+    return colors[action] || (isDarkMode ? 'bg-gray-700' : 'bg-gray-500');
 };
 
 /**
@@ -97,6 +108,7 @@ function UnifiedReporting() {
     const [hasMore, setHasMore] = useState(true);
     const [filters, setFilters] = useState({ action: '', entityType: '' });
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [compactView, setCompactView] = useState(true); // Add state for compact view toggle
 
     // === PERMISSION CHECKS ===
     const canGenerateReports = useMemo(() => canPerformAction(role, 'generate_reports'), [role]);
@@ -420,12 +432,28 @@ function UnifiedReporting() {
     }, [canViewAuditLogs, processLogData, updateLoadingState]);
 
     // fetch audit logs on tab switch
-    useEffect(() => { if (activeTab === 'auditLogs') fetchLogs(); }, [activeTab, fetchLogs]);
-
-    // renderDetails
-    const renderDetails = useCallback(d => {
+    useEffect(() => { if (activeTab === 'auditLogs') fetchLogs(); }, [activeTab, fetchLogs]);    // renderDetails - improved for better readability
+    const renderDetails = useCallback((d, compact = false) => {
         if (d == null) return 'No details';
-        return typeof d === 'object' ? JSON.stringify(d, null, 2) : String(d);
+        
+        if (typeof d === 'object') {
+            if (compact) {
+                // In compact view, extract and display only key information
+                const keyInfo = [];
+                if (d.itemName) keyInfo.push(`Item: ${d.itemName}`);
+                if (d.id) keyInfo.push(`ID: ${d.id}`);
+                if (d.reportType) keyInfo.push(`Type: ${d.reportType}`);
+                if (d.recordCount) keyInfo.push(`Records: ${d.recordCount}`);
+                if (d.status) keyInfo.push(`Status: ${d.status}`);
+                if (d.lab) keyInfo.push(`Lab: ${d.lab}`);
+                
+                // Return simplified representation or fall back to keys only
+                return keyInfo.length ? keyInfo.join(' | ') : 
+                    Object.keys(d).slice(0, 3).map(k => `${k}: ${String(d[k]).substring(0, 20)}`).join(' | ');
+            }
+            return JSON.stringify(d, null, 2);
+        }
+        return String(d);
     }, []);
 
     return (
@@ -550,20 +578,43 @@ function UnifiedReporting() {
                 {/* Audit Logs Tab */}
                 {activeTab === 'auditLogs' && canViewAuditLogs && (
                     <>
-                        <div className="relative">
-                            {/* Filter Button */}
+                        <div className="relative">                            {/* Filter Button */}
                             <div className="flex justify-between items-center mb-4">
-                                <Button 
-                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                    className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
-                                    aria-expanded={isFilterOpen}
-                                    aria-haspopup="true"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <span>Filters</span>
-                                        <span className={`transform transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}>▼</span>
-                                    </span>
-                                </Button>
+                                <div className="flex items-center gap-3">
+                                    <Button 
+                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                        className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                        aria-expanded={isFilterOpen}
+                                        aria-haspopup="true"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span>Filters</span>
+                                            <span className={`transform transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}>▼</span>
+                                        </span>
+                                    </Button>
+                                    
+                                    {/* Toggle for compact/detailed view */}
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                            {compactView ? 'Compact View' : 'Detailed View'}
+                                        </span>
+                                        <button 
+                                            onClick={() => setCompactView(!compactView)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                                compactView ? 'bg-blue-600' : isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                                            }`}
+                                            role="switch"
+                                            aria-checked={compactView}
+                                        >
+                                            <span 
+                                                aria-hidden="true" 
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                    compactView ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
                                 
                                 <div className="flex gap-2">                                    <Button onClick={fetchSignOutLogs} disabled={loadingStates.fetchingSpecificLogs} className="px-4 py-2 rounded">
                                         {loadingStates.fetchingSpecificLogs ? <LoadingSpinner size="small" /> : 'View Sign-Out Logs'}
@@ -668,47 +719,72 @@ function UnifiedReporting() {
                                     </div>
                                 </div>
                             )}
-                        </div>
-
-                        {/* Table Section */}
+                        </div>                        {/* Table Section */}
                         {loadingStates.fetchingLogs && !logs.length ? <LoadingSpinner /> : (
                             <div className="overflow-auto rounded-lg border mb-4">
                                 <table className="min-w-full">
                                     <thead className={isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-700'}>
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">Timestamp</th>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">Action</th>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">Entity</th>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">User</th>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">Details</th>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">User Agent</th>
-                                            <th className="px-6 py-3 text-left text-xs uppercase tracking-wider">Platform</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Action</th>
+                                            {!compactView && (
+                                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Entity</th>
+                                            )}
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Details</th>
+                                            {!compactView && (
+                                                <>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User Agent</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Platform</th>
+                                                </>
+                                            )}
                                         </tr>
                                     </thead>
-                                    <tbody className={isDarkMode ? 'divide-gray-700 bg-gray-900' : 'divide-gray-200 bg-white'}>
+                                    <tbody className={isDarkMode ? 'divide-y divide-gray-700 bg-gray-900' : 'divide-y divide-gray-200 bg-white'}>
                                         {logs.length ? logs.map(l => (
-                                            <tr key={l.id} className={`hover:bg-gray-100 dark:hover:bg-gray-800`}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">{l.timestamp}</td>
+                                            <tr key={l.id} className={`hover:bg-gray-100 dark:hover:bg-gray-800`}>                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    {typeof l.timestamp === 'string' ? l.timestamp.split(',')[1] || l.timestamp : l.timestamp}
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                    <span className={`px-2 py-1 rounded text-white ${getActionColor(l.action)}`}>
-                                                        {l.action}
+                                                    <span className={`${getActionColor(l.action, isDarkMode)} px-2 py-1 text-white rounded-full font-medium`}>
+                                                        {l.action.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">{l.entityType}</td>
+                                                {!compactView && (
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{l.entityType}</td>
+                                                )}
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">{l.userEmail}</td>
                                                 <td className="px-6 py-4 text-sm">
-                                                    <pre className={`text-xs overflow-x-auto ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}>
-                                                        {renderDetails(l.details)}
-                                                    </pre>
+                                                    {compactView ? (
+                                                        <div className="max-w-xs truncate">
+                                                            {renderDetails(l.details, true)}
+                                                        </div>
+                                                    ) : (
+                                                        <pre className={`overflow-x-auto p-2 rounded ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'}`}>
+                                                            {renderDetails(l.details)}
+                                                        </pre>
+                                                    )}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">{l.userAgent}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">{l.platform}</td>
+                                                {!compactView && (
+                                                    <>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
+                                                            {l.userAgent?.substring(0, 50)}{l.userAgent?.length > 50 ? '...' : ''}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{l.platform}</td>
+                                                    </>
+                                                )}
                                             </tr>
-                                        )) : <tr><td colSpan={7} className="px-6 py-4 text-center">No logs found.</td></tr>}
+                                        )) : (
+                                            <tr>
+                                                <td colSpan={compactView ? 4 : 7} className="px-6 py-4 text-center">
+                                                    No logs found.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
-                                </table>
-                            </div>
-                        )}                        {loadingStates.fetchingLogs && logs.length > 0 && <LoadingSpinner />}
+                                </table>                            </div>
+                        )}
+                        {loadingStates.fetchingLogs && logs.length > 0 && <LoadingSpinner />}
                         {hasMore && !loadingStates.loadingMoreLogs && logs.length > 0 && (
                             <div className="mt-4">
                                 <Button onClick={loadMore} className="w-full" disabled={loadingStates.loadingMoreLogs}>
