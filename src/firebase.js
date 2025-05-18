@@ -1,5 +1,11 @@
 // File: src/firebase.js
 
+/**
+ * Firebase configuration and service initialization
+ * This module initializes Firebase services and exports authentication and
+ * database utility functions for use throughout the application.
+ */
+
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import {
@@ -14,12 +20,19 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
+/**
+ * Constants for Firebase collections and configuration
+ */
 const EMAIL_DOMAIN = "@jmc.edu.ph";
 const DEFAULT_ROLE = "user";
 const AUDIT_COLLECTION = "auditLogs";
 const USERS_COLLECTION = "users";
 const QR_COLLECTION = "qrCodes";
 
+/**
+ * Firebase configuration object
+ * Values are loaded from environment variables
+ */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -30,6 +43,11 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+/**
+ * Validates that all required Firebase config fields are present
+ * @param {Object} config - Firebase configuration object
+ * @throws {Error} If any required fields are missing
+ */
 const validateFirebaseConfig = (config) => {
   const requiredFields = [
     "apiKey",
@@ -125,13 +143,13 @@ try {
       console.warn("Attempted to log audit without action or user email.");
       return;
     }
-    
+
     // Special handling for sign-out events to ensure they're properly captured
     const isSignOut = action === 'user_signed_out';
     if (isSignOut) {
       console.log(`📝 Logging sign-out event for: ${userEmail}`);
     }
-    
+
     try {
       const auditData = {
         action,
@@ -144,23 +162,23 @@ try {
         platform:
           typeof navigator !== "undefined" ? navigator.platform : "unknown",
       };
-      
+
       // For sign-out events, use clientTimestamp instead of serverTimestamp to ensure capture
       if (isSignOut) {
         auditData.clientTimestamp = new Date().toISOString();
       }
-      
+
       const auditRef = await addDoc(collection(db, AUDIT_COLLECTION), auditData);
-      
+
       console.log(
         `✅ Audit log added: ${userEmail} - ${action} (ID: ${auditRef.id})`
       );
-      
+
       // Additional logging for sign-out events
       if (isSignOut) {
         console.log(`✅ Sign-out successfully logged for: ${userEmail}`);
       }
-      
+
       return auditRef.id; // Return the ID for confirmation
     } catch (error) {
       console.error(`🚨 Error logging audit event (${action}):`, error);

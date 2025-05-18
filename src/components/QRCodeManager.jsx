@@ -1,5 +1,15 @@
 // File: src/components/QRCodeManager.jsx
 
+/**
+ * QR Code Manager Component
+ *
+ * This component handles the display, generation, and management of QR codes
+ * for inventory items. It supports generating, downloading, and displaying
+ * QR codes with item information.
+ *
+ * @module QRCodeManager
+ */
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useQRCode } from '../hooks/useQRCode';
@@ -12,6 +22,18 @@ import { useTheme } from '../hooks/useTheme';
 
 // Constants
 const MAX_QR_SIZE = 256;
+
+/**
+ * QR Code Manager component for displaying and managing QR codes
+ *
+ * @component
+ * @param {Object} props - Component properties
+ * @param {Object} props.item - The inventory item to generate a QR code for
+ * @param {Object} props.qrData - Existing QR code data (if available)
+ * @param {boolean} [props.showActions=true] - Whether to show action buttons
+ * @param {number} [props.size=MAX_QR_SIZE] - Size of the QR code in pixels
+ * @returns {JSX.Element} Rendered QR code with controls
+ */
 function QRCodeManager({
     item,
     qrData,
@@ -72,7 +94,7 @@ function QRCodeManager({
             const svgElement = qrCodeRef.current;
             const serializer = new XMLSerializer();
             const svgString = serializer.serializeToString(svgElement);
-            
+
             // Create canvas with padding
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -83,7 +105,7 @@ function QRCodeManager({
             canvas.height = size + (padding * 2);
 
             // Fill background
-            ctx.fillStyle = isDarkMode ? "#1F2937" : "#FFFFFF"; 
+            ctx.fillStyle = isDarkMode ? "#1F2937" : "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Create a blob from the SVG string
@@ -105,7 +127,7 @@ function QRCodeManager({
             canvas.toBlob(async (blob) => {
                 try {
                     const fileName = `QR_${item?.name || 'code'}_${new Date().toISOString().split('T')[0]}.png`;
-                    
+
                     // First save to Firebase
                     const dataUrl = canvas.toDataURL('image/png');
                     await handleQRCode(item.id, dataUrl, {
@@ -113,7 +135,7 @@ function QRCodeManager({
                         itemName: item.name,
                         fileName: fileName
                     });
-                    
+
                     // Then create download
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);

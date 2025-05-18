@@ -1,0 +1,20 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "EditorConfig.EditorConfig",
+    "mikestead.dotenv",
+    "eamodio.gitlens",
+    "streetsidesoftware.code-spell-checker",
+    "yoavbls.pretty-ts-errors",
+    "usernamehw.errorlens",
+    "VisualStudioExptTeam.vscodeintellicode",
+    "dsznajder.es7-react-js-snippets",
+    "christian-kohler.path-intellisense",
+    "naumovs.color-highlight",
+    "kavod-io.vscode-jest-test-adapter",
+    "mhutchie.git-graph",
+    "msjsdiag.vscode-react-native"
+  ]
+}

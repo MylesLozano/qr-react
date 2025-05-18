@@ -1,11 +1,19 @@
 /**
  * Utility functions for inventory management
+ *
+ * @module inventoryUtils
+ * @description A collection of utility functions for handling inventory data,
+ * including sanitization, validation, formatting, and statistical calculations.
  */
 
 /**
  * Sanitizes text input to prevent XSS attacks
+ * @function sanitizeInput
  * @param {string} input - User input to be sanitized
- * @return {string} Sanitized string
+ * @return {string} Sanitized string with HTML entities escaped
+ * @example
+ * const safeName = sanitizeInput("<script>alert('XSS')</script>");
+ * // Returns: "&lt;script&gt;alert('XSS')&lt;/script&gt;"
  */
 export const sanitizeInput = (input) => {
   if (!input) return "";
@@ -16,8 +24,12 @@ export const sanitizeInput = (input) => {
 
 /**
  * Sanitizes numeric input
+ * @function sanitizeNumber
  * @param {string|number} input - Numeric input
  * @return {number} Sanitized number or 0 if invalid
+ * @example
+ * const safeQuantity = sanitizeNumber("10a");
+ * // Returns: 0
  */
 export const sanitizeNumber = (input) => {
   const num = Number(input);

@@ -117,6 +117,32 @@ npm run build
 firebase deploy
 ```
 
+## 🧰 Code Quality
+
+The QCheckCITE project follows strict code quality standards to ensure maintainability and readability:
+
+- **Linting & Formatting**: ESLint and Prettier are configured to enforce consistent code style
+- **Documentation**: JSDoc comments for components, hooks, and utility functions
+- **Pre-commit Hooks**: Husky and lint-staged ensure code quality before commits
+- **Component Structure**: Standardized component organization (see `docs/component-structure.md`)
+- **Import Organization**: Consistent import ordering (see `docs/importOrganization.md`)
+
+Run these commands to maintain code quality:
+
+```sh
+# Format code with Prettier
+npm run format
+
+# Lint code and fix issues
+npm run lint:fix
+
+# Check code formatting
+npm run format:check
+
+# Generate project health report
+node scripts/generateHealthReport.js
+```
+
 ## 🔒 Security
 
 - **Authentication:** Restricted to @jmc.edu.ph domain

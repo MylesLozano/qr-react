@@ -36,8 +36,7 @@ export default [
       ...react.configs.recommended.rules,
       ...react.configs["jsx-runtime"].rules,
       ...reactHooks.configs.recommended.rules,
-      "react/jsx-no-target-blank": "off",
-      "react/prop-types": "off", // Disabling prop-types since we're using TypeScript-like JSDoc
+      "react/jsx-no-target-blank": "off",      "react/prop-types": "off", // Disabling prop-types since we're using TypeScript-like JSDoc
       "no-unused-vars": [
         "warn",
         {
@@ -46,6 +45,10 @@ export default [
           ignoreRestSiblings: true,
         },
       ],
+      "no-console": ["warn", { "allow": ["error", "warn", "info"] }],
+      "max-len": ["warn", { "code": 100, "ignoreComments": true, "ignoreStrings": true }],
+      "semi": ["error", "always"],
+      "quotes": ["error", "single", { "avoidEscape": true }],
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
