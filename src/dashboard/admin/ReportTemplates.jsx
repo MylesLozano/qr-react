@@ -38,16 +38,24 @@ const ReportTemplates = () => {
     });
     const [error, setError] = useState(null);
     const [auditLogs, setAuditLogs] = useState([]);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Check permissions
+    const [isSubmitting, setIsSubmitting] = useState(false);    // Check permissions
     const canManageTemplates = useMemo(() => canPerformAction(user?.role, 'manage_templates'), [user?.role]);
     const canViewTemplates = useMemo(() => canPerformAction(user?.role, 'view_templates'), [user?.role]);
+
+    useEffect(() => {
+        console.log('Current permissions:', { 
+            role: user?.role, 
+            canManageTemplates, 
+            canViewTemplates 
+        });
+    }, [user?.role, canManageTemplates, canViewTemplates]);
 
     // Fetch templates with real-time updates
     useEffect(() => {
         if (!canViewTemplates) {
-            toast.error('You do not have permission to view templates');
+            console.error(`Permission denied for view_templates action. User role: ${user?.role}`);
+            setLoading(false);
+            setError('You do not have permission to view templates. This might be a configuration issue.');
             return;
         }
 
@@ -395,12 +403,15 @@ const ReportTemplates = () => {
             ...prev,
             fields: prev.fields.filter((_, i) => i !== index)
         }));
-    }, []);
-
-    if (!canViewTemplates) {
+    }, []);    if (!canViewTemplates) {
         return (
-            <div className={`p-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-                <div className="text-red-500" role="alert">Access Denied</div>
+            <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+                <div className="border border-red-500 rounded p-4 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 mb-4" role="alert">
+                    <h2 className="text-lg font-bold mb-2">Access Denied</h2>
+                    <p>You don't have permission to view templates. Your current role: <strong>{user?.role || 'unknown'}</strong></p>
+                    <p className="mt-2">Required permission: <code>view_templates</code></p>
+                    <p className="mt-2 text-sm">If you believe this is an error, please contact the system administrator.</p>
+                </div>
             </div>
         );
     }

@@ -12,6 +12,7 @@ export const ACTION_PERMISSIONS = {
   view_audit_logs: ['superadmin'],
   generate_reports: ['admin', 'superadmin'],
   manage_templates: ['admin', 'superadmin'],
+  view_templates: ['admin', 'superadmin'],
   manage_categories: ['admin', 'superadmin'],
   manage_requests: ['admin', 'superadmin'],
   view_requests: ['user', 'admin', 'superadmin'],
