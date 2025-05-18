@@ -12,7 +12,6 @@ import InventoryStatsCharts from '../components/inventory/stats/InventoryStatsCh
 import CategoryList from '../components/inventory/lists/CategoryList';
 import InventoryList from '../components/inventory/lists/InventoryList';
 import AddEditForm from '../components/inventory/forms/AddEditForm';
-import CategoryDetails from '../components/inventory/modals/CategoryDetails';
 import QRCodePreview from '../components/inventory/modals/QRCodePreview';
 import useInventory from '../hooks/useInventory';
 import useSearch from '../hooks/useSearch';
@@ -27,6 +26,8 @@ function Inventory({ isInDashboard = false }) {
 
   // State to control form visibility
   const [showAddEditForm, setShowAddEditForm] = useState(false);
+  // State for selected category (filter)
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   // More granular loading states for better UX
   const [loadingStates, setLoadingStates] = useState({
@@ -121,20 +122,9 @@ function Inventory({ isInDashboard = false }) {
     updateLoadingState('generatingQR', isGeneratingQr);
   }, [isGeneratingQr, updateLoadingState]);
 
-  // State for managing category details modal
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
-
-  // Handler to open the category details modal
-  const toggleCategory = useCallback((category) => {
-    setSelectedCategory(category);
-    setShowCategoryDetails(true);
-  }, []);
-
-  // Handler to close the category details modal
-  const closeCategoryDetails = useCallback(() => {
-    setShowCategoryDetails(false);
-    setSelectedCategory(null);
+  // Handler for category filtering
+  const handleCategoryToggle = useCallback((category) => {
+    setSelectedCategory((prev) => (prev === category ? null : category));
   }, []);
 
   // Handler for editing an item
@@ -338,12 +328,26 @@ function Inventory({ isInDashboard = false }) {
               <div className="lg:w-1/4">
                 <CategoryList
                   categoryGroups={categoryGroups}
-                  toggleCategory={toggleCategory}
+                  toggleCategory={handleCategoryToggle}
                   isDarkMode={isDarkMode}
+                  selectedCategory={selectedCategory}
                 />
               </div>
               {/* The main InventoryList displaying filtered search results - takes up remaining space */}
               <div className="lg:w-3/4">
+                {/* Category filtering heading */}
+                {selectedCategory && (
+                  <div
+                    className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-xl font-semibold">Category: {selectedCategory}</h2>
+                      <Button onClick={() => setSelectedCategory(null)} color="gray" size="sm">
+                        Clear Filter
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <InventoryList
                   items={filteredItems} // Pass filtered items from search
                   onEdit={handleEdit}
@@ -352,6 +356,7 @@ function Inventory({ isInDashboard = false }) {
                   isLoading={loadingStates.fetchingInventory}
                   role={role}
                   isDarkMode={isDarkMode}
+                  filterByCategory={selectedCategory} // Pass the selected category for filtering
                 />
               </div>
             </div>{' '}
@@ -381,20 +386,6 @@ function Inventory({ isInDashboard = false }) {
                   </div>
                 </div>
               </div>
-            )}
-            {/* Category Details Modal */}
-            {showCategoryDetails && (
-              <CategoryDetails
-                category={selectedCategory}
-                items={items} // Pass the *full* items list to CategoryDetails
-                onClose={closeCategoryDetails}
-                onEdit={handleEdit}
-                onDelete={handleDeleteItem}
-                onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
-                isLoading={loadingStates.fetchingInventory}
-                role={role}
-                isDarkMode={isDarkMode}
-              />
             )}
             {/* QR Preview Modal (render if qrPreview item is set) */}
             {qrPreview && (

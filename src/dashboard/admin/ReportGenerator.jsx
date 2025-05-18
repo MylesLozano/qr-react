@@ -1,11 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  orderBy,
-} from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../hooks/useTheme';
@@ -43,10 +37,8 @@ const ReportGenerator = () => {
   // Memoize filtered data
   const filteredData = useMemo(() => {
     return reportData.filter((item) => {
-      if (filters.status && item.status !== filters.status)
-        return false;
-      if (filters.category && item.category !== filters.category)
-        return false;
+      if (filters.status && item.status !== filters.status) return false;
+      if (filters.category && item.category !== filters.category) return false;
       return true;
     });
   }, [reportData, filters.status, filters.category]);
@@ -58,10 +50,7 @@ const ReportGenerator = () => {
       setError(null);
 
       // Try to get templates from Firestore
-      const q = query(
-        collection(db, 'report_templates'),
-        orderBy('name')
-      );
+      const q = query(collection(db, 'report_templates'), orderBy('name'));
       const snapshot = await getDocs(q);
       const fetchedTemplates = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -76,8 +65,7 @@ const ReportGenerator = () => {
           {
             id: 'sample-template',
             name: 'Sample Template',
-            description:
-              'This is a sample template for demonstration',
+            description: 'This is a sample template for demonstration',
             fields: [
               { name: 'item', type: 'text', required: true },
               { name: 'quantity', type: 'number', required: true },
@@ -94,9 +82,7 @@ const ReportGenerator = () => {
     } catch (error) {
       console.error('Error fetching templates:', error);
       if (error.code === 'permission-denied') {
-        setError(
-          'Permission denied: You do not have access to view templates'
-        );
+        setError('Permission denied: You do not have access to view templates');
       } else {
         setError('Failed to fetch templates');
       }
@@ -120,16 +106,10 @@ const ReportGenerator = () => {
 
       // Apply filters
       if (filters.dateRange.start) {
-        q = query(
-          q,
-          where('createdAt', '>=', new Date(filters.dateRange.start))
-        );
+        q = query(q, where('createdAt', '>=', new Date(filters.dateRange.start)));
       }
       if (filters.dateRange.end) {
-        q = query(
-          q,
-          where('createdAt', '<=', new Date(filters.dateRange.end))
-        );
+        q = query(q, where('createdAt', '<=', new Date(filters.dateRange.end)));
       }
       if (filters.status) {
         q = query(q, where('status', '==', filters.status));
@@ -150,12 +130,8 @@ const ReportGenerator = () => {
 
       // Handle permission errors specifically
       if (error.code === 'permission-denied') {
-        setError(
-          'Permission denied: You do not have access to view inventory data'
-        );
-        toast.error(
-          'Permission denied: You do not have access to view inventory data'
-        );
+        setError('Permission denied: You do not have access to view inventory data');
+        toast.error('Permission denied: You do not have access to view inventory data');
 
         // Provide sample data for the report
         setReportData([
@@ -213,8 +189,7 @@ const ReportGenerator = () => {
     if (
       filters.dateRange.start &&
       filters.dateRange.end &&
-      new Date(filters.dateRange.start) >
-        new Date(filters.dateRange.end)
+      new Date(filters.dateRange.start) > new Date(filters.dateRange.end)
     ) {
       setFieldErrors({
         endDate: 'End date must be after start date',
@@ -277,18 +252,13 @@ const ReportGenerator = () => {
     try {
       const fields = selectedTemplate.fields;
       const csvData = filteredData.map((item) =>
-        Object.fromEntries(
-          fields.map((field) => [field.name, item[field.name] || ''])
-        )
+        Object.fromEntries(fields.map((field) => [field.name, item[field.name] || '']))
       );
       const csv = Papa.unparse(csvData);
       const blob = new Blob([csv], {
         type: 'text/csv;charset=utf-8;',
       });
-      saveAs(
-        blob,
-        `${selectedTemplate.name}_${new Date().toISOString()}.csv`
-      );
+      saveAs(blob, `${selectedTemplate.name}_${new Date().toISOString()}.csv`);
       toast.success('CSV report generated successfully');
     } catch (error) {
       console.error('Error generating CSV:', error);
@@ -311,9 +281,7 @@ const ReportGenerator = () => {
           break;
         case 'excel':
           generateCSV();
-          toast.info(
-            'Excel format not yet supported. Generating CSV instead.'
-          );
+          toast.info('Excel format not yet supported. Generating CSV instead.');
           break;
         default:
           toast.error('Unsupported format');
@@ -324,20 +292,11 @@ const ReportGenerator = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [
-    selectedTemplate,
-    validateReportConfig,
-    generatePDFReport,
-    generateCSV,
-    filteredData,
-  ]);
+  }, [selectedTemplate, validateReportConfig, generatePDFReport, generateCSV, filteredData]);
 
   const renderTableRows = useCallback(() => {
     return filteredData.map((item) => (
-      <tr
-        key={item.id}
-        className={`${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-      >
+      <tr key={item.id} className={`${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
         {/* Your row content */}
       </tr>
     ));
@@ -351,15 +310,9 @@ const ReportGenerator = () => {
 
   return (
     <ErrorBoundary>
-      <div
-        className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}
-      >
+      <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
         <div className="flex justify-between items-center mb-6">
-          <h1
-            className="text-2xl font-bold"
-            role="heading"
-            aria-level="1"
-          >
+          <h1 className="text-2xl font-bold" role="heading" aria-level="1">
             Generate Report
           </h1>
         </div>
@@ -368,16 +321,10 @@ const ReportGenerator = () => {
           {/* Template Selection and Filters */}
           <div
             className={`p-6 rounded-lg border transition-colors duration-200 ${
-              isDarkMode
-                ? 'border-gray-700 bg-gray-800'
-                : 'border-gray-200 bg-gray-50'
+              isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
             }`}
           >
-            <h2
-              className="text-xl font-semibold mb-4"
-              role="heading"
-              aria-level="2"
-            >
+            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
               Report Configuration
             </h2>
 
@@ -387,9 +334,7 @@ const ReportGenerator = () => {
                 message="There are no report templates available. Please create a template first."
                 icon="📋"
                 actionLabel="Create Template"
-                actionFn={() =>
-                  navigate('/admin-dashboard/templates')
-                }
+                actionFn={() => navigate('/admin-dashboard/templates')}
               />
             ) : (
               <fieldset className="space-y-4 border-t border-gray-300 pt-4">
@@ -398,19 +343,14 @@ const ReportGenerator = () => {
                 </legend>
                 {/* Template select */}
                 <div>
-                  <label
-                    htmlFor="templateSelect"
-                    className="block text-sm font-medium mb-1"
-                  >
+                  <label htmlFor="templateSelect" className="block text-sm font-medium mb-1">
                     Select Template
                   </label>
                   <select
                     id="templateSelect"
                     value={selectedTemplate?.id || ''}
                     onChange={(e) => {
-                      const template = templates.find(
-                        (t) => t.id === e.target.value
-                      );
+                      const template = templates.find((t) => t.id === e.target.value);
                       handleTemplateChange(template);
                     }}
                     className={`w-full p-2 rounded border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
@@ -425,11 +365,7 @@ const ReportGenerator = () => {
                       <option
                         key={template.id}
                         value={template.id}
-                        className={
-                          isDarkMode
-                            ? 'bg-gray-800 text-white'
-                            : 'bg-white text-black'
-                        }
+                        className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                       >
                         {template.name}
                       </option>
@@ -439,10 +375,7 @@ const ReportGenerator = () => {
                 {/* Start/End date */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label
-                      htmlFor="startDate"
-                      className="block text-sm font-medium mb-1"
-                    >
+                    <label htmlFor="startDate" className="block text-sm font-medium mb-1">
                       Start Date
                     </label>
                     <input
@@ -459,18 +392,13 @@ const ReportGenerator = () => {
                         })
                       }
                       className={`w-full p-2 rounded border transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-700 border-gray-600'
-                          : 'bg-white border-gray-300'
+                        isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
                       }`}
                       aria-label="Start date"
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="endDate"
-                      className="block text-sm font-medium mb-1"
-                    >
+                    <label htmlFor="endDate" className="block text-sm font-medium mb-1">
                       End Date
                     </label>
                     <input
@@ -487,25 +415,18 @@ const ReportGenerator = () => {
                         })
                       }
                       className={`w-full p-2 rounded border transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-700 border-gray-600'
-                          : 'bg-white border-gray-300'
+                        isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
                       }`}
                       aria-label="End date"
                     />
                     {fieldErrors.endDate && (
-                      <p className="text-sm text-red-500 mt-1">
-                        {fieldErrors.endDate}
-                      </p>
+                      <p className="text-sm text-red-500 mt-1">{fieldErrors.endDate}</p>
                     )}
                   </div>
                 </div>
                 {/* Status select */}
                 <div>
-                  <label
-                    htmlFor="statusSelect"
-                    className="block text-sm font-medium mb-1"
-                  >
+                  <label htmlFor="statusSelect" className="block text-sm font-medium mb-1">
                     Status
                   </label>
                   <select
@@ -526,41 +447,25 @@ const ReportGenerator = () => {
                   >
                     <option
                       value=""
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       All Statuses
                     </option>
                     <option
                       value="active"
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       Active
                     </option>
                     <option
                       value="inactive"
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       Inactive
                     </option>
                     <option
                       value="maintenance"
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       Maintenance
                     </option>
@@ -568,10 +473,7 @@ const ReportGenerator = () => {
                 </div>
                 {/* Category select */}
                 <div>
-                  <label
-                    htmlFor="categorySelect"
-                    className="block text-sm font-medium mb-1"
-                  >
+                  <label htmlFor="categorySelect" className="block text-sm font-medium mb-1">
                     Category
                   </label>
                   <select
@@ -592,41 +494,25 @@ const ReportGenerator = () => {
                   >
                     <option
                       value=""
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       All Categories
                     </option>
                     <option
                       value="equipment"
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       Equipment
                     </option>
                     <option
                       value="supplies"
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       Supplies
                     </option>
                     <option
                       value="furniture"
-                      className={
-                        isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-black'
-                      }
+                      className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
                     >
                       Furniture
                     </option>
@@ -636,21 +522,13 @@ const ReportGenerator = () => {
                 <div>
                   <Button
                     onClick={generateReport}
-                    disabled={
-                      !selectedTemplate || loading || isGenerating
-                    }
+                    disabled={!selectedTemplate || loading || isGenerating}
                     className={`w-full px-4 py-2 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500${
-                      isDarkMode
-                        ? 'bg-blue-600 hover:bg-blue-700'
-                        : 'bg-blue-500 hover:bg-blue-600'
+                      isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
                     } text-white ${!selectedTemplate || loading || isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                     aria-label="Generate report"
                   >
-                    {isGenerating ? (
-                      <LoadingSpinner size="small" />
-                    ) : (
-                      'Generate Report'
-                    )}
+                    {isGenerating ? <LoadingSpinner size="small" /> : 'Generate Report'}
                   </Button>
                 </div>
               </fieldset>
@@ -660,16 +538,10 @@ const ReportGenerator = () => {
           {/* Preview Section */}
           <div
             className={`p-6 rounded-lg border transition-colors duration-200 ${
-              isDarkMode
-                ? 'border-gray-700 bg-gray-800'
-                : 'border-gray-200 bg-gray-50'
+              isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
             }`}
           >
-            <h2
-              className="text-xl font-semibold mb-4"
-              role="heading"
-              aria-level="2"
-            >
+            <h2 className="text-xl font-semibold mb-4" role="heading" aria-level="2">
               Preview
             </h2>
 
@@ -680,21 +552,11 @@ const ReportGenerator = () => {
             ) : selectedTemplate ? (
               filteredData.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table
-                    className="min-w-full"
-                    role="table"
-                    aria-label="Report preview"
-                  >
+                  <table className="min-w-full" role="table" aria-label="Report preview">
                     <thead>
-                      <tr
-                        className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
-                      >
+                      <tr className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                         {selectedTemplate.fields.map((field) => (
-                          <th
-                            key={field.name}
-                            scope="col"
-                            className="px-4 py-2 text-left"
-                          >
+                          <th key={field.name} scope="col" className="px-4 py-2 text-left">
                             {field.name}
                           </th>
                         ))}

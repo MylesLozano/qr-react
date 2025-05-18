@@ -41,10 +41,7 @@ function SplashScreen({ minDuration = 2000 }) {
 
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
-      const newProgress = Math.min(
-        (elapsed / minDuration) * 100,
-        100
-      );
+      const newProgress = Math.min((elapsed / minDuration) * 100, 100);
       setProgress(newProgress);
 
       if (newProgress < 100) {
@@ -86,22 +83,16 @@ function SplashScreen({ minDuration = 2000 }) {
           <div className={`text-center ${styles.text}`}>
             <div className="flex items-center justify-center space-x-3 mb-4">
               {showSpinner && <LoadingSpinner size="md" />}
-              <span className="text-lg font-medium animate-pulse">
-                Loading QCheckCITE
-              </span>
+              <span className="text-lg font-medium animate-pulse">Loading QCheckCITE</span>
             </div>
             <p className={styles.subtext}>
-              {progress < 100
-                ? 'Initializing application...'
-                : 'Ready!'}
+              {progress < 100 ? 'Initializing application...' : 'Ready!'}
             </p>
           </div>
 
           {/* Progress Bar */}
           <div className="mt-8 px-4">
-            <div
-              className={`h-1 w-full rounded-full ${styles.progressBg}`}
-            >
+            <div className={`h-1 w-full rounded-full ${styles.progressBg}`}>
               <div
                 className={`h-1 rounded-full transition-all duration-300 ease-out ${styles.progressBar}`}
                 style={{ width: `${progress}%` }}

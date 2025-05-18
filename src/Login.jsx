@@ -1,18 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import logo from './assets/QCheckCITE_Logo.png';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut,
-} from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, db, logAudit } from './firebase';
-import {
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import usePageTitle from './hooks/usePageTitle';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -43,8 +34,7 @@ function Login() {
   // Handle navigation after successful login
   useEffect(() => {
     if (user && role) {
-      const from =
-        location.state?.from?.pathname || getDashboardPath(role);
+      const from = location.state?.from?.pathname || getDashboardPath(role);
       navigate(from, { replace: true });
     }
   }, [user, role, navigate, location]);
@@ -78,15 +68,11 @@ function Login() {
           createdAt: serverTimestamp(),
         });
 
-        console.info(
-          `✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`
-        );
+        console.info(`✅ Assigned default role '${DEFAULT_ROLE}' to ${user.email}`);
         await logAudit('user_signed_in', user.email, 'user');
       } else {
         userRole = userSnap.data().role;
-        console.info(
-          `ℹ️ Existing user logged in with role: ${userRole}`
-        );
+        console.info(`ℹ️ Existing user logged in with role: ${userRole}`);
       }
 
       await logAudit('user_signed_in', user.email, 'user');
@@ -99,8 +85,7 @@ function Login() {
         errorMessage = 'Sign in was cancelled.';
         toast.info(errorMessage);
       } else if (error.code === 'auth/network-request-failed') {
-        errorMessage =
-          'Network error. Please check your internet connection.';
+        errorMessage = 'Network error. Please check your internet connection.';
         toast.error(errorMessage);
       } else {
         errorMessage = `Login failed: ${error.message}`;
@@ -130,18 +115,14 @@ function Login() {
     <ErrorBoundary>
       <div
         className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-200 ${
-          isDarkMode
-            ? 'bg-gray-900 text-white'
-            : 'bg-gray-50 text-gray-900'
+          isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
         }`}
         role="main"
         aria-label="Login page"
       >
         <div
           className={`w-full max-w-md p-8 rounded-xl shadow-lg transition-colors duration-200 ${
-            isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-200'
+            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           } border`}
         >
           {/* Logo Container */}
@@ -156,16 +137,10 @@ function Login() {
           </div>
 
           <div className="text-center mb-8">
-            <h1
-              className="text-3xl font-bold mb-2"
-              role="heading"
-              aria-level="1"
-            >
+            <h1 className="text-3xl font-bold mb-2" role="heading" aria-level="1">
               Welcome to QCheckCITE!
             </h1>
-            <p
-              className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-            >
+            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Please sign in to get started
             </p>
           </div>
@@ -173,9 +148,7 @@ function Login() {
           {error && (
             <div
               className={`mb-4 p-4 rounded-lg ${
-                isDarkMode
-                  ? 'bg-red-900 text-red-100'
-                  : 'bg-red-100 text-red-700'
+                isDarkMode ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-700'
               }`}
               role="alert"
               aria-live="assertive"
@@ -200,11 +173,7 @@ function Login() {
               </div>
             ) : (
               <div className="flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 mr-2"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     fill="currentColor"
                     d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"

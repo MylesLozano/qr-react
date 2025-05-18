@@ -1,10 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, logAudit } from '../firebase';
 import { toast } from 'react-toastify';
@@ -150,9 +144,7 @@ const NAV_CONFIG = [
 function BaseDashboard({ children }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMobile, setIsMobile] = useState(
-    window.innerWidth <= MOBILE_BREAKPOINT
-  );
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= MOBILE_BREAKPOINT);
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -168,16 +160,12 @@ function BaseDashboard({ children }) {
     themeButton: isDarkMode
       ? 'bg-gray-700 text-white hover:bg-gray-600'
       : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-    logoutButton: isDarkMode
-      ? 'bg-red-600 hover:bg-red-700'
-      : 'bg-red-500 hover:bg-red-600',
+    logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600',
   };
 
   // Calculate content width based on role
   const shouldExpandContent = useMemo(
-    () =>
-      ['admin', 'superadmin'].includes(role) ||
-      window.innerWidth <= MOBILE_BREAKPOINT,
+    () => ['admin', 'superadmin'].includes(role) || window.innerWidth <= MOBILE_BREAKPOINT,
     [role]
   );
 
@@ -198,11 +186,7 @@ function BaseDashboard({ children }) {
   // Memoize navigation items based on role
   const navItems = useMemo(
     () =>
-      NAV_CONFIG.filter(
-        (item) =>
-          item.roles.includes(role) &&
-          canPerformAction(role, item.action)
-      ),
+      NAV_CONFIG.filter((item) => item.roles.includes(role) && canPerformAction(role, item.action)),
     [role]
   );
 
@@ -231,9 +215,7 @@ function BaseDashboard({ children }) {
       navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
-      toast.error(
-        `Failed to log out: ${error.message || 'Unknown error'}`
-      );
+      toast.error(`Failed to log out: ${error.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -252,8 +234,7 @@ function BaseDashboard({ children }) {
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
-    return () =>
-      document.removeEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
   // Focus management for mobile menu
@@ -294,11 +275,7 @@ function BaseDashboard({ children }) {
                   alt="QCheckCITE Logo"
                   className="h-8 w-8 object-contain"
                 />
-                <span
-                  className={`text-xl font-semibold ${themeStyles.heading}`}
-                >
-                  QCheckCITE
-                </span>
+                <span className={`text-xl font-semibold ${themeStyles.heading}`}>QCheckCITE</span>
               </div>
               {isMobile && (
                 <button
@@ -326,11 +303,7 @@ function BaseDashboard({ children }) {
                       : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
                   }`}
                   ref={index === 0 ? firstNavItemRef : null}
-                  aria-current={
-                    location.pathname.includes(item.path)
-                      ? 'page'
-                      : undefined
-                  }
+                  aria-current={location.pathname.includes(item.path) ? 'page' : undefined}
                   title={item.description}
                 >
                   <span className="mr-3" aria-hidden="true">
@@ -343,10 +316,7 @@ function BaseDashboard({ children }) {
 
             {/* Bottom Actions Section */}
             <div className="p-4 border-t border-gray-200">
-              <Button
-                onClick={toggleTheme}
-                className={`w-full mb-2 ${themeStyles.themeButton}`}
-              >
+              <Button onClick={toggleTheme} className={`w-full mb-2 ${themeStyles.themeButton}`}>
                 {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
               </Button>
               <Button
@@ -354,11 +324,7 @@ function BaseDashboard({ children }) {
                 className={`w-full ${themeStyles.logoutButton} text-white`}
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  'Sign Out'
-                )}
+                {isLoading ? <LoadingSpinner size="sm" /> : 'Sign Out'}
               </Button>
             </div>
           </div>
@@ -379,15 +345,8 @@ function BaseDashboard({ children }) {
             aria-controls="navigation-menu"
             aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
           >
-            <span className="sr-only">
-              {isMenuOpen ? 'Close menu' : 'Open menu'}
-            </span>
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <span className="sr-only">{isMenuOpen ? 'Close menu' : 'Open menu'}</span>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

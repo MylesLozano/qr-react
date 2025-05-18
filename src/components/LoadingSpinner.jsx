@@ -30,10 +30,7 @@ function LoadingSpinner({
 
   if (!showText) {
     return (
-      <div
-        data-testid="loading-container"
-        className={containerClasses}
-      >
+      <div data-testid="loading-container" className={containerClasses}>
         {spinnerContent}
       </div>
     );

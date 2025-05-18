@@ -17,9 +17,7 @@ const ROOT_ELEMENT_ID = 'root';
  */
 function RootErrorBoundary({ children }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      {children}
-    </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">{children}</div>
   );
 }
 
@@ -28,9 +26,7 @@ const initializeApp = () => {
   const rootElement = document.getElementById(ROOT_ELEMENT_ID);
 
   if (!rootElement) {
-    console.error(
-      `Root element with id "${ROOT_ELEMENT_ID}" not found`
-    );
+    console.error(`Root element with id "${ROOT_ELEMENT_ID}" not found`);
     return;
   }
 

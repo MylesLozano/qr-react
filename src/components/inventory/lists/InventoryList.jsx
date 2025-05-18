@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -6,8 +6,17 @@ import { useTheme } from '../../../hooks/useTheme';
 import Button from '../../Button';
 import LoadingSpinner from '../../LoadingSpinner';
 import { canPerformAction } from '../../../utils/roleUtils';
+import BulkEditForm from '../forms/BulkEditForm';
 
-function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }) {
+function InventoryList({
+  items,
+  onEdit,
+  onDelete,
+  onPreviewQr,
+  isLoading,
+  role,
+  filterByCategory = null,
+}) {
   const { isDarkMode } = useTheme();
   // Permission checks
   const canEdit = canPerformAction(role, 'edit_inventory');
@@ -18,6 +27,13 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
   // State for bulk operations
   const [selectedItems, setSelectedItems] = useState({});
   const [bulkMode, setBulkMode] = useState(false);
+  const [showBulkEditForm, setShowBulkEditForm] = useState(false);
+
+  // Filter items by category if filterByCategory is provided
+  const displayedItems = useMemo(() => {
+    if (!filterByCategory) return items;
+    return items.filter((item) => item.category === filterByCategory);
+  }, [items, filterByCategory]);
 
   // Toggle item selection for bulk operations
   const toggleItemSelection = useCallback((itemId) => {
@@ -33,8 +49,32 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
     if (bulkMode) {
       // Clear selections when exiting bulk mode
       setSelectedItems({});
+      setShowBulkEditForm(false);
     }
   }, [bulkMode]);
+
+  // Handle bulk edit
+  const handleBulkEdit = useCallback(() => {
+    const selectedCount = Object.values(selectedItems).filter(Boolean).length;
+    if (selectedCount === 0) {
+      return;
+    }
+    setShowBulkEditForm(true);
+  }, [selectedItems]);
+
+  // Handle bulk edit success
+  const handleBulkEditSuccess = useCallback((updatedItemIds, updatedFields) => {
+    // Keep the form open to allow for additional edits
+    // But provide user feedback (handled in BulkEditForm)
+    // Optionally, we could clear selections:
+    // setSelectedItems({});
+    // setShowBulkEditForm(false);
+  }, []);
+
+  // Close bulk edit form
+  const closeBulkEditForm = useCallback(() => {
+    setShowBulkEditForm(false);
+  }, []);
 
   // Bulk action handlers
   const handleBulkDelete = useCallback(() => {
@@ -62,10 +102,24 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
     return 'text-green-500';
   };
 
+  // Select all items
+  const selectAllItems = useCallback(() => {
+    const newSelection = {};
+    displayedItems.forEach((item) => {
+      newSelection[item.id] = true;
+    });
+    setSelectedItems(newSelection);
+  }, [displayedItems]);
+
+  // Deselect all items
+  const deselectAllItems = useCallback(() => {
+    setSelectedItems({});
+  }, []);
+
   // Memoize the row renderer to prevent unnecessary re-renders
   const Row = useCallback(
     ({ index, style }) => {
-      const item = items[index];
+      const item = displayedItems[index];
       if (!item) return null;
 
       return (
@@ -200,7 +254,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
       );
     },
     [
-      items,
+      displayedItems,
       isDarkMode,
       canEdit,
       canDelete,
@@ -221,7 +275,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
     );
   }
 
-  if (!Array.isArray(items) || items.length === 0) {
+  if (!Array.isArray(displayedItems) || displayedItems.length === 0) {
     return (
       <div
         className={`p-8 text-center rounded-lg shadow-md h-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}
@@ -236,33 +290,72 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
 
   return (
     <div className="h-full shadow-md rounded-lg">
+      {/* Bulk Edit Form */}
+      {showBulkEditForm && (
+        <div className="mb-4">
+          <BulkEditForm
+            selectedItems={selectedItems}
+            items={items}
+            onSuccess={handleBulkEditSuccess}
+            onClose={() => {
+              closeBulkEditForm();
+              // We want to keep the selections after editing
+            }}
+          />
+        </div>
+      )}
       {/* Bulk actions toolbar */}
       {canEdit && (
-        <div
-          className={`mb-4 p-3 rounded-lg flex items-center justify-between ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
-        >
-          <div className="flex items-center space-x-2">
-            <Button
-              onClick={toggleBulkMode}
-              color={bulkMode ? 'blue' : 'gray'}
-              size="sm"
-              className="flex items-center"
-            >
-              {bulkMode ? 'Exit Bulk Mode' : 'Bulk Edit'}
-            </Button>
+        <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={toggleBulkMode}
+                color={bulkMode ? 'blue' : 'gray'}
+                size="sm"
+                className="flex items-center"
+              >
+                {bulkMode ? 'Exit Bulk Mode' : 'Bulk Edit'}
+              </Button>
 
-            {bulkMode && (
-              <>
-                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  {selectedCount} items selected
-                </span>
+              {bulkMode && (
+                <>
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {selectedCount} items selected
+                  </span>
 
-                {selectedCount > 0 && canDelete && (
+                  <Button
+                    onClick={selectAllItems}
+                    color="gray"
+                    size="sm"
+                    disabled={displayedItems.length === 0}
+                  >
+                    Select All
+                  </Button>
+
+                  {selectedCount > 0 && (
+                    <Button onClick={deselectAllItems} color="gray" size="sm">
+                      Deselect All
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {bulkMode && selectedCount > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {canEdit && (
+                  <Button onClick={handleBulkEdit} color="blue" size="sm">
+                    Edit Selected
+                  </Button>
+                )}
+
+                {canDelete && (
                   <Button onClick={handleBulkDelete} color="red" size="sm">
                     Delete Selected
                   </Button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -272,7 +365,7 @@ function InventoryList({ items, onEdit, onDelete, onPreviewQr, isLoading, role }
           {({ height, width }) => (
             <List
               height={height}
-              itemCount={items.length}
+              itemCount={displayedItems.length}
               itemSize={180}
               width={width}
               overscanCount={5}
@@ -305,6 +398,8 @@ InventoryList.propTypes = {
   onPreviewQr: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,
   role: PropTypes.string,
+  filterByCategory: PropTypes.string,
+  isDarkMode: PropTypes.bool,
 };
 
 export default InventoryList;
