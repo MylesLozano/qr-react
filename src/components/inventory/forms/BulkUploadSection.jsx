@@ -18,8 +18,31 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
     Papa.parse(file, {
       header: true,
       complete: (results) => {
-        setCsvData(results.data);
-        toast.success(`${results.data.length} items parsed from file`);
+        // Normalize field names for consistent access, especially for unitNumber
+        const normalizedData = results.data.map(item => {
+          const normalizedItem = { ...item };
+          
+          // Process each key in the item to handle case variations
+          Object.keys(item).forEach(key => {
+            const lowerKey = key.toLowerCase();
+              // Handle unitNumber variations
+            if (lowerKey === 'unitNumber' || lowerKey === 'unitnumber' || lowerKey === 'unit_number' || lowerKey === 'unit number' || lowerKey === 'unitnum') {
+              normalizedItem.unitNumber = item[key];
+              // Also set unitNum for backward compatibility
+              normalizedItem.unitNum = item[key];
+            }
+            
+            // Handle other common field name variations as needed
+            if (lowerKey === 'name') {
+              normalizedItem.name = item[key];
+            }
+          });
+          
+          return normalizedItem;
+        });
+        
+        setCsvData(normalizedData);
+        toast.success(`${normalizedData.length} items parsed from file`);
       },
       error: (error) => {
         toast.error(`Error parsing file: ${error.message}`);
@@ -68,11 +91,11 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
           <div
             className={`mt-2 p-2 rounded max-h-40 overflow-y-auto text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
           >
-            <p className="font-medium mb-1">File Preview:</p>
-            <ul className="list-disc pl-5">
+            <p className="font-medium mb-1">File Preview:</p>            <ul className="list-disc pl-5">
               {csvData.slice(0, 5).map((item, index) => (
                 <li key={index}>
                   {item.name || item.Name || Object.values(item)[0] || 'Unnamed item'}
+                  {item.unitNumber && <span className="ml-2 text-gray-500">Unit: {item.unitNumber}</span>}
                 </li>
               ))}
               {csvData.length > 5 && <li>...and {csvData.length - 5} more items</li>}

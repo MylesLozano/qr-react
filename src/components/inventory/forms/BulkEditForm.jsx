@@ -13,9 +13,9 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-
   // Fields that can be bulk edited
   const [editableFields, setEditableFields] = useState({
+    unitNumber: { enabled: false, value: '' },
     itemCondition: { enabled: false, value: '' },
     lab: { enabled: false, value: '' },
     status: { enabled: false, value: '' },
@@ -131,10 +131,9 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
         }
       });
 
-      await Promise.all(updatePromises);
-
-      // Success message details
+      await Promise.all(updatePromises);      // Success message details
       const fieldLabels = {
+        unitNumber: 'Unit Number',
         itemCondition: 'Item Condition',
         lab: 'Laboratory',
         status: 'Status',
@@ -180,8 +179,17 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
         <div className="space-y-6">
           {/* Field selection checkboxes */}
           <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <h3 className="font-medium mb-3">Select fields to edit:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <h3 className="font-medium mb-3">Select fields to edit:</h3>            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="edit-unitNumber"
+                  checked={editableFields.unitNumber.enabled}
+                  onChange={() => toggleFieldSelection('unitNumber')}
+                  className="mr-2 h-5 w-5"
+                />
+                <label htmlFor="edit-unitNumber">Unit Number</label>
+              </div>
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -213,10 +221,21 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
                 <label htmlFor="edit-status">Status</label>
               </div>
             </div>
-          </div>
-
-          {/* Form Fields - only shown if enabled */}
+          </div>          {/* Form Fields - only shown if enabled */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Unit Number Field */}
+            {editableFields.unitNumber.enabled && (
+              <div>
+                <FormField
+                  label="Unit Number"
+                  name="unitNumber"
+                  value={editableFields.unitNumber.value}
+                  onChange={(e) => handleFieldChange('unitNumber', e.target.value)}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            )}
+            
             {/* Item Condition Field */}
             {editableFields.itemCondition.enabled && (
               <div>
@@ -283,13 +302,12 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
             )}
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 mt-6">
+          {/* Form Actions */}          <div className="flex justify-end gap-3 mt-6">
             <Button type="button" onClick={onClose} color="gray" disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" color="blue" isLoading={isLoading} disabled={isLoading}>
-              {isLoading ? 'Updating...' : 'Update All Selected Items'}
+            <Button type="submit" color="blue" loading={isLoading} loadingText="Updating..." disabled={isLoading}>
+              Update All Selected Items
             </Button>
           </div>
         </div>

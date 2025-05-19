@@ -54,12 +54,11 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
     }
 
     try {
-      setIsLoading(true);
-
-      const sanitizedData = {
+      setIsLoading(true);      const sanitizedData = {
         ...formData,
         name: sanitizeInput(formData.name),
         brand: sanitizeInput(formData.brand),
+        unitNumber: sanitizeInput(formData.unitNumber),
         serialNumber: sanitizeInput(formData.serialNumber),
         remarks: sanitizeInput(formData.remarks),
         description: sanitizeInput(formData.description),
@@ -112,8 +111,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
       </h2>
 
       <form onSubmit={handleSubmit} className="w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-          {/* Basic item information - first column */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">        // Basic item information - first column
           <div className="space-y-4">
             <FormField
               label="Item Name"
@@ -122,6 +120,15 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               onChange={handleChange}
               error={validationErrors.name}
               required
+              isDarkMode={isDarkMode}
+            />
+
+            <FormField
+              label="Unit Number"
+              name="unitNumber"
+              value={formData.unitNumber}
+              onChange={handleChange}
+              error={validationErrors.unitNumber}
               isDarkMode={isDarkMode}
             />
 

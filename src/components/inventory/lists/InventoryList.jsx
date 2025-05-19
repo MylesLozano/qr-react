@@ -12,8 +12,10 @@ function InventoryList({
   items,
   onEdit,
   onDelete,
+  onBulkDelete,
   onPreviewQr,
   isLoading,
+  isBulkDeleting,
   role,
   filterByCategory = null,
 }) {
@@ -28,6 +30,8 @@ function InventoryList({
   const [selectedItems, setSelectedItems] = useState({});
   const [bulkMode, setBulkMode] = useState(false);
   const [showBulkEditForm, setShowBulkEditForm] = useState(false);
+  // State to track which items are being deleted
+  const [deletingItems, setDeletingItems] = useState({});
 
   // Filter items by category if filterByCategory is provided
   const displayedItems = useMemo(() => {
@@ -73,27 +77,24 @@ function InventoryList({
   // Close bulk edit form
   const closeBulkEditForm = useCallback(() => {
     setShowBulkEditForm(false);
-  }, []);
-
-  // Bulk action handlers
+  }, []);  // Bulk action handlers
   const handleBulkDelete = useCallback(() => {
     const selectedIds = Object.keys(selectedItems).filter((id) => selectedItems[id]);
     if (selectedIds.length === 0) {
       return;
     }
-
-    // Confirmation before bulk delete
-    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected items?`)) {
-      selectedIds.forEach((id) => {
-        const itemToDelete = items.find((item) => item.id === id);
-        if (itemToDelete) {
-          onDelete(id, itemToDelete.name);
-        }
-      });
-      // Clear selections after delete
-      setSelectedItems({});
-    }
-  }, [selectedItems, items, onDelete]);
+    
+    // Use the onBulkDelete prop which has the appropriate confirmation
+    onBulkDelete(selectedIds).then(result => {
+      // Clear selections if deletion was successful
+      if (result?.success) {
+        setSelectedItems({});
+      }
+    }).catch(err => {
+      console.error('Error in bulk delete:', err);
+    });
+    
+  }, [selectedItems, onBulkDelete]);
 
   const stockStatusColor = (qty) => {
     if (qty <= 0) return 'text-red-500';
@@ -115,17 +116,34 @@ function InventoryList({
     setSelectedItems({});
   }, []);
 
+  // Wrap onDelete to track which item is being deleted
+  const handleItemDelete = useCallback((itemId, itemName) => {
+    setDeletingItems(prev => ({ ...prev, [itemId]: true }));
+    
+    // Call the original onDelete and clean up when done
+    return onDelete(itemId, itemName)
+      .finally(() => {
+        setDeletingItems(prev => {
+          const newState = { ...prev };
+          delete newState[itemId];
+          return newState;
+        });
+      });
+  }, [onDelete]);
   // Memoize the row renderer to prevent unnecessary re-renders
   const Row = useCallback(
     ({ index, style }) => {
       const item = displayedItems[index];
       if (!item) return null;
 
+      // Add isDeleting flag to the item
+      const isItemDeleting = !!deletingItems[item.id];
+
       return (
         <div style={style} className="px-2">
           {' '}
           <div
-            className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200 shadow-sm`}
+            className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200 shadow-sm ${isItemDeleting ? 'opacity-70' : ''}`}
           >
             {/* Checkbox for bulk selection - only shown in bulk mode */}
             {bulkMode && (
@@ -140,9 +158,14 @@ function InventoryList({
               </div>
             )}
 
-            <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-4">              <div>
                 <h3 className="font-semibold truncate text-lg">{item.name}</h3>
+                {item.unitNumber && (
+                  <p className="flex items-center gap-2 mt-1">
+                    <span className="text-opacity-75 font-medium">Unit:</span>
+                    <span>{item.unitNumber}</span>
+                  </p>
+                )}
                 <p className="flex items-center gap-2 mt-1">
                   <span className="text-opacity-75 font-medium">Brand:</span>
                   <span>{item.brand || 'N/A'}</span>
@@ -209,13 +232,14 @@ function InventoryList({
                     >
                       Edit
                     </Button>
-                  )}
-                  {canDelete && (
+                  )}                  {canDelete && (
                     <Button
-                      onClick={() => onDelete(item.id, item.name)}
+                      onClick={() => handleItemDelete(item.id, item.name)}
                       color="red"
                       size="sm"
                       className="min-w-[80px] w-full"
+                      loading={deletingItems[item.id]}
+                      loadingText="Deleting..."
                     >
                       Delete
                     </Button>
@@ -251,21 +275,43 @@ function InventoryList({
           </div>
         </div>
       );
-    },
-    [
+    },    [
       displayedItems,
       isDarkMode,
       canEdit,
       canDelete,
       canGenerateQr,
       onEdit,
-      onDelete,
       onPreviewQr,
       bulkMode,
       selectedItems,
       toggleItemSelection,
+      deletingItems,
+      handleItemDelete
     ]
   );
+  // Loading overlay for bulk operations
+  const renderLoadingOverlay = () => {
+    if (!isBulkDeleting) return null;
+    
+    return (
+      <div className="absolute inset-0 bg-black bg-opacity-40 z-10 flex items-center justify-center">
+        <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} max-w-md text-center shadow-lg`}>
+          <div className="animate-pulse mb-4">
+            <svg className="animate-spin h-10 w-10 mx-auto text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Deleting Items</h3>
+          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
+            Please wait while we delete the selected items...
+          </p>
+        </div>
+      </div>
+    );
+  };
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8 h-full">
@@ -286,9 +332,11 @@ function InventoryList({
 
   // Calculate how many items are selected
   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
-
   return (
-    <div className="h-full shadow-md rounded-lg">
+    <div className="h-full shadow-md rounded-lg relative">
+      {/* Loading overlay for bulk operations */}
+      {renderLoadingOverlay()}
+      
       {/* Bulk Edit Form */}
       {showBulkEditForm && (
         <div className="mb-4">
@@ -347,10 +395,14 @@ function InventoryList({
                   <Button onClick={handleBulkEdit} color="blue" size="sm">
                     Edit Selected
                   </Button>
-                )}
-
-                {canDelete && (
-                  <Button onClick={handleBulkDelete} color="red" size="sm">
+                )}                {canDelete && (
+                  <Button 
+                    onClick={handleBulkDelete} 
+                    color="red" 
+                    size="sm"
+                    loading={isBulkDeleting}
+                    loadingText="Deleting..."
+                  >
                     Delete Selected
                   </Button>
                 )}
@@ -375,6 +427,7 @@ function InventoryList({
           )}
         </AutoSizer>
       </div>
+      {renderLoadingOverlay()}
     </div>
   );
 }
@@ -391,11 +444,11 @@ InventoryList.propTypes = {
       itemCondition: PropTypes.string,
       quantity: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     })
-  ),
-  onEdit: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
+  ),  onEdit: PropTypes.func.isRequired,  onDelete: PropTypes.func.isRequired,
+  onBulkDelete: PropTypes.func.isRequired,
   onPreviewQr: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,
+  isBulkDeleting: PropTypes.bool,
   role: PropTypes.string,
   filterByCategory: PropTypes.string,
   isDarkMode: PropTypes.bool,

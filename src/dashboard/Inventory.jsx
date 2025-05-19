@@ -28,13 +28,13 @@ function Inventory({ isInDashboard = false }) {
   const [showAddEditForm, setShowAddEditForm] = useState(false);
   // State for selected category (filter)
   const [selectedCategory, setSelectedCategory] = useState(null);
-
   // More granular loading states for better UX
   const [loadingStates, setLoadingStates] = useState({
     fetchingInventory: true, // Initial fetch of inventory items
     addingItem: false, // Adding a new inventory item
     editingItem: false, // Editing an existing item
-    deletingItem: false, // Deleting an item
+    deletingItem: false, // Deleting a single item
+    deletingItems: false, // Bulk deleting multiple items
     bulkUploading: false, // Bulk uploading items from CSV
     generatingQR: false, // Generating QR code
     exportingData: false, // Exporting inventory data
@@ -58,6 +58,7 @@ function Inventory({ isInDashboard = false }) {
     setEditingItem,
     setCsvData,
     csvData,
+    bulkDeleteItems, // Added bulkDeleteItems from useInventory
   } = useInventory(user);
 
   // Wrapper for bulkUpload to use our new loading states
@@ -160,25 +161,69 @@ function Inventory({ isInDashboard = false }) {
   const handleFormClose = useCallback(() => {
     setEditingItem(null);
     setShowAddEditForm(false);
-  }, [setEditingItem]);
-  // Handler for deleting an item
+  }, [setEditingItem]);  // Handler for deleting an item
   const handleDeleteItem = useCallback(
     async (itemId, itemName) => {
       try {
         const confirmDelete = window.confirm(`Are you sure you want to delete "${itemName}"?`);
-        if (!confirmDelete) return;
+        if (!confirmDelete) return { success: false, canceled: true };
 
         updateLoadingState('deletingItem', true);
-        await deleteItem(itemId); // Use the deleteItem function from useInventory
-        toast.success(`${itemName} deleted successfully!`);
+        const result = await deleteItem(itemId, itemName);
+        
+        if (result.success) {
+          toast.success(`${itemName} deleted successfully!`);
+        }
+        
+        return result;
       } catch (error) {
         console.error('Error deleting item:', error);
         toast.error(`Failed to delete ${itemName}. ${error.message || ''}`);
+        return { success: false, message: error.message };
       } finally {
         updateLoadingState('deletingItem', false);
       }
     },
     [deleteItem, updateLoadingState]
+  );
+
+  // Handler for bulk deleting multiple items
+  const handleBulkDelete = useCallback(
+    async (itemIds) => {
+      // Get the names of the items being deleted
+      const itemsToDelete = items.filter(item => itemIds.includes(item.id));
+      const itemNames = itemsToDelete.map(item => item.name).join('", "');
+      
+      try {
+        // Create a confirmation message based on number of items
+        let confirmMessage = '';
+        if (itemIds.length === 1) {
+          confirmMessage = `Are you sure you want to delete "${itemNames}"?`;
+        } else {
+          confirmMessage = `Are you sure you want to delete these ${itemIds.length} items?\n\n"${itemNames}"`;
+        }
+        
+        const confirmDelete = window.confirm(confirmMessage);
+        if (!confirmDelete) return;
+
+        updateLoadingState('deletingItems', true);
+        const result = await bulkDeleteItems(itemIds);        
+        if (result.success) {
+          toast.success(`Successfully deleted ${result.deletedCount} items`);
+          // Provide success response to update UI
+          return { success: true };
+        } else {
+          toast.error(`Failed to delete items: ${result.message}`);
+          return { success: false };
+        }
+      } catch (error) {
+        console.error('Error bulk deleting items:', error);
+        toast.error(`Failed to delete items: ${error.message || ''}`);
+      } finally {
+        updateLoadingState('deletingItems', false);
+      }
+    },
+    [items, bulkDeleteItems, updateLoadingState]
   );
 
   // Permission check (simplified)
@@ -350,14 +395,14 @@ function Inventory({ isInDashboard = false }) {
 
             {/* Inventory List and Add/Edit Form side by side */}
             <div className="flex flex-col lg:flex-row gap-6 mb-6">
-              {/* The main InventoryList displaying filtered search results */}
-              <div className={`${canAddEditDelete && showAddEditForm ? 'lg:w-1/2' : 'w-full'}`}>
-                <InventoryList
+              {/* The main InventoryList displaying filtered search results */}              <div className={`${canAddEditDelete && showAddEditForm ? 'lg:w-1/2' : 'w-full'}`}>                <InventoryList
                   items={filteredItems} // Pass filtered items from search
                   onEdit={handleEdit}
                   onDelete={handleDeleteItem}
+                  onBulkDelete={handleBulkDelete} // Pass the bulk delete handler
                   onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
                   isLoading={loadingStates.fetchingInventory}
+                  isBulkDeleting={loadingStates.deletingItems} // Pass bulk deleting state
                   role={role}
                   isDarkMode={isDarkMode}
                   filterByCategory={selectedCategory} // Pass the selected category for filtering

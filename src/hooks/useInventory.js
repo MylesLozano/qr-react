@@ -158,26 +158,77 @@ export default function useInventory(user) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Delete item
+  };  // Delete item
   const deleteItem = async (id, name) => {
     try {
       setIsLoading(true);
       setError(null);
 
+      // Get the item name from the items array if not provided
+      const itemName = name || items.find(item => item.id === id)?.name || 'Unknown Item';
+
       await deleteDoc(doc(db, 'inventory', id));
       await logAudit('inventory_deleted', user.email, 'inventory', {
         itemId: id,
-        itemName: name,
+        itemName: itemName,
       });
 
       toast.success('Item deleted successfully');
+      return { success: true };
     } catch (error) {
       console.error('Error deleting item:', error);
       setError(error.message);
       toast.error(`Failed to delete item: ${error.message}`);
-      throw error;
+      return { success: false, message: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete multiple items at once
+  const bulkDeleteItems = async (itemIds) => {
+    if (!itemIds || itemIds.length === 0) {
+      return { success: false, message: 'No items to delete' };
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const batch = writeBatch(db);
+      const deletedItems = [];
+      
+      // Add each item to the batch delete
+      for (const id of itemIds) {
+        const itemToDelete = items.find(item => item.id === id);
+        if (itemToDelete) {
+          const itemRef = doc(db, 'inventory', id);
+          batch.delete(itemRef);
+          deletedItems.push({
+            id,
+            name: itemToDelete.name || 'Unknown Item'
+          });
+        }
+      }
+      
+      // Commit the batch
+      await batch.commit();
+      
+      // Log audit entries for each deleted item
+      for (const item of deletedItems) {
+        await logAudit('inventory_bulk_deleted', user.email, 'inventory', {
+          itemId: item.id,
+          itemName: item.name,
+        });
+      }
+      
+      toast.success(`Successfully deleted ${deletedItems.length} items`);
+      return { success: true, deletedCount: deletedItems.length };
+    } catch (error) {
+      console.error('Error bulk deleting items:', error);
+      setError(error.message);
+      toast.error(`Failed to delete items: ${error.message}`);
+      return { success: false, message: error.message };
     } finally {
       setIsLoading(false);
     }
@@ -207,9 +258,8 @@ export default function useInventory(user) {
         if (!name || !category || isNaN(quantity)) {
           skippedRows++;
           continue;
-        }
-        const sanitizedItem = {
-          unitNumber: sanitizeInput(item.unitNum) || '',
+        }        const sanitizedItem = {
+          unitNumber: sanitizeInput(item.unitNumber) || '',
           name,
           brand: sanitizeInput(item.brand) || '',
           serialNumber: sanitizeInput(item.serialNum || item.serialNumber) || 'N/A', // Ensure serialNumber is a string and defaults to "N/A"
@@ -278,5 +328,6 @@ export default function useInventory(user) {
     setCsvData,
     csvData,
     handleSaveEdit,
+    bulkDeleteItems, // Expose bulkDeleteItems function
   };
 }

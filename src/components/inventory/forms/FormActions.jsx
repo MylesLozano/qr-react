@@ -10,12 +10,19 @@ function FormActions({ isLoading, onCancel, isEditing = false, isDarkMode }) {
     <div
       className={`mt-6 flex justify-end space-x-4 py-4 ${isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}`}
     >
-      <Button onClick={onCancel} color="gray" size="md" type="button">
+      <Button onClick={onCancel} color="gray" size="md" type="button" disabled={isLoading}>
         Cancel
       </Button>
 
-      <Button color="blue" size="md" type="submit" loading={isLoading} disabled={isLoading}>
-        {isLoading ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Item'}
+      <Button 
+        color="blue" 
+        size="md" 
+        type="submit" 
+        loading={isLoading} 
+        loadingText={isEditing ? "Saving Changes..." : "Adding Item..."}
+        disabled={isLoading}
+      >
+        {isEditing ? 'Save Changes' : 'Add Item'}
       </Button>
     </div>
   );

@@ -314,12 +314,11 @@ export const formatItemsForExport = (items) => {
  */
 export const prepareBulkUploadData = (csvData) => {
   if (!csvData || !Array.isArray(csvData)) return [];
-
   return csvData
     .map((row) => {
       // Map CSV columns to our schema
       return {
-        unitNumber: sanitizeInput(row.unitNum || row.unitNumber || ''),
+        unitNumber: sanitizeInput(row.unitNumber || row.unitNum || row.unit_number || row['unit number'] || ''),
         name: sanitizeInput(row.name || ''),
         brand: sanitizeInput(row.brand || ''),
         serialNumber: sanitizeInput(row.serialNum || row.serialNumber) || 'N/A',
