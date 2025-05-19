@@ -13,11 +13,12 @@ import CategoryList from '../components/inventory/lists/CategoryList';
 import InventoryList from '../components/inventory/lists/InventoryList';
 import AddEditForm from '../components/inventory/forms/AddEditForm';
 import QRCodePreview from '../components/inventory/modals/QRCodePreview';
+import QRCodeExport from '../components/inventory/export/QRCodeExport';
 import useInventory from '../hooks/useInventory';
 import useSearch from '../hooks/useSearch';
 import { useQRCode } from '../hooks/useQRCode';
 import { toast } from 'react-toastify';
-import { canPerformAction } from '../utils/roleUtils';
+import { canPerformAction, canGenerateQR } from '../utils/roleUtils';
 
 function Inventory({ isInDashboard = false }) {
   const { isDarkMode } = useTheme();
@@ -27,8 +28,7 @@ function Inventory({ isInDashboard = false }) {
   // State to control form visibility
   const [showAddEditForm, setShowAddEditForm] = useState(false);
   // State for selected category (filter)
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  // More granular loading states for better UX
+  const [selectedCategory, setSelectedCategory] = useState(null);  // More granular loading states for better UX
   const [loadingStates, setLoadingStates] = useState({
     fetchingInventory: true, // Initial fetch of inventory items
     addingItem: false, // Adding a new inventory item
@@ -37,6 +37,7 @@ function Inventory({ isInDashboard = false }) {
     deletingItems: false, // Bulk deleting multiple items
     bulkUploading: false, // Bulk uploading items from CSV
     generatingQR: false, // Generating QR code
+    exportingQR: false, // Exporting QR codes
     exportingData: false, // Exporting inventory data
   });
 
@@ -343,11 +344,19 @@ function Inventory({ isInDashboard = false }) {
               </div>
             </div>
 
-            {/* QR Stats and Inventory Charts in a responsive grid - MOVED UP TOP */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
+            {/* QR Stats and Inventory Charts in a responsive grid - MOVED UP TOP */}            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
               {/* QR Stats Section */}
               <div className="w-full">
                 <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
+                {/* Add QR Export Component for admin and superadmin */}
+                {canGenerateQR(role) && (
+                  <div className="mt-4">
+                    <QRCodeExport 
+                      items={items} 
+                      onExporting={(exporting) => updateLoadingState('exportingQR', exporting)} 
+                    />
+                  </div>
+                )}
               </div>
               {/* Inventory Statistics Charts */}
               <div className="w-full">

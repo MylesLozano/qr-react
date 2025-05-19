@@ -5,7 +5,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import { useTheme } from '../../../hooks/useTheme';
 import Button from '../../Button';
 import LoadingSpinner from '../../LoadingSpinner';
-import { canPerformAction } from '../../../utils/roleUtils';
+import { canPerformAction, canGenerateQR } from '../../../utils/roleUtils';
 import BulkEditForm from '../forms/BulkEditForm';
 
 function InventoryList({
@@ -23,8 +23,9 @@ function InventoryList({
   // Permission checks
   const canEdit = canPerformAction(role, 'edit_inventory');
   const canDelete = canPerformAction(role, 'delete_inventory');
-  // Allow all users to view QR codes, but generating might be restricted
-  const canGenerateQr = true; // Changed to always allow QR button access
+  // Use the canGenerateQR utility to check permissions
+  const canViewQr = canPerformAction(role, 'scan_qr_codes'); // All users can view QR codes
+  const canGenerateQr = canGenerateQR(role); // Only admin and superadmin can generate
 
   // State for bulk operations
   const [selectedItems, setSelectedItems] = useState({});
@@ -242,15 +243,14 @@ function InventoryList({
                       loadingText="Deleting..."
                     >
                       Delete
-                    </Button>
-                  )}
-                  {canGenerateQr && (
-                    <Button
+                    </Button>                  )}
+                  {/* QR code button - different behavior for admin/superadmin vs regular users */}
+                  {canViewQr && (                    <Button
                       onClick={() => onPreviewQr(item)}
-                      color="green"
+                      color={canGenerateQr ? 'green' : 'blue'}
                       size="sm"
                       className="min-w-[80px] w-full flex items-center justify-center gap-1"
-                      title="Generate/View QR Code"
+                      title={canGenerateQr ? 'Generate/View QR Code' : 'View QR Code'}
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -259,14 +259,12 @@ function InventoryList({
                         viewBox="0 0 24 24"
                         stroke="currentColor"
                       >
-                        <path
-                          strokeLinecap="round"
+                        <path                          strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
                           d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                        />
-                      </svg>
-                      QR
+                        />                      </svg>
+                      {canGenerateQr ? 'QR' : 'View QR'}
                     </Button>
                   )}
                 </div>
@@ -274,13 +272,13 @@ function InventoryList({
             </div>
           </div>
         </div>
-      );
-    },    [
+      );    },    [
       displayedItems,
       isDarkMode,
       canEdit,
       canDelete,
       canGenerateQr,
+      canViewQr,
       onEdit,
       onPreviewQr,
       bulkMode,

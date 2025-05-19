@@ -221,11 +221,16 @@ export const calculateQrStats = (items) => {
       totalWithQr: 0,
       totalWithoutQr: 0,
       lastGenerated: null,
+      byLab: {},
     };
   }
 
+  // Track statistics by lab - commented out as not currently used
+  // const labStats = {};
+
   const stats = items.reduce(
     (acc, item) => {
+      // Update overall QR stats
       if (item.hasQR) {
         acc.totalWithQr++;
 
@@ -236,12 +241,28 @@ export const calculateQrStats = (items) => {
       } else {
         acc.totalWithoutQr++;
       }
+
+      // Update lab-specific stats
+      const lab = item.lab || 'Unassigned';
+      if (!acc.byLab[lab]) {
+        acc.byLab[lab] = { totalItems: 0, withQR: 0, withoutQR: 0 };
+      }
+
+      acc.byLab[lab].totalItems++;
+
+      if (item.hasQR) {
+        acc.byLab[lab].withQR++;
+      } else {
+        acc.byLab[lab].withoutQR++;
+      }
+
       return acc;
     },
     {
       totalWithQr: 0,
       totalWithoutQr: 0,
       lastGenerated: null,
+      byLab: {},
     }
   );
 
@@ -318,7 +339,9 @@ export const prepareBulkUploadData = (csvData) => {
     .map((row) => {
       // Map CSV columns to our schema
       return {
-        unitNumber: sanitizeInput(row.unitNumber || row.unitNum || row.unit_number || row['unit number'] || ''),
+        unitNumber: sanitizeInput(
+          row.unitNumber || row.unitNum || row.unit_number || row['unit number'] || ''
+        ),
         name: sanitizeInput(row.name || ''),
         brand: sanitizeInput(row.brand || ''),
         serialNumber: sanitizeInput(row.serialNum || row.serialNumber) || 'N/A',

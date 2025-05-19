@@ -21,11 +21,10 @@ function BulkUploadSection({ setCsvData, csvData = [], bulkUpload, isUploading, 
         // Normalize field names for consistent access, especially for unitNumber
         const normalizedData = results.data.map(item => {
           const normalizedItem = { ...item };
-          
-          // Process each key in the item to handle case variations
+            // Process each key in the item to handle case variations
           Object.keys(item).forEach(key => {
             const lowerKey = key.toLowerCase();
-              // Handle unitNumber variations
+              // Handle unitNumber variations (for item identification only, not for bulk editing)
             if (lowerKey === 'unitNumber' || lowerKey === 'unitnumber' || lowerKey === 'unit_number' || lowerKey === 'unit number' || lowerKey === 'unitnum') {
               normalizedItem.unitNumber = item[key];
               // Also set unitNum for backward compatibility

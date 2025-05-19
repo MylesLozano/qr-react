@@ -11,6 +11,7 @@ function QRStatsSection({ qrStats = {}, isDarkMode }) {
   const safeStats = {
     totalWithQr: Number(qrStats?.totalWithQr) || 0,
     totalWithoutQr: Number(qrStats?.totalWithoutQr) || 0,
+    byLab: qrStats?.byLab || {}
   };
 
   // Calculate percentage with QR codes
@@ -108,6 +109,51 @@ function QRStatsSection({ qrStats = {}, isDarkMode }) {
           </div>
         </div>
       </div>
+
+      {/* Lab-specific QR Stats */}
+      {Object.keys(safeStats.byLab).length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-3">QR Coverage by Laboratory</h3>
+          <div className="grid grid-cols-1 gap-3">
+            {Object.entries(safeStats.byLab).map(([lab, stats]) => {
+              const labCoverage = stats.totalItems > 0 
+                ? Math.round((stats.withQR / stats.totalItems) * 100) 
+                : 0;
+              
+              return (
+                <div 
+                  key={lab} 
+                  className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-medium">{lab}</h4>
+                      <div className="text-sm mt-1">
+                        <span>Total Items: {stats.totalItems}</span>
+                        <span className="mx-2">•</span>
+                        <span>With QR: {stats.withQR}</span>
+                        <span className="mx-2">•</span>
+                        <span>Without QR: {stats.withoutQR}</span>
+                      </div>
+                    </div>
+                    <div className={`text-xl font-bold ${labCoverage >= 80 ? 'text-green-500' : labCoverage >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                      {labCoverage}%
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className={`mt-2 h-2 w-full bg-gray-300 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-600' : ''}`}>
+                    <div 
+                      className={`h-full ${labCoverage >= 80 ? 'bg-green-500' : labCoverage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                      style={{ width: `${labCoverage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -116,6 +162,7 @@ QRStatsSection.propTypes = {
   qrStats: PropTypes.shape({
     totalWithQr: PropTypes.number,
     totalWithoutQr: PropTypes.number,
+    byLab: PropTypes.object,
   }),
   isDarkMode: PropTypes.bool,
 };

@@ -8,6 +8,7 @@ import {
   logAudit,
 } from '../firebase';
 import { calculateQrStats } from '../utils/inventoryUtils';
+import { generateQrString } from '../utils/qrUtils';
 
 export function useQRCode(items = [], user) {
   const [loading, setLoading] = useState(false);
@@ -89,9 +90,13 @@ export function useQRCode(items = [], user) {
     },
     [user?.email]
   );
+
   // Generate QR data for an item
   const generateQrData = useCallback((item) => {
     if (!item || !item.id) return null;
+
+    // Generate a unique QR string for this item
+    const qrString = generateQrString(item.id);
 
     return {
       id: item.id,
@@ -101,9 +106,9 @@ export function useQRCode(items = [], user) {
       lab: item.lab || '',
       itemCondition: item.itemCondition || '',
       timestamp: new Date().toISOString(),
+      qrString: qrString, // Add the unique QR string
     };
   }, []);
-
   // Preview QR code for an item
   const previewQrCode = useCallback(
     async (item) => {
@@ -119,17 +124,35 @@ export function useQRCode(items = [], user) {
         // First check if we already have a QR code stored for this item
         const existingQR = await checkExistingRequest(item.id);
 
-        if (existingQR && existingQR.qrCode) {
+        if (existingQR) {
           // Use the stored QR code data
           try {
-            const qrData = existingQR.qrData ? JSON.parse(existingQR.qrData) : null;
-            setGeneratedQrData(qrData || generateQrData(item));
+            let qrData;
+
+            if (existingQR.qrData) {
+              // Parse stored QR data from JSON
+              qrData = JSON.parse(existingQR.qrData);
+
+              // Ensure the QR data has a qrString
+              if (!qrData.qrString && existingQR.qrString) {
+                qrData.qrString = existingQR.qrString;
+              }
+            } else if (existingQR.qrString) {
+              // If no qrData but we have a qrString, create new QR data with it
+              qrData = generateQrData(item);
+              qrData.qrString = existingQR.qrString;
+            } else {
+              // Fallback to generating new data
+              qrData = generateQrData(item);
+            }
+
+            setGeneratedQrData(qrData);
           } catch (err) {
             console.error('Error parsing stored QR data:', err);
             setGeneratedQrData(generateQrData(item));
           }
         } else {
-          // Generate new QR code data
+          // Generate new QR code data with a unique QR string
           setGeneratedQrData(generateQrData(item));
         }
       } catch (err) {

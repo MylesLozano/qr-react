@@ -2,19 +2,24 @@ import { useState, useCallback, useEffect } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
+import { canScanQR } from '../utils/roleUtils';
+import { parseQrScanResult, getQrErrorMessage } from '../utils/qrUtils';
 import { toast } from 'react-toastify';
 import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 
-function QRScanner({ isInDashboard = false }) {
-  const { isDarkMode } = useTheme();
+function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme();
+  const { /* user, */ role } = useAuth();
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState(null);
-  const [scanResult, setScanResult] = useState(null);
+  const [error, setError] = useState(null);  const [scanResult, setScanResult] = useState(null);
+  /* Commenting out unused state, but kept for future implementation */
+  // const [parsedResult, setParsedResult] = useState(null);
   const [loadingComponent, setLoadingComponent] = useState(true);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const canScan = canScanQR(role);
 
   // Add a delay before loading the scanner to ensure DOM is ready
   useEffect(() => {
@@ -24,9 +29,13 @@ function QRScanner({ isInDashboard = false }) {
 
     return () => clearTimeout(timer);
   }, []);
-
   // Make sure we have permissions
   useEffect(() => {
+    if (!canScan) {
+      setError('You do not have permission to scan QR codes. Please contact your administrator.');
+      return;
+    }
+
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices
         .getUserMedia({ video: true })
@@ -39,35 +48,77 @@ function QRScanner({ isInDashboard = false }) {
         });
     } else {
       setError('Camera access is not supported in this browser.');
-    }
-  }, []);
-
+    }  }, [canScan]);
+  
   const handleScanError = useCallback((err) => {
     console.error('QR Scan Error:', err);
-    setError(err.message || 'Failed to scan QR code');
+    const errorMsg = getQrErrorMessage('scan', err);
+    setError(errorMsg);
     setScanning(false);
-    toast.error('Failed to scan QR code');
+    toast.error(errorMsg);
   }, []);
-
-  const handleScanResult = useCallback(
-    (result) => {
+    // Add a function to navigate to the item details if needed
+  /* Commenting out unused function but kept for future implementation
+  const handleItemNavigation = useCallback((itemId) => {
+    if (itemId && window.confirm(`Item ${itemId} found. View details?`)) {
+      navigate(`/inventory/item/${itemId}`);
+    }
+  }, [navigate]);
+  */
+    const handleScanResult = useCallback(    async (result) => {
       try {
         setScanning(false);
-        setScanResult(result);
-        toast.success('QR code scanned successfully!');
+        
+        // Parse the scan result using our utility function
+        const parsedData = parseQrScanResult(result);
+        // Commented out due to ESLint warning about unused variable
+        // setParsedResult(parsedData);
+        
+        if (parsedData.valid) {
+          // Set scan result based on the type of QR code detected
+          if (parsedData.type === 'qrstring') {
+            setScanResult(`Item ID: ${parsedData.itemId} (${parsedData.raw})`);
+            toast.success('QR code scanned successfully!');
+            
+            // Uncomment to add navigation to item details
+            // setTimeout(() => {
+            //   if (window.confirm(`Item ${parsedData.itemId} found. View details?`)) {
+            //     navigate(`/inventory/item/${parsedData.itemId}`);
+            //   }
+            // }, 500);
+          } else if (parsedData.type === 'legacy-json') {
+            setScanResult(`Item ID: ${parsedData.itemId} (Legacy QR)`);
+            toast.success('Legacy QR code scanned successfully!');
+          }
+        } else {          // Display appropriate error message for invalid QR formats
+          setScanResult(`Unrecognized format: ${parsedData.raw.substring(0, 50)}${parsedData.raw.length > 50 ? '...' : ''}`);
+          toast.warning(parsedData.error || 'QR code scanned, but not in expected format.');
+        }
       } catch (err) {
         handleScanError(err);
       }
     },
     [handleScanError]
   );
+  // Add a function to navigate to the item details if needed
+  /* Commenting out unused function but kept for future implementation
+  const navigateToItem = useCallback((itemId) => {
+    if (itemId && confirm('Do you want to view details for this item?')) {
+      navigate(`/inventory/item/${itemId}`);
+    }
+  }, [navigate]);
+  */
 
+  // Handle file uploads for QR code scanning
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedFile(URL.createObjectURL(file)); // Save for preview
 
     try {
+      // Show scanning state
+      setScanning(true);
+      
       const image = await createImageBitmap(file);
       const canvas = document.createElement('canvas');
       canvas.width = image.width;
@@ -77,15 +128,32 @@ function QRScanner({ isInDashboard = false }) {
 
       const reader = new BrowserQRCodeReader();
       const result = await reader.decodeFromImageElement(canvas);
-      if (result?.text) {
-        setScanResult(result.text);
-        toast.success('QR code decoded from image!');
+        if (result?.text) {
+        // Use the same parsing utility we use for camera scanning
+        const parsedData = parseQrScanResult(result.text);
+        // Commented out due to ESLint warning about unused variable
+        // setParsedResult(parsedData);
+        
+        if (parsedData.valid) {
+          if (parsedData.type === 'qrstring') {
+            setScanResult(`Item ID: ${parsedData.itemId} (${parsedData.raw})`);
+            toast.success('QR code decoded from image!');
+          } else if (parsedData.type === 'legacy-json') {
+            setScanResult(`Item ID: ${parsedData.itemId} (Legacy QR)`);
+            toast.success('Legacy QR code decoded from image!');
+          }
+        } else {
+          setScanResult(`Unrecognized format: ${parsedData.raw.substring(0, 50)}${parsedData.raw.length > 50 ? '...' : ''}`);
+          toast.warning(parsedData.error || 'QR code decoded, but not in expected format.');
+        }
       } else {
         toast.error('Could not detect a QR code in this image.');
       }
     } catch (err) {
       console.error('Image QR decode error:', err);
       toast.error('Failed to decode image QR code');
+    } finally {
+      setScanning(false);
     }
   };
 

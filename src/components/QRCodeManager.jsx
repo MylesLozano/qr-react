@@ -51,35 +51,53 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       return true;
     },
     [handleError]
-  );
-
-  const handleQrGeneration = useCallback(async () => {
-    if (!validateQrData(localQrData)) return;
+  );  const handleQrGeneration = useCallback(async () => {
+    if (!item || !item.id) {
+      toast.error('No valid item selected');
+      return;
+    }
 
     try {
-      // Save QR code generation
-      const success = await handleQRCode(item.id, null, {
-        qrData: JSON.stringify(localQrData),
+      // Generate a unique QR string for this item if it doesn't exist
+      const qrString = localQrData?.qrString || `QCCITE-${item.id}-${new Date().getTime()}`;
+      
+      // Create or update the QR data
+      const updatedQrData = {
+        ...(localQrData || {}),
+        qrString: qrString,
+        itemId: item.id,
         itemName: item.name,
+        lab: item.lab || '',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Save QR code generation with the qrString (null for qrDataUrl since we're just storing the string)
+      const success = await handleQRCode(item.id, null, {
+        qrData: JSON.stringify(updatedQrData),
+        qrString: qrString,
+        itemName: item.name,
+        lab: item.lab || ''
       });
 
       if (success) {
-        setLocalQrData(localQrData);
+        // Update the local state with the new QR data
+        setLocalQrData(updatedQrData);
+        toast.success('QR code generated and saved successfully');
       }
     } catch (err) {
       handleError(err);
+      toast.error('Failed to generate QR code');
     }
-  }, [handleQRCode, handleError, item.id, item.name, localQrData, validateQrData]);
+  }, [handleQRCode, handleError, item, localQrData]);
 
   useEffect(() => {
     if (qrData) {
       validateQrData(qrData);
       setLocalQrData(qrData);
     }
-  }, [qrData, validateQrData]);
-  const handleDownload = async () => {
-    if (!localQrData) {
-      toast.error('No QR code data available to download');
+  }, [qrData, validateQrData]);  const handleDownload = async () => {
+    if (!item || !item.id) {
+      toast.error('No valid item selected');
       return;
     }
 
@@ -89,51 +107,51 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
         throw new Error('QR code reference not available');
       }
 
-      // Create a serialized SVG string from the QR code element
-      const svgElement = qrCodeRef.current;
-      const serializer = new XMLSerializer();
-      const svgString = serializer.serializeToString(svgElement);
+      // First ensure we have a valid QR string
+      const qrString = localQrData?.qrString || `QCCITE-${item.id}-${Date.now()}`;
+      
+      // Create or update the QR data with latest information
+      const updatedQrData = {
+        ...(localQrData || {}),
+        qrString: qrString,
+        itemId: item.id,
+        itemName: item.name,
+        lab: item.lab || '',
+        timestamp: new Date().toISOString()
+      };
 
-      // Create canvas with padding
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const padding = 20;
-
-      // Set canvas dimensions with padding
-      canvas.width = size + padding * 2;
-      canvas.height = size + padding * 2;
-
-      // Fill background
-      ctx.fillStyle = isDarkMode ? '#1F2937' : '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Create a blob from the SVG string
-      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-      const URL = window.URL || window.webkitURL || window;
-      const svgUrl = URL.createObjectURL(svgBlob);
-
-      // Load the SVG into an image
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = svgUrl;
-      });
-
-      // Draw the QR code with padding
-      ctx.drawImage(img, padding, padding, size, size);
-      URL.revokeObjectURL(svgUrl); // Convert canvas to downloadable image and save to Firebase
+      // Import createQrCanvas from the utility functions
+      const { createQrCanvas } = await import('../utils/qrUtils');
+      
+      // Get metadata for the QR code image
+      const metadata = {
+        itemName: item.name,
+        lab: item.lab || '',
+        itemId: item.id
+      };
+      
+      // Create enhanced canvas with item info
+      const canvas = await createQrCanvas(qrCodeRef.current, size, isDarkMode, metadata);
+      
+      // Convert canvas to downloadable image and save to Firebase
       canvas.toBlob(async (blob) => {
         try {
-          const fileName = `QR_${item?.name || 'code'}_${new Date().toISOString().split('T')[0]}.png`;
+          // Create a descriptive file name
+          const fileName = `QR_${item.name || 'item'}_${item.id}_${new Date().toISOString().split('T')[0]}.png`;
 
-          // First save to Firebase
+          // First save to Firebase with the dataUrl
           const dataUrl = canvas.toDataURL('image/png');
+          
           await handleQRCode(item.id, dataUrl, {
-            qrData: JSON.stringify(localQrData),
+            qrData: JSON.stringify(updatedQrData),
+            qrString: qrString,
             itemName: item.name,
+            lab: item.lab || '',
             fileName: fileName,
           });
+
+          // Update local QR data state
+          setLocalQrData(updatedQrData);
 
           // Then create download
           const link = document.createElement('a');
@@ -153,42 +171,60 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       toast.error('Failed to download QR code');
     }
   };
-
   return (
     <ErrorBoundary>
       <div
         className={`w-full max-w-sm mx-auto ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}
       >
         <div className="p-4">
-          <div className="flex flex-col items-center justify-center min-h-[200px]">
-            {' '}
+          {/* Display item information above QR code */}
+          {item && (
+            <div className="mb-3 text-center">
+              <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.name}</h3>
+              {item.lab && (
+                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Lab: {item.lab}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col items-center justify-center min-h-[220px]">
             {localQrData ? (
-              <QRCodeSVG
-                ref={qrCodeRef}
-                value={JSON.stringify(localQrData)}
-                size={size}
-                bgColor={isDarkMode ? '#1F2937' : '#FFFFFF'}
-                fgColor={isDarkMode ? '#FFFFFF' : '#000000'}
-                level={'L'}
-                includeMargin={false}
-              />
+              <div className="text-center">
+                <QRCodeSVG
+                  ref={qrCodeRef}
+                  value={localQrData.qrString || JSON.stringify(localQrData)}                  size={size}
+                  bgColor={isDarkMode ? '#1F2937' : '#FFFFFF'}
+                  fgColor={isDarkMode ? '#000000' : '#000000'}
+                  level={'M'} 
+                  includeMargin={true}
+                />
+                <div className="mt-2 text-xs text-center break-all">
+                  <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    ID: {item?.id}
+                  </span>
+                </div>
+              </div>
             ) : (
               <div className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {item?.id
-                  ? 'No QR code generated or found.'
+                  ? 'No QR code generated or found. Click "Generate QR" to create one.'
                   : 'Select an item to manage its QR code.'}
               </div>
             )}
           </div>
 
-          {showActions && localQrData && (
+          {showActions && item?.id && (
             <div className="mt-4 flex justify-center gap-3">
               <Button onClick={handleQrGeneration} color="green" size="sm">
-                Save QR
+                {localQrData ? 'Update QR' : 'Generate QR'}
               </Button>
-              <Button onClick={handleDownload} color="blue" size="sm">
-                Download QR
-              </Button>
+              {localQrData && (
+                <Button onClick={handleDownload} color="blue" size="sm">
+                  Download QR
+                </Button>
+              )}
             </div>
           )}
         </div>

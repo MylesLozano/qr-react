@@ -71,7 +71,8 @@ let auth,
   firebaseApp,
   saveQRCodeToFirestore,
   getQRCodeFromFirestore,
-  updateQRCodeLockStatus;
+  updateQRCodeLockStatus,
+  hasQRCode;
 
 try {
   validateFirebaseConfig(firebaseConfig);
@@ -189,25 +190,47 @@ try {
         throw error;
       }
     }
-  };
-
-  // Add new function to handle QR code storage in Firestore
+  }; // Add new function to handle QR code storage in Firestore
   saveQRCodeToFirestore = async (itemId, qrDataUrl, metadata = {}) => {
     try {
       const qrRef = doc(db, QR_COLLECTION, itemId);
-      await setDoc(qrRef, {
-        qrCode: qrDataUrl,
-        createdAt: serverTimestamp(),
-        isLocked: false,
+
+      // Use the utilities to generate a QR string if none exists
+      const { generateQrString } = await import('./utils/qrUtils');
+
+      // Always generate a qrString for the item if none exists
+      const qrString = metadata.qrString || generateQrString(itemId);
+
+      // Check if this item already has a QR code
+      const existingQR = await getDoc(qrRef);
+
+      // Data to save
+      const qrData = {
+        qrString: qrString, // The unique string that identifies this QR code
+        updatedAt: serverTimestamp(),
         ...metadata,
-      });
+      };
+
+      // Only add the image data if it's provided
+      if (qrDataUrl) {
+        qrData.qrCode = qrDataUrl; // This will be the PNG data URL when downloaded
+      }
+
+      // If this is a new QR code, set createdAt
+      if (!existingQR.exists()) {
+        qrData.createdAt = serverTimestamp();
+        qrData.isLocked = false;
+      }
+
+      await setDoc(qrRef, qrData, { merge: true });
+
+      console.info(`✅ QR code saved for item ${itemId}`);
       return true;
     } catch (error) {
       console.error('Error saving QR code:', error);
       throw error;
     }
   };
-
   // Add function to retrieve QR code from Firestore
   getQRCodeFromFirestore = async (itemId) => {
     try {
@@ -220,6 +243,15 @@ try {
     } catch (error) {
       console.error('Error retrieving QR code:', error);
       throw error;
+    }
+  }; // Check if an item has a QR code
+  hasQRCode = async (itemId) => {
+    try {
+      const qrData = await getQRCodeFromFirestore(itemId);
+      return Boolean(qrData && (qrData.qrString || qrData.qrCode));
+    } catch (error) {
+      console.error('Error checking if item has QR code:', error);
+      return false;
     }
   };
 
@@ -252,4 +284,5 @@ export {
   saveQRCodeToFirestore,
   getQRCodeFromFirestore,
   updateQRCodeLockStatus,
+  hasQRCode,
 };

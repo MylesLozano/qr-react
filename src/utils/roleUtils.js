@@ -8,6 +8,14 @@ export const canPerformAction = (userRole, action) => {
   return ACTION_PERMISSIONS[action]?.includes(userRole) || false;
 };
 
+export const canGenerateQR = (userRole) => {
+  return canPerformAction(userRole, 'generate_qr_codes');
+};
+
+export const canScanQR = (userRole) => {
+  return canPerformAction(userRole, 'scan_qr_codes');
+};
+
 export const getDashboardPath = (role) => {
   switch (role) {
     case 'superadmin':

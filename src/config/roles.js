@@ -16,4 +16,6 @@ export const ACTION_PERMISSIONS = {
   manage_categories: ['admin', 'superadmin'],
   manage_requests: ['admin', 'superadmin'],
   view_requests: ['user', 'admin', 'superadmin'],
+  generate_qr_codes: ['admin', 'superadmin'],
+  scan_qr_codes: ['user', 'admin', 'superadmin'],
 };

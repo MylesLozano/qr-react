@@ -12,10 +12,8 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  // Fields that can be bulk edited
+  const [successMessage, setSuccessMessage] = useState('');  // Fields that can be bulk edited
   const [editableFields, setEditableFields] = useState({
-    unitNumber: { enabled: false, value: '' },
     itemCondition: { enabled: false, value: '' },
     lab: { enabled: false, value: '' },
     status: { enabled: false, value: '' },
@@ -133,7 +131,6 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
 
       await Promise.all(updatePromises);      // Success message details
       const fieldLabels = {
-        unitNumber: 'Unit Number',
         itemCondition: 'Item Condition',
         lab: 'Laboratory',
         status: 'Status',
@@ -183,16 +180,6 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="edit-unitNumber"
-                  checked={editableFields.unitNumber.enabled}
-                  onChange={() => toggleFieldSelection('unitNumber')}
-                  className="mr-2 h-5 w-5"
-                />
-                <label htmlFor="edit-unitNumber">Unit Number</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
                   id="edit-condition"
                   checked={editableFields.itemCondition.enabled}
                   onChange={() => toggleFieldSelection('itemCondition')}
@@ -223,19 +210,6 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
             </div>
           </div>          {/* Form Fields - only shown if enabled */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Unit Number Field */}
-            {editableFields.unitNumber.enabled && (
-              <div>
-                <FormField
-                  label="Unit Number"
-                  name="unitNumber"
-                  value={editableFields.unitNumber.value}
-                  onChange={(e) => handleFieldChange('unitNumber', e.target.value)}
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-            )}
-            
             {/* Item Condition Field */}
             {editableFields.itemCondition.enabled && (
               <div>
