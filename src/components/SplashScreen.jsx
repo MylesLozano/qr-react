@@ -69,11 +69,10 @@ function SplashScreen({ minDuration = 2000 }) {
     >
       <div className="w-full max-w-md mx-auto">
         <div className="relative">
-          {/* Logo Container with enhanced animation */}
-          <div className="mb-8 px-4 relative">
+          {/* Logo Container with enhanced animation */}          <div className="mb-8 px-4 relative">
             <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-xl animate-pulse" />
             <img
-              src="/assets/QCheckCITE_Logo.png"
+              src={import.meta.env.BASE_URL + 'assets/QCheckCITE_Logo.png'}
               alt="QCheckCITE Logo"
               className="relative max-w-[200px] w-full h-auto mx-auto drop-shadow-xl transform transition-all duration-1000 hover:scale-105"
             />
