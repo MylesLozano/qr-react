@@ -224,7 +224,7 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {  // Define chart col
                         : 'bg-gray-100'
                 } shadow-sm`}
               >
-                <span className="text-xs block">{lab}</span>
+                <span className="text-xs block truncate max-w-[60px]" title={lab}>{lab}</span>
                 <span className="font-bold">{count}</span>
               </div>
             ))}
@@ -259,7 +259,7 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {  // Define chart col
                           : 'bg-gray-100'
                 } shadow-sm`}
               >
-                <span className="text-xs block">{condition}</span>
+                <span className="text-xs block truncate max-w-[60px]" title={condition}>{condition}</span>
                 <span className="font-bold">{count}</span>
               </div>
             ))}
@@ -298,7 +298,7 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {  // Define chart col
                             : 'bg-gray-100'
                 } shadow-sm`}
               >
-                <span className="text-xs block">{status}</span>
+                <span className="text-xs block truncate max-w-[60px]" title={status}>{status}</span>
                 <span className="font-bold">{count}</span>
               </div>
             ))}
