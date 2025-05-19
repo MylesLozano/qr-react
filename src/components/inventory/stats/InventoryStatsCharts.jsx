@@ -6,8 +6,7 @@ import PropTypes from 'prop-types';
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-function InventoryStatsCharts({ items = [], isDarkMode }) {
-  // Define chart colors that work with both light and dark mode
+function InventoryStatsCharts({ items = [], isDarkMode }) {  // Define chart colors that work with both light and dark mode
   const chartColors = {
     // Condition colors
     good: '#10B981', // Green
@@ -19,6 +18,12 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
     itLab: '#3B82F6', // Blue
     emcLab: '#8B5CF6', // Purple
     others: '#6B7280', // Gray
+    
+    // Status colors
+    available: '#059669', // Emerald
+    inUse: '#3B82F6', // Blue
+    maintenance: '#F59E0B', // Amber
+    retired: '#9CA3AF', // Gray
   };
 
   // Calculate lab statistics
@@ -34,8 +39,8 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
     items.forEach((item) => {
       if (!item || !item.lab) {
         stats['Others']++;
-      } else if (item.lab === 'Mac Lab') {
-        stats['IT Lab']++; // Rename Mac Lab to IT Lab as per feedback
+      } else if (item.lab === 'IT Lab') {
+        stats['IT Lab']++;
       } else if (item.lab === 'EMC Lab') {
         stats['EMC Lab']++;
       } else {
@@ -45,7 +50,6 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
 
     return stats;
   }, [items]);
-
   // Calculate condition statistics
   const conditionStats = useMemo(() => {
     const stats = {
@@ -64,10 +68,41 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
         stats['Good']++;
       } else if (item.itemCondition === 'Used') {
         stats['Used']++;
-      } else if (item.itemCondition === 'Damaged') {
+      } else if (item.itemCondition === 'Damaged' || item.itemCondition === 'Defective') {
         stats['Damaged']++;
       } else {
         stats['Unknown']++;
+      }
+    });
+
+    return stats;
+  }, [items]);
+  
+  // Calculate status statistics
+  const statusStats = useMemo(() => {
+    const stats = {
+      Available: 0,
+      'In Use': 0,
+      'Under Maintenance': 0,
+      Retired: 0,
+      Other: 0,
+    };
+
+    if (!Array.isArray(items) || items.length === 0) return stats;
+
+    items.forEach((item) => {
+      if (!item || !item.status) {
+        stats['Other']++;
+      } else if (item.status === 'Available') {
+        stats['Available']++;
+      } else if (item.status === 'In Use') {
+        stats['In Use']++;
+      } else if (item.status === 'Under Maintenance') {
+        stats['Under Maintenance']++;
+      } else if (item.status === 'Retired') {
+        stats['Retired']++;
+      } else {
+        stats['Other']++;
       }
     });
 
@@ -86,7 +121,6 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
       },
     ],
   };
-
   // Prepare condition chart data
   const conditionChartData = {
     labels: Object.keys(conditionStats),
@@ -97,6 +131,25 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
           chartColors.good,
           chartColors.used,
           chartColors.damaged,
+          chartColors.unknown,
+        ],
+        borderWidth: 1,
+        borderColor: isDarkMode ? '#374151' : '#F3F4F6',
+      },
+    ],
+  };
+  
+  // Prepare status chart data
+  const statusChartData = {
+    labels: Object.keys(statusStats),
+    datasets: [
+      {
+        data: Object.values(statusStats),
+        backgroundColor: [
+          chartColors.available,
+          chartColors.inUse,
+          chartColors.maintenance,
+          chartColors.retired,
           chartColors.unknown,
         ],
         borderWidth: 1,
@@ -140,7 +193,6 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
       },
     },
   };
-
   return (
     <div
       className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
@@ -213,6 +265,45 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {
             ))}
           </div>
         </div>
+        
+        {/* Status Distribution Chart */}
+        <div className="bg-opacity-50 rounded-lg p-3 lg:col-span-2">
+          <h3 className="text-lg font-medium mb-2 text-center">Status Distribution</h3>
+          <div className="h-56 lg:h-48 relative">
+            <Doughnut data={statusChartData} options={chartOptions} />
+          </div>
+          <div className="grid grid-cols-5 gap-2 mt-4">
+            {Object.entries(statusStats).map(([status, count]) => (
+              <div
+                key={status}
+                className={`p-2 rounded text-center ${
+                  status === 'Available'
+                    ? isDarkMode
+                      ? 'bg-emerald-900/30'
+                      : 'bg-emerald-100'
+                    : status === 'In Use'
+                      ? isDarkMode
+                        ? 'bg-blue-900/30'
+                        : 'bg-blue-100'
+                      : status === 'Under Maintenance'
+                        ? isDarkMode
+                          ? 'bg-amber-900/30'
+                          : 'bg-amber-100'
+                        : status === 'Retired'
+                          ? isDarkMode
+                            ? 'bg-gray-700'
+                            : 'bg-gray-200'
+                          : isDarkMode
+                            ? 'bg-gray-700'
+                            : 'bg-gray-100'
+                } shadow-sm`}
+              >
+                <span className="text-xs block">{status}</span>
+                <span className="font-bold">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -224,6 +315,7 @@ InventoryStatsCharts.propTypes = {
       id: PropTypes.string,
       lab: PropTypes.string,
       itemCondition: PropTypes.string,
+      status: PropTypes.string,
     })
   ),
   isDarkMode: PropTypes.bool,

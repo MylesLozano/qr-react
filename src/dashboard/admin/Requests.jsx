@@ -430,7 +430,7 @@ function Requests() {
         ID: 'sample-001',
         Item: 'MacBook Pro 16"',
         Quantity: 1,
-        Lab: 'Mac Lab',
+        Lab: 'IT Lab',
         Status: 'pending',
         'Requested By': 'student@jmc.edu.ph',
         'Request Date': new Date().toLocaleString(),

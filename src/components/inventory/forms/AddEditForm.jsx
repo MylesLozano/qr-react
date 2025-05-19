@@ -111,7 +111,7 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
       </h2>
 
       <form onSubmit={handleSubmit} className="w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">        // Basic item information - first column
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
           <div className="space-y-4">
             <FormField
               label="Item Name"
@@ -181,10 +181,9 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               value={formData.lab}
               onChange={handleChange}
               error={validationErrors.lab}
-              type="select"
-              options={[
+              type="select"              options={[
                 { value: '', label: 'Select Lab' },
-                { value: 'Mac Lab', label: 'Mac Lab' },
+                { value: 'IT Lab', label: 'IT Lab' },
                 { value: 'EMC Lab', label: 'EMC Lab' },
                 { value: 'Others', label: 'Others' },
               ]}
@@ -197,13 +196,12 @@ function AddEditForm({ onSuccess, editingItem = null, defaultFormData }) {
               value={formData.itemCondition}
               onChange={handleChange}
               error={validationErrors.itemCondition}
-              type="select"
-              options={[
+              type="select"              options={[
                 { value: '', label: 'Select Condition' },
                 { value: 'New', label: 'New' },
                 { value: 'Good', label: 'Good' },
                 { value: 'Used', label: 'Used' },
-                { value: 'Damaged', label: 'Damaged' },
+                { value: 'Defective', label: 'Defective' },
               ]}
               isDarkMode={isDarkMode}
             />

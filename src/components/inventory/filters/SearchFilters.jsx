@@ -136,12 +136,11 @@ function SearchFilters({
             value=""
           >
             All Labs
-          </option>
-          <option
+          </option>          <option
             className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
-            value="Mac Lab"
+            value="IT Lab"
           >
-            Mac Lab
+            IT Lab
           </option>
           <option
             className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}

@@ -141,7 +141,7 @@ function UnifiedReporting() {
   const labOptions = useMemo(
     () => [
       { value: 'all', label: 'All Labs' },
-      { value: 'Mac Lab', label: 'Mac Lab' },
+      { value: 'IT Lab', label: 'IT Lab' },
       { value: 'EMC Lab', label: 'EMC Lab' },
       { value: 'Others', label: 'Others' },
     ],

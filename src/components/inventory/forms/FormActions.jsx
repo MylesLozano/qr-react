@@ -16,10 +16,9 @@ function FormActions({ isLoading, onCancel, isEditing = false, isDarkMode }) {
 
       <Button 
         color="blue" 
-        size="md" 
-        type="submit" 
+        size="md"        type="submit" 
         loading={isLoading} 
-        loadingText={isEditing ? "Saving Changes..." : "Adding Item..."}
+        loadingText={isEditing ? 'Saving Changes...' : 'Adding Item...'}
         disabled={isLoading}
       >
         {isEditing ? 'Save Changes' : 'Add Item'}

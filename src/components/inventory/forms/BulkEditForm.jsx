@@ -269,7 +269,7 @@ function BulkEditForm({ selectedItems, items, onClose, onSuccess }) {
                   type="select"
                   options={[
                     { value: '', label: 'Select Lab' },
-                    { value: 'Mac Lab', label: 'Mac Lab' },
+                    { value: 'IT Lab', label: 'IT Lab' },
                     { value: 'EMC Lab', label: 'EMC Lab' },
                     { value: 'Others', label: 'Others' },
                   ]}
