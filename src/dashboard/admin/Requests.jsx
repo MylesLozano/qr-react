@@ -8,6 +8,7 @@ import {
   orderBy,
   writeBatch,
   serverTimestamp,
+  getDoc,
 } from 'firebase/firestore';
 import { db, logAudit } from '../../firebase';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -19,6 +20,7 @@ import { saveAs } from 'file-saver';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
 import { canPerformAction } from '../../utils/roleUtils';
+import { createRequestApprovedNotification, createRequestDeniedNotification } from '../../utils/notificationUtils';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Button from '../../components/Button';
@@ -252,7 +254,7 @@ function Requests() {
 
   // Update request status with error handling
   const updateRequestStatus = useCallback(
-    async (id, status) => {
+    async (id, status, denialReason = '') => {
       if (!canManageRequests) {
         toast.error("You don't have permission to manage requests");
         return;
@@ -260,15 +262,52 @@ function Requests() {
 
       setIsUpdating(true);
       try {
-        await updateDoc(doc(db, 'requests', id), {
+        // Get the request data first to access the userId
+        const requestRef = doc(db, 'requests', id);
+        const requestSnap = await getDoc(requestRef);
+            if (!requestSnap.exists()) {
+          toast.error('Request not found');
+          return;
+        }
+        
+        const requestData = requestSnap.data();
+        
+        // Update request status
+        await updateDoc(requestRef, {
           status,
           updatedAt: serverTimestamp(),
           updatedBy: user.email,
+          ...(status === 'denied' && denialReason ? { denialReason } : {})
         });
+          // Send notification based on status
+        if (requestData.userId) {
+          try {
+            if (status === 'approved') {
+              await createRequestApprovedNotification(requestData.userId, { 
+                id, 
+                itemId: requestData.itemId, 
+                itemName: requestData.itemName || requestData.itemId 
+              });
+              console.info('✅ Approval notification sent to user:', requestData.userId);
+            } else if (status === 'denied') {
+              await createRequestDeniedNotification(
+                requestData.userId, 
+                { id, itemId: requestData.itemId, itemName: requestData.itemName || requestData.itemId },
+                denialReason
+              );
+              console.info('✅ Denial notification sent to user:', requestData.userId);
+            }
+          } catch (notifError) {
+            console.error('Error sending notification:', notifError);
+            // Continue with request update even if notification fails
+          }
+        }
+        
         await logAudit('request_updated_status', user.email, 'request', {
           requestId: id,
           status: status,
         });
+        
         toast.success(`Request ${status}.`);
       } catch (error) {
         console.error('Error updating status:', error);
@@ -283,7 +322,7 @@ function Requests() {
 
   // Bulk update status with error handling
   const bulkUpdateStatus = useCallback(
-    async (status) => {
+    async (status, denialReason = '') => {
       if (!canManageRequests) {
         toast.error("You don't have permission to manage requests");
         return;
@@ -297,23 +336,73 @@ function Requests() {
       setIsUpdating(true);
       try {
         const batch = writeBatch(db);
-        selectedRequests.forEach((id) => {
-          const requestRef = doc(db, 'requests', id);
-          batch.update(requestRef, {
-            status,
-            updatedAt: serverTimestamp(),
-            updatedBy: user.email,
-          });
+        const notificationPromises = [];
+        
+        // First get all request data for notifications
+        const requestPromises = Array.from(selectedRequests).map(id => 
+          getDoc(doc(db, 'requests', id))
+        );
+        
+        const requestSnapshots = await Promise.all(requestPromises);
+        
+        // Prepare batch updates and notifications
+        requestSnapshots.forEach(snapshot => {
+          if (snapshot.exists()) {
+            const id = snapshot.id;
+            const requestData = snapshot.data();
+            const requestRef = doc(db, 'requests', id);
+            
+            batch.update(requestRef, {
+              status,
+              updatedAt: serverTimestamp(),
+              updatedBy: user.email,
+              ...(status === 'denied' && denialReason ? { denialReason } : {})
+            });
+            
+            // Queue notifications
+            if (status === 'approved' && requestData.userId) {
+              notificationPromises.push(
+                createRequestApprovedNotification(requestData.userId, { 
+                  id, 
+                  itemId: requestData.itemId, 
+                  itemName: requestData.itemName || requestData.itemId 
+                })
+              );
+            } else if (status === 'denied' && requestData.userId) {
+              notificationPromises.push(
+                createRequestDeniedNotification(
+                  requestData.userId, 
+                  { id, itemId: requestData.itemId, itemName: requestData.itemName || requestData.itemId },
+                  denialReason
+                )
+              );
+            }
+          }
         });
+        
+        // Commit batch update
         await batch.commit();
-        await logAudit('request_bulk_updated_status', user.email, 'request', {
-          requestCount: selectedRequests.size,
+          // Send notifications
+        if (notificationPromises.length > 0) {
+          try {
+            await Promise.all(notificationPromises);
+            console.info(`✅ Sent ${notificationPromises.length} notifications for bulk ${status}`);
+          } catch (notifError) {
+            console.error('Error sending notifications:', notifError);
+            // Continue with process even if notifications fail
+          }
+        }
+        
+        // Log audit
+        await logAudit('bulk_request_updated_status', user.email, 'request', {
+          requestIds: Array.from(selectedRequests),
           status: status,
         });
+        
+        toast.success(`${selectedRequests.size} requests updated to ${status}.`);
         setSelectedRequests(new Set());
-        toast.success(`Successfully ${status} ${selectedRequests.size} request(s)`);
       } catch (error) {
-        console.error('Error bulk updating:', error);
+        console.error('Error bulk updating status:', error);
         setError('Failed to update requests');
         toast.error('Failed to update requests');
       } finally {

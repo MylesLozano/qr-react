@@ -8,6 +8,7 @@ import { canPerformAction } from '../utils/roleUtils';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Button from '../components/Button';
+import DashboardHeader from '../components/dashboard/DashboardHeader';
 
 // Constants
 const MOBILE_BREAKPOINT = 640;
@@ -370,6 +371,7 @@ function BaseDashboard({ children }) {
             py-6
           `}
           >
+            <DashboardHeader />
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </main>

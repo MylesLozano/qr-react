@@ -11,6 +11,7 @@ QR-Based Inventory Management System for the College of Information Technology E
 - QR code generation and scanning
 - Inventory tracking and management
 - Request processing system
+- In-app notification system
 - Reporting and analytics
 - Mobile-responsive design
 
@@ -24,10 +25,12 @@ npm run dev
 ## Project Structure
 
 - `/src/components` - UI components
-- `/src/context` - React contexts (Auth, Theme)
+- `/src/components/notifications` - Notification UI components
+- `/src/context` - React contexts (Auth, Theme, Notification)
 - `/src/dashboard` - Dashboard views by role
 - `/src/hooks` - Custom React hooks
 - `/src/utils` - Utility functions
+- `/docs/NOTIFICATIONS.md` - Documentation for the notification system
 
 ## Development
 

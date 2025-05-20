@@ -19,6 +19,7 @@ import Button from './Button';
 import { toast } from 'react-toastify';
 import ErrorBoundary from './ErrorBoundary';
 import { useTheme } from '../hooks/useTheme';
+import { createQrGeneratedNotification } from '../utils/notificationUtils';
 
 // Constants
 const MAX_QR_SIZE = 256;
@@ -83,6 +84,7 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
         // Update the local state with the new QR data
         setLocalQrData(updatedQrData);
         toast.success('QR code generated and saved successfully');
+        createQrGeneratedNotification(updatedQrData); // Notify that QR code was generated
       }
     } catch (err) {
       handleError(err);
@@ -149,6 +151,23 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
             lab: item.lab || '',
             fileName: fileName,
           });
+
+          // Send notification to the item's responsible user if available
+          if (item.responsibleUser) {
+            try {
+              await createQrGeneratedNotification(
+                item.responsibleUser, 
+                { 
+                  id: item.id, 
+                  name: item.name || item.id 
+                }
+              );
+              console.info(`✅ QR code generation notification sent to user: ${item.responsibleUser}`);
+            } catch (notifError) {
+              console.error('Failed to send notification:', notifError);
+              // Don't block the flow if notification fails
+            }
+          }
 
           // Update local QR data state
           setLocalQrData(updatedQrData);

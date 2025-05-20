@@ -18,6 +18,10 @@ import {
   initializeFirestore,
   persistentLocalCache,
   updateDoc,
+  query,
+  where,
+  orderBy,
+  getDocs,
 } from 'firebase/firestore';
 
 /**
@@ -28,6 +32,7 @@ const DEFAULT_ROLE = 'user';
 const AUDIT_COLLECTION = 'auditLogs';
 const USERS_COLLECTION = 'users';
 const QR_COLLECTION = 'qrCodes';
+const NOTIFICATIONS_COLLECTION = 'notifications';
 
 /**
  * Firebase configuration object
@@ -72,7 +77,9 @@ let auth,
   saveQRCodeToFirestore,
   getQRCodeFromFirestore,
   updateQRCodeLockStatus,
-  hasQRCode;
+  hasQRCode,
+  sendNotification,
+  getNotifications;
 
 try {
   validateFirebaseConfig(firebaseConfig);
@@ -269,10 +276,143 @@ try {
       throw error;
     }
   };
+  /**
+   * Sends a notification to a user
+   * @deprecated Use createNotification instead
+   * @param {string} title - Notification title
+   * @param {string} message - Notification message
+   * @param {string} userId - ID of the recipient user
+   * @returns {Promise<void>}
+   */
+  sendNotification = async (title, message, userId) => {
+    console.warn('sendNotification is deprecated, use createNotification instead');
+    try {
+      const notificationData = {
+        title,
+        message,
+        userId,
+        timestamp: serverTimestamp(),
+        isRead: false,
+      };
+
+      await addDoc(collection(db, NOTIFICATIONS_COLLECTION), notificationData);
+      console.info(`✅ Notification sent to user ${userId}: ${title}`);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Retrieves notifications for a user
+   * @deprecated Use getUserNotificationsQuery instead
+   * @param {string} userId - ID of the user
+   * @returns {Promise<Array>} List of notifications
+   */
+  getNotifications = async (userId) => {
+    console.warn('getNotifications is deprecated, use getUserNotificationsQuery instead');
+    try {
+      const notificationsRef = collection(db, NOTIFICATIONS_COLLECTION);
+      const q = query(
+        notificationsRef,
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const notifications = [];
+      querySnapshot.forEach((doc) => {
+        notifications.push({ id: doc.id, ...doc.data() });
+      });
+      return notifications;
+    } catch (error) {
+      console.error('Error retrieving notifications:', error);
+      throw error;
+    }
+  };
+
+  // Function to mark a notification as read
+  /**
+   * Legacy function - use markNotificationAsRead instead
+   * @deprecated
+   */
+  // Commented out to prevent eslint warning about unused function
+
+  /**
+   * Creates a notification for a user
+   * @param {string} userId - ID of the recipient user
+   * @param {Object} notificationData - Notification data object
+   * @returns {Promise<string>} Notification document ID
+   */
+  const createNotification = async (userId, notificationData) => {
+    try {
+      if (!userId) {
+        console.error('Invalid userId provided for notification');
+        throw new Error('Invalid userId');
+      }
+
+      const notificationsRef = collection(db, NOTIFICATIONS_COLLECTION);
+      const newNotification = {
+        userId,
+        ...notificationData,
+        createdAt: serverTimestamp(),
+        read: false,
+      };
+
+      const docRef = await addDoc(notificationsRef, newNotification);
+      console.info(`✅ Notification created for user ${userId}`);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Marks a notification as read
+   * @param {string} notificationId - ID of the notification
+   * @returns {Promise<void>}
+   */
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+      await updateDoc(notificationRef, {
+        read: true,
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  };
+  /**
+   * Gets a query for user's notifications
+   * @param {string} userId - User ID
+   * @returns {Query} - Firestore query for user's notifications
+   */
+  const getUserNotificationsQuery = (userId) => {
+    return query(
+      collection(db, NOTIFICATIONS_COLLECTION),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+  }; // Export these functions from the try block
+  window.firebaseExports = {
+    sendNotification,
+    getNotifications,
+    createNotification,
+    markNotificationAsRead,
+    getUserNotificationsQuery,
+  };
 } catch (error) {
   console.error('🚨 Firebase initialization failed:', error);
   throw error;
 }
+
+// Get the exported functions from window if they were defined in the try block
+const firebaseExports = window.firebaseExports || {};
+const createNotification = firebaseExports.createNotification;
+const markNotificationAsRead = firebaseExports.markNotificationAsRead;
+const getUserNotificationsQuery = firebaseExports.getUserNotificationsQuery;
+// Get legacy notification functions if they were defined
 
 export {
   auth,
@@ -285,4 +425,10 @@ export {
   getQRCodeFromFirestore,
   updateQRCodeLockStatus,
   hasQRCode,
+  // Include both new and legacy notification functions
+  sendNotification,
+  getNotifications,
+  createNotification,
+  markNotificationAsRead,
+  getUserNotificationsQuery,
 };

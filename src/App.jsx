@@ -9,6 +9,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { getDashboardPath } from './utils/roleUtils';
 import SessionTimeout from './components/SessionTimeout';
 import { useAuth } from './hooks/useAuth';
+import { NotificationProvider } from './context/NotificationContext';
 
 // Core components that are used across multiple routes
 
@@ -123,151 +124,152 @@ function App() {
       )}
       <Suspense
         fallback={
-          <div className="flex flex-col items-center justify-center min-h-screen">
-            <LoadingSpinner fullScreen size="lg" text="Loading components..." />
-            {console.info('Suspense fallback triggered - component loading in progress')}
+          <div className="flex items-center justify-center min-h-screen">
+            <LoadingSpinner size="lg" text="Loading..." />
           </div>
         }
       >
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              !isAuthenticated ? <Login /> : <Navigate to={getDashboardPath(role)} replace />
-            }
-          />
-          <Route
-            path="/"
-            element={
-              isAuthenticated ? (
-                <Navigate to={getDashboardPath(role)} replace />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+        <NotificationProvider>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                !isAuthenticated ? <Login /> : <Navigate to={getDashboardPath(role)} replace />
+              }
+            />
+            <Route
+              path="/"
+              element={
+                isAuthenticated ? (
+                  <Navigate to={getDashboardPath(role)} replace />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
 
-          {/* Superadmin Routes */}
-          <Route
-            path="/superadmin-dashboard/*"
-            element={
-              <ProtectedRoute requiredRole="superadmin">
-                <SuperAdminDashboard />
-              </ProtectedRoute>
-            }
-          >
+            {/* Superadmin Routes */}
             <Route
-              path="user-management"
+              path="/superadmin-dashboard/*"
               element={
-                <ProtectedRoute requiredRole="superadmin" requiredAction="manage_users">
-                  <UserManagement />
+                <ProtectedRoute requiredRole="superadmin">
+                  <SuperAdminDashboard />
                 </ProtectedRoute>
               }
-            />
-          </Route>
+            >
+              <Route
+                path="user-management"
+                element={
+                  <ProtectedRoute requiredRole="superadmin" requiredAction="manage_users">
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin-dashboard/*"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          >
+            {/* Admin Routes */}
             <Route
-              path="inventory"
+              path="/admin-dashboard/*"
               element={
-                <ProtectedRoute requiredRole="admin" requiredAction="view_inventory">
-                  <Inventory />
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="categories"
-              element={
-                <ProtectedRoute requiredRole="admin" requiredAction="manage_categories">
-                  <InventoryCategories />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="requests"
-              element={
-                <ProtectedRoute requiredRole="admin" requiredAction="manage_requests">
-                  <Requests />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="templates"
-              element={
-                <ProtectedRoute requiredRole="admin" requiredAction="manage_templates">
-                  <ReportTemplates />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="reporting"
-              element={
-                <ProtectedRoute requiredRole="admin" requiredAction="generate_reports">
-                  <UnifiedReporting />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="generate-report"
-              element={
-                <ProtectedRoute requiredRole="admin" requiredAction="generate_reports">
-                  <ReportGenerator />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="user-management"
-              element={
-                <ProtectedRoute requiredRole="admin" requiredAction="manage_users">
-                  <UserManagement />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
+            >
+              <Route
+                path="inventory"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="view_inventory">
+                    <Inventory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="categories"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="manage_categories">
+                    <InventoryCategories />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="requests"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="manage_requests">
+                    <Requests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="templates"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="manage_templates">
+                    <ReportTemplates />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="reporting"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="generate_reports">
+                    <UnifiedReporting />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="generate-report"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="generate_reports">
+                    <ReportGenerator />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="user-management"
+                element={
+                  <ProtectedRoute requiredRole="admin" requiredAction="manage_users">
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
-          {/* User Routes */}
-          <Route
-            path="/user-dashboard/*"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <UserDashboard />
-              </ProtectedRoute>
-            }
-          />
+            {/* User Routes */}
+            <Route
+              path="/user-dashboard/*"
+              element={
+                <ProtectedRoute requiredRole="user">
+                  <UserDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Direct access routes for common user actions */}
-          <Route
-            path="/scan-qr"
-            element={
-              <ProtectedRoute requiredRole="user" requiredAction="view_inventory">
-                <QRScanner />{' '}
-              </ProtectedRoute>
-            }
-          />
+            {/* Direct access routes for common user actions */}
+            <Route
+              path="/scan-qr"
+              element={
+                <ProtectedRoute requiredRole="user" requiredAction="view_inventory">
+                  <QRScanner />{' '}
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/my-requests"
-            element={
-              <ProtectedRoute requiredRole="user" requiredAction="view_requests">
-                <MyRequests />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/my-requests"
+              element={
+                <ProtectedRoute requiredRole="user" requiredAction="view_requests">
+                  <MyRequests />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Catch-all redirect */}
-          <Route
-            path="*"
-            element={<Navigate to={isAuthenticated ? getDashboardPath(role) : '/login'} replace />}
-          />
-        </Routes>
+            {/* Catch-all redirect */}
+            <Route
+              path="*"
+              element={<Navigate to={isAuthenticated ? getDashboardPath(role) : '/login'} replace />}
+            />
+          </Routes>
+        </NotificationProvider>
       </Suspense>
     </ErrorBoundary>
   );
