@@ -46,10 +46,6 @@ const NotificationBell = () => {
         return <span className="text-green-500 text-lg">✓</span>;
       case 'request_denied':
         return <span className="text-red-500 text-lg">✕</span>;
-      case 'inventory_updated':
-        return <span className="text-blue-500 text-lg">↻</span>;
-      case 'qr_generated':
-        return <span className="text-purple-500 text-lg">⬇</span>;
       default:
         return <span className="text-gray-500 text-lg">•</span>;
     }
@@ -65,9 +61,6 @@ const NotificationBell = () => {
       case 'request_approved':
       case 'request_denied':
         return `/dashboard/requests/${notification.relatedItemId}`;
-      case 'inventory_updated':
-      case 'qr_generated':
-        return `/dashboard/inventory/item/${notification.relatedItemId}`;
       default:
         return '/dashboard';
     }
@@ -100,6 +93,11 @@ const NotificationBell = () => {
     }
   };
 
+  // Only show request status notifications in the UI
+  const filteredNotifications = notifications.filter(
+    n => n.type === 'request_approved' || n.type === 'request_denied'
+  );
+
   return (
     <div className="relative" ref={notificationRef}>
       <button
@@ -124,7 +122,6 @@ const NotificationBell = () => {
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" 
           />
         </svg>
-
         {/* Notification Badge */}
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
@@ -132,7 +129,6 @@ const NotificationBell = () => {
           </span>
         )}
       </button>
-
       {/* Dropdown Panel */}
       {isOpen && (
         <div className={`absolute right-0 mt-2 w-80 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto ${
@@ -152,15 +148,14 @@ const NotificationBell = () => {
               </button>
             )}
           </div>
-          
           {/* Notification List */}
-          {notifications.length === 0 ? (
+          {filteredNotifications.length === 0 ? (
             <div className={`p-4 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               No notifications
             </div>
           ) : (
             <div>
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <Link
                   key={notification.id}
                   to={getNotificationLink(notification)}
