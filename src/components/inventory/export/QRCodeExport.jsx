@@ -57,24 +57,68 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
     setIsPreviewLoading(true);
     setPreparationProgress({ current: 0, total: items.length });
     
+    let tempContainerForPreparation; // Temporary container for this function scope
+
     try {
       const itemsToProcess = [];
       const newQrDataMap = new Map();
 
+      // Create a hidden container for temporary QR code SVGs if needed for regeneration
+      tempContainerForPreparation = document.createElement('div');
+      tempContainerForPreparation.style.position = 'absolute';
+      tempContainerForPreparation.style.visibility = 'hidden';
+      document.body.appendChild(tempContainerForPreparation);
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        // Update progress indicator
         setPreparationProgress({ current: i + 1, total: items.length });
         
         const hasQR = await hasQRCode(item.id);
         
         if (hasQR) {
-          const qrCodeDataFromDb = await getQRCodeFromFirestore(item.id);
-          if (qrCodeDataFromDb && (qrCodeDataFromDb.qrCode || qrCodeDataFromDb.qrString)) {
+          let qrCodeDataFromDb = await getQRCodeFromFirestore(item.id);
+          
+          if (qrCodeDataFromDb && (!qrCodeDataFromDb.qrCode && qrCodeDataFromDb.qrString)) {
+            // Data URL is missing, but qrString is present. Regenerate data URL.
+            try {
+              const tempSvgContainer = document.createElement('div');
+              tempContainerForPreparation.appendChild(tempSvgContainer);
+              tempSvgContainer.innerHTML = '<svg width="256" height="256" fill="white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"></svg>';
+              const svgContainer = tempSvgContainer.firstChild;
+
+              const canvas = await createQrCanvas(
+                svgContainer, 
+                256, 
+                isDarkMode,
+                {
+                  qrString: qrCodeDataFromDb.qrString,
+                  itemName: item.name,
+                  lab: item.lab,
+                  category: item.category,
+                  unit: item.unitNumber,
+                  unitNumber: item.unitNumber,
+                  itemId: item.id
+                }
+              );
+              const dataUrl = canvas.toDataURL('image/png');
+              qrCodeDataFromDb.qrCode = dataUrl; // Add the generated data URL
+              // tempSvgContainer.remove(); // Clean up individual temp SVG
+            } catch (regenError) {
+              console.error(`Error regenerating QR data URL for item ${item.id} during preview preparation:`, regenError);
+              // Potentially skip this item or mark it as problematic
+              // For now, we'll proceed, and performExport might still try or fail
+            }
+          }
+
+          if (qrCodeDataFromDb && qrCodeDataFromDb.qrCode) { // Ensure qrCode (dataURL) is now present
             itemsToProcess.push(item);
             newQrDataMap.set(item.id, qrCodeDataFromDb);
           }
         }
+      }
+
+      if (tempContainerForPreparation && document.body.contains(tempContainerForPreparation)) {
+        document.body.removeChild(tempContainerForPreparation);
       }
 
       if (itemsToProcess.length === 0) {
@@ -92,6 +136,10 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
     } finally {
       setIsPreviewLoading(false);
       setPreparationProgress({ current: 0, total: 0 }); // Reset progress when done
+      // Ensure cleanup of temp container if it was created and added
+      if (tempContainerForPreparation && document.body.contains(tempContainerForPreparation)) {
+        document.body.removeChild(tempContainerForPreparation);
+      }
     }
   };
 
@@ -259,8 +307,8 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
     onExporting(true);
     setShowPreviewModal(false); // Close the modal
 
-    // Declare tempContainer outside the try block to ensure it's accessible in catch and finally
     let tempContainer; 
+    const failedItems = []; // Initialize array to track failed items
 
     try {
       const zip = new JSZip();
@@ -271,19 +319,19 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
       tempContainer.style.visibility = 'hidden';
       document.body.appendChild(tempContainer);
       
-      // Process in batches to improve UI responsiveness
       const BATCH_SIZE = 5;
-      setExportProgress({ current: 0, total: previewItems.length });
+      // setExportProgress({ current: 0, total: previewItems.length }); // Already set above
       
-      // Process items in batches
       for (let i = 0; i < previewItems.length; i += BATCH_SIZE) {
         const batch = previewItems.slice(i, i + BATCH_SIZE);
         
-        // Process batch in parallel
         const batchPromises = batch.map(async (item) => {
           try {
             const itemQrData = qrDataMap.get(item.id);
-            if (!itemQrData) return; // Skip if no data
+            if (!itemQrData) {
+              failedItems.push({ name: item.name || `ID: ${item.id}`, error: 'QR data not found in map.' });
+              return; // Skip if no data
+            }
   
             const fileName = `QR_${item.id}_${item.name.replace(/[^a-z0-9]/gi, '_')}.png`;
 
@@ -291,10 +339,8 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
               const blob = await fetch(itemQrData.qrCode).then(r => r.blob());
               qrFolder.file(fileName, blob);
             } else if (itemQrData.qrString) {
-              // Regenerate QR if only qrString is available
               const tempSvgContainer = document.createElement('div');
               tempContainer.appendChild(tempSvgContainer);
-              // The dummy SVG is just a placeholder, createQrCanvas uses the 'qrcode' library
               tempSvgContainer.innerHTML = '<svg width="256" height="256" fill="white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"></svg>';
               const svgContainer = tempSvgContainer.firstChild;
 
@@ -308,41 +354,65 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
                   lab: item.lab,
                   category: item.category,
                   unit: item.unitNumber,
-                  unitNumber: item.unitNumber // Explicitly including unitNumber
+                  unitNumber: item.unitNumber
                 }
               );
             
-              const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-              if (blob) {
-                qrFolder.file(fileName, blob);
-              } else {
-                throw new Error('Canvas toBlob returned null');
-              }
+              const blob = await new Promise((resolve, reject) => {
+                if (!canvas || typeof canvas.toBlob !== 'function') {
+                  return reject(new Error(`createQrCanvas did not return a valid canvas for item ID ${item.id} ('${item.name}').`));
+                }
+                canvas.toBlob(blobResult => {
+                  if (blobResult) {
+                    resolve(blobResult);
+                  } else {
+                    reject(new Error(`canvas.toBlob returned null for item ID ${item.id} ('${item.name}'). Canvas dimensions: ${canvas.width}x${canvas.height}.`));
+                  }
+                }, 'image/png');
+              });
+              
+              qrFolder.file(fileName, blob);
+              // tempSvgContainer.remove(); // Optional: cleanup individual temp SVG container
+            } else {
+              failedItems.push({ name: item.name || `ID: ${item.id}`, error: 'No QR code data URL or QR string found.' });
+              return; // Skip if no usable QR data
             }
-            // Update progress after each successful blob generation/fetch
             setExportProgress(prev => ({ ...prev, current: prev.current + 1 }));
           } catch (error) {
-            console.error(`Error processing QR for item ${item.id}:`, error);
+            console.error(`Error processing QR for item ${item.id} ('${item.name}'):`, error.message, error.stack);
+            failedItems.push({ name: item.name || `ID: ${item.id}`, error: error.message });
+            // Do not increment progress for failed items, or it will look like it succeeded.
           }
-        }); // batch.map ends
+        }); 
         
-        await Promise.all(batchPromises); // Correctly await promises for the current batch here
-      } // for loop ends
+        await Promise.all(batchPromises); 
+      } 
       
-      // Ensure tempContainer is removed if it was added
       if (tempContainer && document.body.contains(tempContainer)) {
         document.body.removeChild(tempContainer);
       }
       
-      const content = await zip.generateAsync({ type: 'blob' });
-      saveAs(content, 'QCheckCITE_QR_Codes.zip');
-      toast.success(`${previewItems.length} QR codes exported successfully.`);
+      if (failedItems.length > 0) {
+        const errorSummary = failedItems.slice(0, 5).map(f => `${f.name}: ${f.error}`).join('\\n');
+        const moreErrorsMessage = failedItems.length > 5 ? `\\n...and ${failedItems.length - 5} more errors.` : '';
+        toast.error(`Failed to process ${failedItems.length} QR codes.\\n${errorSummary}${moreErrorsMessage}`, { autoClose: 15000 });
+      }
+
+      const successfulCount = previewItems.length - failedItems.length;
+      if (successfulCount > 0) {
+        const content = await zip.generateAsync({ type: 'blob' });
+        saveAs(content, 'QCheckCITE_QR_Codes.zip');
+        toast.success(`${successfulCount} QR codes exported successfully.`);
+      } else if (failedItems.length === previewItems.length && previewItems.length > 0) {
+        toast.error('All QR codes failed to export. Check console for details.');
+      } else if (previewItems.length === 0) {
+        // This case is handled at the start of the function
+      }
 
     } catch (error) {
       console.error('Error exporting QR codes:', error);
       const errorMsg = getQrErrorMessage('export', error);
       toast.error(errorMsg);
-      // Ensure tempContainer is removed on error too, if it exists and was added
       if (tempContainer && document.body.contains(tempContainer)) { 
         document.body.removeChild(tempContainer);
       }
@@ -491,14 +561,29 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
 
   // Conditional rendering for progress indicator
   if (isExporting || isGenerating || isPreviewLoading || (preparationProgress.total > 0 && preparationProgress.current < preparationProgress.total) ) {
+    // Determine the operation type and progress data to pass to the indicator
+    let currentOperationType = '';
+    // Initialize with a default shape; actual values are assigned below based on state.
+    let currentProgress = { current: 0, total: 0 }; 
+
+    if (isExporting) {
+      currentOperationType = 'exporting';
+      currentProgress = exportProgress;
+    } else if (isGenerating) {
+      currentOperationType = 'generating';
+      currentProgress = exportProgress; // Generation updates exportProgress state
+    } else { 
+      // This branch is taken if isExporting and isGenerating are false,
+      // meaning isPreviewLoading or the preparationProgress condition is true.
+      currentOperationType = 'preparing';
+      currentProgress = preparationProgress;
+    }
+
     return (
       <QRCodeProgressIndicator
-        isPreviewLoading={isPreviewLoading && preparationProgress.current === 0}
-        isGenerating={isGenerating}
-        isExporting={isExporting}
-        preparationProgress={preparationProgress}
-        generationProgress={exportProgress} // Used for generation in handleGenerateAndStoreQRCodes
-        exportProgress={exportProgress}
+        isDarkMode={isDarkMode} // Pass isDarkMode from useTheme hook
+        operationType={currentOperationType} // Pass the determined operation type
+        progress={currentProgress} // Pass the relevant progress object
       />
     );
   }
