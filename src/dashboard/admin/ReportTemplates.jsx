@@ -30,10 +30,10 @@ import EmptyState from '../../components/EmptyState';
  */
 const ReportTemplates = () => {
   usePageTitle('QCheckCITE - Report Templates');
-  const { user } = useAuth();
+  const { user, role, loading: authLoading } = useAuth(); // Get role and authLoading
   const { isDarkMode } = useTheme();
   const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true); // Renamed from loading to dataLoading
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -50,29 +50,37 @@ const ReportTemplates = () => {
   });
   const [error, setError] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Check permissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Check permissions
   const canManageTemplates = useMemo(
-    () => canPerformAction(user?.role, 'manage_templates'),
-    [user?.role]
+    () => canPerformAction(role, 'manage_templates'), // Use role directly
+    [role]
   );
   const canViewTemplates = useMemo(
-    () => canPerformAction(user?.role, 'view_templates'),
-    [user?.role]
+    () => canPerformAction(role, 'view_templates'), // Use role directly
+    [role]
   );
 
   useEffect(() => {
-    console.info('Current permissions:', {
-      role: user?.role,
+    console.info('Current permissions (ReportTemplates):', { // Updated log
+      role,
       canManageTemplates,
       canViewTemplates,
+      authLoading,
     });
-  }, [user?.role, canManageTemplates, canViewTemplates]);
+  }, [role, canManageTemplates, canViewTemplates, authLoading]);
 
   // Fetch templates with real-time updates
   useEffect(() => {
+    if (authLoading) { // Wait for authentication to complete
+      setDataLoading(true); // Keep data loading true while auth is pending
+      return;
+    }
+
     if (!canViewTemplates) {
-      console.error(`Permission denied for view_templates action. User role: ${user?.role}`);
-      setLoading(false);
+      console.error(`Permission denied for view_templates action. User role: ${role}`); // Use role
+      setDataLoading(false); // Stop data loading
       setError(
         'You do not have permission to view templates. This might be a configuration issue.'
       );
@@ -84,7 +92,7 @@ const ReportTemplates = () => {
 
     const setupListeners = async () => {
       try {
-        setLoading(true);
+        setDataLoading(true); // Start data loading
         setError(null);
 
         // Templates listener
@@ -102,80 +110,30 @@ const ReportTemplates = () => {
             },
             (error) => {
               console.error('Error in templates listener:', error);
-
-              // Handle permission errors with sample data
               if (error.code === 'permission-denied') {
-                setError('Permission denied: You do not have access to view templates');
-                toast.error('Permission denied: You do not have access to view templates');
-
-                // Provide sample templates
+                setError('Permission denied: You do not have access to view templates data.');
+                toast.error('Permission denied: You do not have access to view templates data.');
+                // Provide sample data for UI consistency if needed, or handle differently
                 setTemplates([
-                  {
-                    id: 'sample-1',
-                    name: 'Inventory Report',
-                    description: 'Standard inventory report template',
-                    fields: [
-                      { name: 'item', type: 'text', required: true },
-                      { name: 'quantity', type: 'number', required: true },
-                      { name: 'location', type: 'text', required: false },
-                    ],
-                    outputFormat: 'pdf',
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                  },
-                  {
-                    id: 'sample-2',
-                    name: 'Equipment Status',
-                    description: 'Equipment maintenance status report',
-                    fields: [
-                      { name: 'equipment', type: 'text', required: true },
-                      { name: 'status', type: 'text', required: true },
-                      { name: 'lastMaintenance', type: 'date', required: false },
-                    ],
-                    outputFormat: 'csv',
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                  },
+                  { id: 'sample-1', name: 'Sample Inventory Report (No Access)', description: 'Sample data due to permission issue.', fields: [], outputFormat: 'pdf', filters: [], sorting: [] }
                 ]);
-                toast.info('Using sample templates for demonstration');
               } else {
-                setError('Failed to fetch templates: ' + error.message);
-                toast.error('Failed to fetch templates');
+                setError(`Failed to load templates: ${error.message}`);
+                toast.error('Failed to load templates');
               }
             }
           );
         } catch (error) {
           console.error('Error setting up templates listener:', error);
-          // Handle permission errors
           if (error.code === 'permission-denied') {
+            setError('Permission denied: Cannot set up templates listener.');
+            toast.error('Permission denied: Cannot set up templates listener.');
             setTemplates([
-              {
-                id: 'sample-1',
-                name: 'Inventory Report',
-                description: 'Standard inventory report template',
-                fields: [
-                  { name: 'item', type: 'text', required: true },
-                  { name: 'quantity', type: 'number', required: true },
-                  { name: 'location', type: 'text', required: false },
-                ],
-                outputFormat: 'pdf',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-              {
-                id: 'sample-2',
-                name: 'Equipment Status',
-                description: 'Equipment maintenance status report',
-                fields: [
-                  { name: 'equipment', type: 'text', required: true },
-                  { name: 'status', type: 'text', required: true },
-                  { name: 'lastMaintenance', type: 'date', required: false },
-                ],
-                outputFormat: 'csv',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
+              { id: 'sample-1', name: 'Sample Inventory Report (No Access Setup)', description: 'Sample data due to permission issue during setup.', fields: [], outputFormat: 'pdf', filters: [], sorting: [] }
             ]);
+          } else {
+            setError(`Error initializing templates listener: ${error.message}`);
+            toast.error('Error initializing templates listener');
           }
         }
 
@@ -245,7 +203,7 @@ const ReportTemplates = () => {
         setError('Failed to initialize data');
         toast.error('Failed to initialize data');
       } finally {
-        setLoading(false);
+        setDataLoading(false); // Stop data loading
       }
     };
     setupListeners();
@@ -254,7 +212,7 @@ const ReportTemplates = () => {
       if (unsubscribeTemplates) unsubscribeTemplates();
       if (unsubscribeAuditLogs) unsubscribeAuditLogs();
     };
-  }, [canViewTemplates, user?.role]);
+  }, [authLoading, role, canViewTemplates, user]); // Updated dependencies, user is needed as setupListeners might use it (e.g. user.email)
 
   // Log audit action with error handling
   const logAuditAction = useCallback(
@@ -379,7 +337,7 @@ const ReportTemplates = () => {
       }
 
       try {
-        setLoading(true);
+        // setLoading(true) was here, should be setDataLoading if it was for this operation
         await deleteDoc(doc(db, 'report_templates', templateId));
         await logAuditAction('delete_template', { templateId });
         toast.success('Template deleted successfully');
@@ -393,7 +351,9 @@ const ReportTemplates = () => {
           toast.error('Failed to delete template');
         }
       } finally {
-        setLoading(false);
+        // setLoading(false) was here, should be setDataLoading if it was for this operation
+        // This loading was for the delete operation itself, not the main data loading.
+        // Consider a specific loading state for delete if needed, or rely on UI feedback.
       }
     },
     [canManageTemplates, logAuditAction]
@@ -447,6 +407,11 @@ const ReportTemplates = () => {
       fields: prev.fields.filter((_, i) => i !== index),
     }));
   }, []);
+
+  if (authLoading) { // Display loading spinner if auth is in progress
+    return <LoadingSpinner fullScreen />;
+  }
+
   if (!canViewTemplates) {
     return (
       <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
@@ -457,7 +422,7 @@ const ReportTemplates = () => {
           <h2 className="text-lg font-bold mb-2">Access Denied</h2>
           <p>
             You don't have permission to view templates. Your current role:{' '}
-            <strong>{user?.role || 'unknown'}</strong>
+            <strong>{role || 'unknown'}</strong> {/* Use role */}
           </p>
           <p className="mt-2">
             Required permission: <code>view_templates</code>
@@ -488,7 +453,7 @@ const ReportTemplates = () => {
           </div>
         )}
 
-        {loading ? (
+        {dataLoading ? ( // Use dataLoading for the content section
           <LoadingSpinner />
         ) : (
           <>

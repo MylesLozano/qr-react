@@ -28,7 +28,9 @@ function Inventory({ isInDashboard = false }) {
   // State to control form visibility
   const [showAddEditForm, setShowAddEditForm] = useState(false);
   // State for selected category (filter)
-  const [selectedCategory, setSelectedCategory] = useState(null);  // More granular loading states for better UX
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [isBulkUploadVisible, setIsBulkUploadVisible] = useState(false); // Added state for bulk upload visibility
+  // More granular loading states for better UX
   const [loadingStates, setLoadingStates] = useState({
     fetchingInventory: true, // Initial fetch of inventory items
     addingItem: false, // Adding a new inventory item
@@ -162,7 +164,10 @@ function Inventory({ isInDashboard = false }) {
   const handleFormClose = useCallback(() => {
     setEditingItem(null);
     setShowAddEditForm(false);
-  }, [setEditingItem]);  // Handler for deleting an item
+    setIsBulkUploadVisible(false); // Hide bulk upload when form closes
+  }, [setEditingItem]);
+
+  // Handler for deleting an item
   const handleDeleteItem = useCallback(
     async (itemId, itemName) => {
       try {
@@ -238,7 +243,7 @@ function Inventory({ isInDashboard = false }) {
         <div className={`p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'} w-full`}>
           <div className={`w-full p-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
             <div className="mb-8">
-              {!isInDashboard && (
+              {!isInDashboard && role !== 'superadmin' && (
                 <Button
                   onClick={() => navigate(-1)}
                   color="gray"
@@ -271,14 +276,24 @@ function Inventory({ isInDashboard = false }) {
 
                     {showAddEditForm && (
                       <div>
-                        {/* BulkUploadSection shown with the Add New Item form */}
-                        <BulkUploadSection
-                          setCsvData={setCsvData}
-                          csvData={csvData || []}
-                          bulkUpload={handleBulkUpload}
-                          isUploading={isUploading}
-                          isDarkMode={isDarkMode}
-                        />
+                        {/* Button to toggle BulkUploadSection visibility */}
+                        <Button
+                          onClick={() => setIsBulkUploadVisible(!isBulkUploadVisible)}
+                          color="indigo" // Or another color like 'purple'
+                          size="sm"
+                          className="mb-3 w-full" // Added w-full for better layout
+                        >
+                          {isBulkUploadVisible ? 'Hide Bulk Upload Form' : 'Show Bulk Upload Form'}
+                        </Button>
+                        {isBulkUploadVisible && (
+                          <BulkUploadSection
+                            setCsvData={setCsvData}
+                            csvData={csvData || []}
+                            bulkUpload={handleBulkUpload}
+                            isUploading={isUploading}
+                            isDarkMode={isDarkMode}
+                          />
+                        )}
                         <AddEditForm
                           onSuccess={handleFormClose}
                           editingItem={editingItem}
@@ -315,7 +330,7 @@ function Inventory({ isInDashboard = false }) {
         <div className={`w-full p-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
           <div className="mb-6">
             {/* Back Button */}
-            {!isInDashboard && (
+            {!isInDashboard && role !== 'superadmin' && (
               <Button
                 onClick={() => navigate(-1)}
                 color="gray"
@@ -342,15 +357,7 @@ function Inventory({ isInDashboard = false }) {
                   </Button>
                 )}
               </div>
-            </div>            {/* QR Export Component for admin and superadmin - Moved outside grid for better positioning */}
-            {canGenerateQR(role) && (
-              <div className="mb-4 relative z-20">
-                <QRCodeExport 
-                  items={items} 
-                  onExporting={(exporting) => updateLoadingState('exportingQR', exporting)} 
-                />
-              </div>
-            )}
+            </div>
 
             {/* QR Stats and Inventory Charts in a responsive grid - MOVED UP TOP */}            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
               {/* QR Stats Section */}              <div className="w-full">
@@ -362,29 +369,49 @@ function Inventory({ isInDashboard = false }) {
               </div>
             </div>
 
-            {/* Search and Filter Component - MADE MORE COMPACT */}
-            <SearchFilters
-              searchField={searchField}
-              setSearchField={setSearchField}
-              handleSearchChange={handleSearchChange}
-              filterCondition={filterCondition}
-              setFilterCondition={setFilterCondition}
-              filterLab={filterLab}
-              setFilterLab={setFilterLab}
-              isDarkMode={isDarkMode}
-              isCompact={true}
-            />
+            {/* --- NEW: Flex container for Search/Filters and Category List --- */}
+            <div className="flex flex-col lg:flex-row gap-6 mb-4">
+              {/* Search and Filter Component - MADE MORE COMPACT */}
+              <div className="lg:w-1/2">
+                <SearchFilters
+                  searchField={searchField}
+                  setSearchField={setSearchField}
+                  handleSearchChange={handleSearchChange}
+                  filterCondition={filterCondition}
+                  setFilterCondition={setFilterCondition}
+                  filterLab={filterLab}
+                  setFilterLab={setFilterLab}
+                  isDarkMode={isDarkMode}
+                  isCompact={true} // Keep compact if desired, or adjust
+                />
+              </div>
 
-            {/* Category List - CONVERTED TO HORIZONTAL SCROLLABLE */}
-            <div className="mb-4 overflow-x-auto">
-              <CategoryList
-                categoryGroups={categoryGroups}
-                toggleCategory={handleCategoryToggle}
-                isDarkMode={isDarkMode}
-                selectedCategory={selectedCategory}
-                isHorizontal={true}
-              />
-            </div>            {/* Category filtering heading */}
+              {/* Category List - CONVERTED TO HORIZONTAL SCROLLABLE (within its half) */}
+              <div className="lg:w-1/2">
+                <div className="overflow-x-auto">
+                  <CategoryList
+                    categoryGroups={categoryGroups}
+                    toggleCategory={handleCategoryToggle}
+                    isDarkMode={isDarkMode}
+                    selectedCategory={selectedCategory}
+                    isHorizontal={true}
+                  />
+                </div>
+              </div>
+            </div>
+            {/* --- END: Flex container --- */}
+
+            {/* QR Export Component - NEW POSITION */}
+            {canGenerateQR(role) && (
+              <div className="mb-4 relative z-20 mt-6"> {/* Added mt-6 for spacing */}
+                <QRCodeExport 
+                  items={items} 
+                  onExporting={(exporting) => updateLoadingState('exportingQR', exporting)} 
+                />
+              </div>
+            )}
+
+            {/* Category filtering heading */}
             {selectedCategory && (
               <div
                 className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md relative z-0`}
@@ -417,14 +444,24 @@ function Inventory({ isInDashboard = false }) {
               {/* Add/Edit Item Form - side by side with list when visible */}
               {canAddEditDelete && showAddEditForm && (
                 <div className="lg:w-1/2">
-                  {/* BulkUploadSection shown with the Add New Item form */}
-                  <BulkUploadSection
-                    setCsvData={setCsvData}
-                    csvData={csvData || []}
-                    bulkUpload={handleBulkUpload}
-                    isUploading={isUploading}
-                    isDarkMode={isDarkMode}
-                  />
+                  {/* Button to toggle BulkUploadSection visibility */}
+                  <Button
+                    onClick={() => setIsBulkUploadVisible(!isBulkUploadVisible)}
+                    color="indigo" // Or another color like 'purple'
+                    size="sm"
+                    className="mb-3 w-full" // Added w-full for better layout
+                  >
+                    {isBulkUploadVisible ? 'Hide Bulk Upload Form' : 'Show Bulk Upload Form'}
+                  </Button>
+                  {isBulkUploadVisible && (
+                    <BulkUploadSection
+                      setCsvData={setCsvData}
+                      csvData={csvData || []}
+                      bulkUpload={handleBulkUpload}
+                      isUploading={isUploading}
+                      isDarkMode={isDarkMode}
+                    />
+                  )}
                   <div
                     className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md mt-4`}
                   >

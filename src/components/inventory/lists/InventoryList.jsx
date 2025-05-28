@@ -29,7 +29,8 @@ function InventoryList({
   // State for bulk operations
   const [selectedItems, setSelectedItems] = useState({});
   const [bulkMode, setBulkMode] = useState(false);
-  const [showBulkEditForm, setShowBulkEditForm] = useState(false);
+  const [showBulkEditForm, setShowBulkEditForm] = useState(false); // This will control the visibility of the bulk edit *area*
+  const [isActualBulkEditFormExpanded, setIsActualBulkEditFormExpanded] = useState(false); // Controls if the form itself is expanded
   // State to track which items are being deleted
   const [deletingItems, setDeletingItems] = useState({});
 
@@ -51,9 +52,10 @@ function InventoryList({
   const toggleBulkMode = useCallback(() => {
     setBulkMode((prev) => !prev);
     if (bulkMode) {
-      // Clear selections when exiting bulk mode
+      // Clear selections and hide bulk edit form area when exiting bulk mode
       setSelectedItems({});
       setShowBulkEditForm(false);
+      setIsActualBulkEditFormExpanded(false); // Also collapse the form itself
     }
   }, [bulkMode]);
 
@@ -63,20 +65,20 @@ function InventoryList({
     if (selectedCount === 0) {
       return;
     }
-    setShowBulkEditForm(true);
+    setShowBulkEditForm(true); // Show the area for bulk editing
+    setIsActualBulkEditFormExpanded(false); // Start with the form itself collapsed
   }, [selectedItems]);
+
   // Handle bulk edit success
   const handleBulkEditSuccess = useCallback((_updatedItemIds, _updatedFields) => {
-    // Keep the form open to allow for additional edits
-    // But provide user feedback (handled in BulkEditForm)
-    // Optionally, we could clear selections:
-    // setSelectedItems({});
-    // setShowBulkEditForm(false);
+    setIsActualBulkEditFormExpanded(false); // Collapse the form after success
+    // showBulkEditForm remains true, so the toggle button area stays
   }, []);
 
   // Close bulk edit form
   const closeBulkEditForm = useCallback(() => {
-    setShowBulkEditForm(false);
+    setShowBulkEditForm(false); // Hide the entire bulk edit area
+    setIsActualBulkEditFormExpanded(false); // Ensure form is also marked as collapsed
   }, []);  // Bulk action handlers
   const handleBulkDelete = useCallback(() => {
     const selectedIds = Object.keys(selectedItems).filter((id) => selectedItems[id]);
@@ -143,7 +145,9 @@ function InventoryList({
         <div style={style} className="px-2">
           {' '}
           <div
-            className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-200 shadow-sm ${isItemDeleting ? 'opacity-70' : ''}`}
+            className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} mb-4 
+            flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors 
+            duration-200 shadow-sm ${isItemDeleting ? 'opacity-70' : ''}`}
           >
             {/* Checkbox for bulk selection - only shown in bulk mode */}
             {bulkMode && (
@@ -325,21 +329,30 @@ function InventoryList({
     <div className="h-full shadow-md rounded-lg relative">
       {/* Loading overlay for bulk operations */}
       {renderLoadingOverlay()}
-      
-      {/* Bulk Edit Form */}
+
+      {/* Bulk Edit Area - shows toggle button and then the form */}
       {showBulkEditForm && (
-        <div className="mb-4">
-          <BulkEditForm
-            selectedItems={selectedItems}
-            items={items}
-            onSuccess={handleBulkEditSuccess}
-            onClose={() => {
-              closeBulkEditForm();
-              // We want to keep the selections after editing
-            }}
-          />
+        <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'} shadow`}>
+          <Button
+            onClick={() => setIsActualBulkEditFormExpanded(prev => !prev)}
+            color="indigo" // Or another distinct color
+            size="sm"
+            className="w-full mb-3"
+          >
+            {isActualBulkEditFormExpanded ? 'Hide Bulk Edit Form' : `Configure Edit for ${selectedCount} Item(s)`}
+          </Button>
+
+          {isActualBulkEditFormExpanded && (
+            <BulkEditForm
+              selectedItems={selectedItems}
+              items={items} // Pass the full items list
+              onSuccess={handleBulkEditSuccess}
+              onClose={closeBulkEditForm} // This will hide the whole area
+            />
+          )}
         </div>
       )}
+
       {/* Bulk actions toolbar */}
       {canEdit && (
         <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -356,10 +369,6 @@ function InventoryList({
 
               {bulkMode && (
                 <>
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {selectedCount} items selected
-                  </span>
-
                   <Button
                     onClick={selectAllItems}
                     color="gray"
@@ -368,12 +377,14 @@ function InventoryList({
                   >
                     Select All
                   </Button>
-
                   {selectedCount > 0 && (
                     <Button onClick={deselectAllItems} color="gray" size="sm">
                       Deselect All
                     </Button>
                   )}
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {selectedCount} items selected
+                  </span>
                 </>
               )}
             </div>
@@ -406,7 +417,7 @@ function InventoryList({
             <List
               height={height}
               itemCount={displayedItems.length}
-              itemSize={250} // Adjusted from 180
+              itemSize={258} // Adjusted from 180
               width={width}
               overscanCount={5}
               className={`scrollbar-thin ${isDarkMode ? 'scrollbar-track-gray-800 scrollbar-thumb-gray-600' : 'scrollbar-track-gray-200 scrollbar-thumb-gray-400'}`}

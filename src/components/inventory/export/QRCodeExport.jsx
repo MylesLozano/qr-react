@@ -122,9 +122,12 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
             256, 
             isDarkMode,
             {
+              qrString: qrString, // Pass the actual QR string
               itemName: item.name,
               lab: item.lab,
-              itemId: item.id
+              category: item.category,
+              unit: item.unitNumber, // Assuming item.unitNumber based on InventoryList
+              // itemId is not strictly needed if qrString is the source of truth for QR content
             }
           );
           
@@ -191,153 +194,118 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
       return;
     }
 
-    const itemsWithQR = [];
-    const qrData = {};
+    const itemsToProcess = [];
+    const qrDataMap = new Map();
 
-    // First check which items have QR codes
     setIsExporting(true);
     setExportProgress({ current: 0, total: items.length });
     onExporting(true);
 
     try {
-      // Check which items have QR codes and retrieve QR data
+      // Step 1: Filter items and fetch their QR data
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        setExportProgress({ current: i + 1, total: items.length });
+        // Update progress based on initial item scan, not actual processing yet
+        setExportProgress({ current: i + 1, total: items.length }); 
         
-        // Check if the item has a QR code
         const hasQR = await hasQRCode(item.id);
         if (hasQR) {
-          // Get the actual QR code data from Firestore
-          const qrCodeData = await getQRCodeFromFirestore(item.id);
-          if (qrCodeData && (qrCodeData.qrString || qrCodeData.qrCode)) {
-            itemsWithQR.push(item);
-            qrData[item.id] = qrCodeData;
+          const qrCodeDataFromDb = await getQRCodeFromFirestore(item.id);
+          // We need either a pre-generated image (qrCode) or the string to generate one (qrString)
+          if (qrCodeDataFromDb && (qrCodeDataFromDb.qrCode || qrCodeDataFromDb.qrString)) {
+            itemsToProcess.push(item);
+            qrDataMap.set(item.id, qrCodeDataFromDb);
           }
         }
       }
 
-      if (itemsWithQR.length === 0) {
-        toast.info('No items with QR codes found');
+      if (itemsToProcess.length === 0) {
+        toast.info('No items with QR codes (or data to generate them) found for export.');
         setIsExporting(false);
         onExporting(false);
         return;
       }
 
-      // Prepare zip file
+      // Update progress total to reflect only items that will be processed for zipping
+      setExportProgress({ current: 0, total: itemsToProcess.length });
+
       const zip = new JSZip();
       const qrFolder = zip.folder('QR_Codes');
       
-      // Create a hidden container for temporary QR code SVGs
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
       tempContainer.style.visibility = 'hidden';
       document.body.appendChild(tempContainer);
       
-      let processedCount = 0;
-      const totalItems = itemsWithQR.length;
-      
-      // Process each item with a QR code
-      for (const item of itemsWithQR) {
+      const blobPromises = itemsToProcess.map(async (item, index) => {
         try {
-          const itemQrData = qrData[item.id];
-          
-          // If we have the stored PNG data URL, use it directly
+          const itemQrData = qrDataMap.get(item.id);
+          const fileName = `QR_${item.id}_${item.name.replace(/[^a-z0-9]/gi, '_')}.png`;
+
           if (itemQrData.qrCode && itemQrData.qrCode.startsWith('data:image/png;base64,')) {
-            // Extract base64 data from data URL - not directly used but needed for processing
             const blob = await fetch(itemQrData.qrCode).then(r => r.blob());
-            
-            // Add to zip
-            const fileName = `QR_${item.id}_${item.name.replace(/[^a-z0-9]/gi, '_')}.png`;
             qrFolder.file(fileName, blob);
-            
-            processedCount++;
-            setExportProgress({ current: Math.min(items.length, processedCount), total: items.length });
-            continue;
-          }
-          
-          // Otherwise, create QR code from the qrString
-          // QR value kept for documentation purposes but implementation uses svgContainer directly
-          // const qrValue = itemQrData.qrString || JSON.stringify({
-          //   id: item.id,
-          //   name: item.name
-          // });
-          
-          // Create a temporary React component for the QR code
-          const tempSvgContainer = document.createElement('div');
-          tempContainer.appendChild(tempSvgContainer);
-          
-          // Render the QR SVG
-          const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-          svgElement.setAttribute('width', '256');
-          svgElement.setAttribute('height', '256');
-          
-          // Create QR code using QRCodeSVG
-          tempSvgContainer.innerHTML = '<svg width="256" height="256" fill="white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"></svg>';
-          const svgContainer = tempSvgContainer.firstChild;
-          
-          // Create Canvas from the SVG
-          const canvas = await createQrCanvas(
-            svgContainer, 
-            256, 
-            isDarkMode,
-            {
-              itemName: item.name,
-              lab: item.lab
-            }
-          );
-          
-          // Convert canvas to blob and add to zip
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const fileName = `QR_${item.id}_${item.name.replace(/[^a-z0-9]/gi, '_')}.png`;
-              qrFolder.file(fileName, blob);
-              
-              processedCount++;
-              setExportProgress({ current: Math.min(items.length, processedCount), total: items.length });
-              
-              // If all files have been processed, generate and download the zip
-              if (processedCount === totalItems) {
-                finalizeZipDownload();
+          } else if (itemQrData.qrString) {
+            // Regenerate QR if only qrString is available
+            const tempSvgContainer = document.createElement('div');
+            tempContainer.appendChild(tempSvgContainer);
+            // The dummy SVG is just a placeholder, createQrCanvas uses the 'qrcode' library
+            tempSvgContainer.innerHTML = '<svg width="256" height="256" fill="white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"></svg>';
+            const svgContainer = tempSvgContainer.firstChild;
+
+            const canvas = await createQrCanvas(
+              svgContainer, 
+              256, 
+              isDarkMode,
+              {
+                qrString: itemQrData.qrString,
+                itemName: item.name,
+                lab: item.lab,
+                category: item.category,
+                unit: item.unitNumber,
               }
+            );
+            
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (blob) {
+              qrFolder.file(fileName, blob);
+            } else {
+              throw new Error('Canvas toBlob returned null');
             }
-          });
+          } else {
+            // Should not happen if filtering is correct, but good to handle
+            console.warn(`Skipping item ${item.id} due to missing QR data for export.`);
+            return; // Skip this item
+          }
+          // Update progress after each successful blob generation/fetch
+          setExportProgress(prev => ({ ...prev, current: prev.current + 1 }));
         } catch (error) {
           console.error(`Error processing QR for item ${item.id}:`, error);
-          processedCount++;
-          
-          // If all files have been processed, generate and download the zip
-          if (processedCount === totalItems) {
-            finalizeZipDownload();
-          }
+          // Optionally, still increment progress or handle error reporting
+          // For now, we'll let Promise.all catch it, but progress might seem stuck
         }
-      }
+      });
+
+      await Promise.all(blobPromises);
       
-      // Helper function to finalize and download the zip
-      async function finalizeZipDownload() {
-        try {
-          // Remove the temporary container
-          document.body.removeChild(tempContainer);
-          
-          // Generate and download the zip file
-          const content = await zip.generateAsync({ type: 'blob' });
-          saveAs(content, 'QCheckCITE_QR_Codes.zip');
-          
-          toast.success(`${itemsWithQR.length} QR codes exported successfully`);
-        } catch (error) {
-          console.error('Error finalizing zip download:', error);
-          toast.error('Error creating ZIP file for download');
-        } finally {
-          setIsExporting(false);
-          onExporting(false);
-        }
-      }
+      document.body.removeChild(tempContainer);
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, 'QCheckCITE_QR_Codes.zip');
+      toast.success(`${itemsToProcess.length} QR codes exported successfully.`);
+
     } catch (error) {
       console.error('Error exporting QR codes:', error);
       const errorMsg = getQrErrorMessage('export', error);
       toast.error(errorMsg);
+      if (document.body.contains(tempContainer)) { // Ensure tempContainer is removed on error too
+        document.body.removeChild(tempContainer);
+      }
+    } finally {
       setIsExporting(false);
       onExporting(false);
+      // Reset progress to 0 for next time, or to total if you want it to show full upon completion
+      setExportProgress({ current: 0, total: 0 }); 
     }
   };
 
