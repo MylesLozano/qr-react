@@ -342,21 +342,19 @@ function Inventory({ isInDashboard = false }) {
                   </Button>
                 )}
               </div>
-            </div>
+            </div>            {/* QR Export Component for admin and superadmin - Moved outside grid for better positioning */}
+            {canGenerateQR(role) && (
+              <div className="mb-4 relative z-20">
+                <QRCodeExport 
+                  items={items} 
+                  onExporting={(exporting) => updateLoadingState('exportingQR', exporting)} 
+                />
+              </div>
+            )}
 
             {/* QR Stats and Inventory Charts in a responsive grid - MOVED UP TOP */}            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
-              {/* QR Stats Section */}
-              <div className="w-full">
+              {/* QR Stats Section */}              <div className="w-full">
                 <QRStatsSection qrStats={qrStats} isDarkMode={isDarkMode} />
-                {/* Add QR Export Component for admin and superadmin */}
-                {canGenerateQR(role) && (
-                  <div className="mt-4">
-                    <QRCodeExport 
-                      items={items} 
-                      onExporting={(exporting) => updateLoadingState('exportingQR', exporting)} 
-                    />
-                  </div>
-                )}
               </div>
               {/* Inventory Statistics Charts */}
               <div className="w-full">
@@ -386,12 +384,10 @@ function Inventory({ isInDashboard = false }) {
                 selectedCategory={selectedCategory}
                 isHorizontal={true}
               />
-            </div>
-
-            {/* Category filtering heading */}
+            </div>            {/* Category filtering heading */}
             {selectedCategory && (
               <div
-                className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md`}
+                className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md relative z-0`}
               >
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Category: {selectedCategory}</h2>

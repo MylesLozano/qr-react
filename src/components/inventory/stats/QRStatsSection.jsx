@@ -77,7 +77,7 @@ function QRStatsSection({ qrStats = {}, isDarkMode }) {
 
   return (
     <div
-      className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
+      className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full relative z-0`}
     >
       <h2 className="text-xl font-semibold mb-4">QR Code Statistics</h2>
 

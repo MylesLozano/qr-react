@@ -192,10 +192,9 @@ function InventoryStatsCharts({ items = [], isDarkMode }) {  // Define chart col
         },
       },
     },
-  };
-  return (
+  };  return (
     <div
-      className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full`}
+      className={`flex-1 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md h-full relative z-0`}
     >
       <h2 className="text-xl font-semibold mb-4">Inventory Statistics</h2>
 

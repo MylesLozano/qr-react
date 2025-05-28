@@ -34,10 +34,9 @@ function SearchFilters({
       handleSearchChange(e);
     }
   };
-
   return (
     <div
-      className={`w-full ${isCompact ? 'p-2' : 'p-4'} rounded-lg mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md`}
+      className={`w-full ${isCompact ? 'p-2' : 'p-4'} rounded-lg mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md relative z-0`}
     >
       {!isCompact && <h2 className="text-lg font-semibold mb-3">Search & Filters</h2>}
 

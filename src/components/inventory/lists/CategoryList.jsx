@@ -36,7 +36,7 @@ function CategoryList({
 
   return (
     <div
-      className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md ${isHorizontal ? 'overflow-x-auto' : 'h-full'}`}
+      className={`w-full p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md ${isHorizontal ? 'overflow-x-auto' : 'h-full'} relative z-0`}
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold whitespace-nowrap mr-4" role="heading" aria-level="2">
