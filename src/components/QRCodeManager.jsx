@@ -36,8 +36,8 @@ const MAX_QR_SIZE = 256;
  */
 function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE }) {
   const [localQrData, setLocalQrData] = useState(qrData);
-  const { user } = useAuth();
-  const { handleQRCode } = useQRCode([], user);
+  const { user, role } = useAuth(); // Destructure both user and role
+  const { handleQRCode } = useQRCode([], user); // user here is still the Firebase user
   const handleError = useErrorHandler();
   const { isDarkMode } = useTheme();
   const qrCodeContainerRef = useRef(null);
@@ -68,15 +68,17 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
         itemId: item.id,
         itemName: item.name,
         lab: item.lab || '',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        isLocked: localQrData?.isLocked || false, // Add this line
       };
       
       // Save QR code generation with the qrString (null for qrDataUrl since we're just storing the string)
       const success = await handleQRCode(item.id, null, {
-        qrData: JSON.stringify(updatedQrData),
+        qrData: JSON.stringify(updatedQrData), // Pass the full updatedQrData
         qrString: qrString,
         itemName: item.name,
-        lab: item.lab || ''
+        lab: item.lab || '',
+        isLocked: updatedQrData.isLocked, // Pass isLocked explicitly
       });
 
       if (success) {
@@ -122,7 +124,8 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
         itemId: item.id,
         itemName: item.name,
         lab: item.lab || '',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        isLocked: localQrData?.isLocked || false, // Add this line
       };
 
       // Import createQrCanvas from the utility functions
@@ -148,11 +151,12 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
           const dataUrl = canvas.toDataURL('image/png');
           
           await handleQRCode(item.id, dataUrl, {
-            qrData: JSON.stringify(updatedQrData),
+            qrData: JSON.stringify(updatedQrData), // Pass the full updatedQrData
             qrString: qrString,
             itemName: item.name,
             lab: item.lab || '',
             fileName: fileName,
+            isLocked: updatedQrData.isLocked, // Pass isLocked explicitly
           });
 
           // Update local QR data state
@@ -176,6 +180,28 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       toast.error('Failed to download QR code');
     }
   };
+
+  // Determine if user can lock/unlock
+  const canLock = role === 'admin' || role === 'superadmin'; // Use the destructured 'role'
+
+  // Handler to toggle lock status
+  const handleLockToggle = async () => {
+    if (!localQrData) return;
+    try {
+      // You need to implement updateQRLock in your useQRCode or Firebase utils
+      await handleQRCode(item.id, null, {
+        ...localQrData,
+        isLocked: !localQrData.isLocked,
+        lockAction: true, // Optional: to distinguish lock action
+      });
+      setLocalQrData({ ...localQrData, isLocked: !localQrData.isLocked });
+      toast.success(`QR code ${localQrData.isLocked ? 'unlocked' : 'locked'} successfully`);
+    } catch (err) {
+      handleError(err);
+      toast.error('Failed to update lock status');
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div
@@ -220,13 +246,24 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
 
           {showActions && item?.id && (
             <div className="mt-4 flex justify-center gap-3">
-              <Button onClick={handleQrGeneration} color="green" size="sm">
+              <Button onClick={handleQrGeneration} color="green" size="sm" disabled={localQrData?.isLocked}>
                 {localQrData ? 'Update QR' : 'Generate QR'}
               </Button>
               {localQrData && (
-                <Button onClick={handleDownload} color="blue" size="sm">
-                  Download QR
-                </Button>
+                <>
+                  <Button onClick={handleDownload} color="blue" size="sm">
+                    Download QR
+                  </Button>
+                  {canLock && (
+                    <Button
+                      onClick={handleLockToggle}
+                      color={localQrData.isLocked ? 'yellow' : 'gray'}
+                      size="sm"
+                    >
+                      {localQrData.isLocked ? 'Unlock QR' : 'Lock QR'}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           )}

@@ -48,6 +48,20 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
       toast.error('No items available for QR code generation');
       return;
     }
+
+    // --- BEGIN PRE-CHECK ---
+    let alreadyHaveQrCount = 0;
+    for (const item of items) {
+      if (await hasQRCode(item.id)) {
+        alreadyHaveQrCount++;
+      }
+    }
+
+    if (alreadyHaveQrCount === items.length) {
+      toast.info(`${items.length} items already have QR codes. No new codes generated.`);
+      return;
+    }
+    // --- END PRE-CHECK ---
     
     setIsGenerating(true);
     setExportProgress({ current: 0, total: items.length });

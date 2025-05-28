@@ -215,7 +215,14 @@ try {
       const qrData = {
         qrString: qrString, // The unique string that identifies this QR code
         updatedAt: serverTimestamp(),
-        ...metadata,
+        ...metadata, // Spread metadata first
+        // Explicitly set or override isLocked from metadata, defaulting if not present in metadata
+        isLocked:
+          metadata.isLocked !== undefined
+            ? metadata.isLocked
+            : existingQR.exists()
+              ? existingQR.data().isLocked
+              : false,
       };
 
       // Only add the image data if it's provided
@@ -223,10 +230,13 @@ try {
         qrData.qrCode = qrDataUrl; // This will be the PNG data URL when downloaded
       }
 
-      // If this is a new QR code, set createdAt
+      // If this is a new QR code, set createdAt and ensure isLocked is false if not already set
       if (!existingQR.exists()) {
         qrData.createdAt = serverTimestamp();
-        qrData.isLocked = false;
+        // If isLocked wasn't in metadata for a new item, default it to false
+        if (metadata.isLocked === undefined) {
+          qrData.isLocked = false;
+        }
       }
 
       await setDoc(qrRef, qrData, { merge: true });

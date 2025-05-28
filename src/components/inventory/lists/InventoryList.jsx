@@ -136,9 +136,6 @@ function InventoryList({
       const item = displayedItems[index];
       if (!item) return null;
 
-      // ADD THIS CONSOLE LOG
-      console.log(`Item ID: ${item.id}, Index: ${index}, canViewQr: ${canViewQr}, canEdit: ${canEdit}, canDelete: ${canDelete}, canGenerateQr: ${canGenerateQr}`);
-
       // Add isDeleting flag to the item
       const isItemDeleting = !!deletingItems[item.id];
 
@@ -250,15 +247,15 @@ function InventoryList({
                     </Button>
                   )}
                   {/* QR code button - different behavior for admin/superadmin vs regular users */}
-                  {canViewQr && ( // This is true, so the button will show if the outer block renders
+                  {canViewQr && (
                     <Button
                       onClick={() => onPreviewQr(item)}
-                      color="green" // Simplified color
+                      color="green"
                       size="sm"
-                      className="min-w-[80px]" // Retaining this from previous step
-                      title="QR Action" // Simplified title
+                      className="min-w-[80px]"
+                      title="QR Action"
                     >
-                      QR TEST {/* Simplified text */}
+                      QR
                     </Button>
                   )}
                 </div>
@@ -409,7 +406,7 @@ function InventoryList({
             <List
               height={height}
               itemCount={displayedItems.length}
-              itemSize={180}
+              itemSize={250} // Adjusted from 180
               width={width}
               overscanCount={5}
               className={`scrollbar-thin ${isDarkMode ? 'scrollbar-track-gray-800 scrollbar-thumb-gray-600' : 'scrollbar-track-gray-200 scrollbar-thumb-gray-400'}`}
