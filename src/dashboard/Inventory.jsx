@@ -30,6 +30,9 @@ function Inventory({ isInDashboard = false }) {
   // State for selected category (filter)
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isBulkUploadVisible, setIsBulkUploadVisible] = useState(false); // Added state for bulk upload visibility
+  // State for sorting
+  const [sortOrder, setSortOrder] = useState('unitNumber_asc'); // Added sortOrder state
+
   // More granular loading states for better UX
   const [loadingStates, setLoadingStates] = useState({
     fetchingInventory: true, // Initial fetch of inventory items
@@ -81,13 +84,17 @@ function Inventory({ isInDashboard = false }) {
     searchField,
     filterCondition,
     filterLab,
+    filterStatus, // Get filterStatus from useSearch
     setSearchField,
     setFilterCondition,
     setFilterLab,
+    setFilterStatus, // Get setFilterStatus from useSearch
     handleSearchChange,
     filteredItems,
     categoryGroups,
-  } = useSearch(items);
+    uniqueConditions, // Get uniqueConditions from useSearch
+    uniqueStatuses, // Get uniqueStatuses from useSearch
+  } = useSearch(items, selectedCategory, sortOrder); // Pass sortOrder to useSearch
 
   // QR Code related state and handlers (from useQRCode hook)
   const {
@@ -381,8 +388,14 @@ function Inventory({ isInDashboard = false }) {
                   setFilterCondition={setFilterCondition}
                   filterLab={filterLab}
                   setFilterLab={setFilterLab}
+                  filterStatus={filterStatus} // Pass filterStatus to SearchFilters
+                  setFilterStatus={setFilterStatus} // Pass setFilterStatus to SearchFilters
+                  sortOrder={sortOrder}
+                  setSortOrder={setSortOrder}
+                  itemConditions={uniqueConditions} // Pass uniqueConditions as itemConditions
+                  itemStatuses={uniqueStatuses} // Pass uniqueStatuses as itemStatuses
                   isDarkMode={isDarkMode}
-                  isCompact={true} // Keep compact if desired, or adjust
+                  isCompact={isInDashboard} // Use isCompact for dashboard view
                 />
               </div>
 

@@ -178,6 +178,12 @@ function InventoryList({
                   <span className="text-opacity-75 font-medium">Serial:</span>
                   <span>{item.serialNumber || 'N/A'}</span>
                 </p>
+                {item.status && (
+                  <p className="flex items-center gap-2 mt-1">
+                    <span className="text-opacity-75 font-medium">Status:</span>
+                    <span>{item.status}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -443,6 +449,7 @@ InventoryList.propTypes = {
       lab: PropTypes.string,
       itemCondition: PropTypes.string,
       quantity: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+      status: PropTypes.string, // Added status to propTypes
     })
   ),  onEdit: PropTypes.func.isRequired,  onDelete: PropTypes.func.isRequired,
   onBulkDelete: PropTypes.func.isRequired,
