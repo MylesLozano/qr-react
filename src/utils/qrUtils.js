@@ -4,6 +4,7 @@
  * This module provides utility functions specifically for QR code operations
  * including validation, parsing, and error handling.
  */
+import QRCode from 'qrcode';
 
 /**
  * Validates if a string is a valid QCheckCITE QR code format
@@ -108,22 +109,53 @@ export const parseQrScanResult = (scanResult) => {
  * @returns {Promise<HTMLCanvasElement>} - The canvas with rendered QR code
  */
 export const createQrCanvas = async (
-  _svgElement, // This parameter is not directly used for QR content here
+  _svgElement, // Parameter remains for signature consistency, though not used for QR generation
   size,
   isDarkMode,
   textDetails = {}
 ) => {
-  const canvas = document.createElement('canvas');
-  // Initial height, will be adjusted if more text lines are added
-  canvas.width = size;
-  canvas.height = size + 100; // Increased initial estimate for more text lines
+  const lineHeight = 18; // Height for each line of text
+  const fontSize = 14; // Font size in pixels
 
-  const ctx = canvas.getContext('2d');
+  // Determine number of text lines to calculate canvas height
+  let numTextLines = 0;
+  if (textDetails.itemName) numTextLines++;
+  if (textDetails.lab) numTextLines++;
+  if (textDetails.itemId) numTextLines++; // For displaying ID
+  if (textDetails.unit || textDetails.unitNumber) numTextLines++; // Check for both unit and unitNumber
+  if (textDetails.category) numTextLines++;
 
-  // Background for the entire canvas
-  ctx.fillStyle = isDarkMode ? '#2D3748' : '#FFFFFF'; // e.g., gray-800 or white
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const textBlockHeight = numTextLines * lineHeight;
+  const PADDING_ABOVE_TEXT = 20; // Space between QR and first line of text
+  const PADDING_BELOW_TEXT = 10; // Space after last line of text
 
+  let canvasHeight = size; // Start with QR code's height
+  if (numTextLines > 0) {
+    canvasHeight += PADDING_ABOVE_TEXT + textBlockHeight + PADDING_BELOW_TEXT;
+  } else {
+    canvasHeight += 10; // Minimal padding if no text below QR
+  }
+
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = size; // Canvas width is same as QR code width
+  finalCanvas.height = canvasHeight;
+
+  const finalCtx = finalCanvas.getContext('2d');
+
+  // 1. Draw background for the entire canvas
+  finalCtx.fillStyle = isDarkMode ? '#2D3748' : '#FFFFFF'; // Canvas background
+  finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+  // Draw a slightly different colored rectangle for the QR code area to enhance visibility
+  finalCtx.fillStyle = isDarkMode ? '#1F2937' : '#F3F4F6';
+  finalCtx.fillRect(0, 0, size, size);
+
+  // Add a white background for the actual QR code area (with padding)
+  finalCtx.fillStyle = '#FFFFFF';
+  const padding = 8;
+  finalCtx.fillRect(padding, padding, size - padding * 2, size - padding * 2);
+
+  // 2. Prepare and draw QR Code
   const qrStringForCanvas =
     textDetails.qrString ||
     generateQrString(textDetails.itemId || textDetails.id || 'default_id_for_qr');
@@ -131,115 +163,87 @@ export const createQrCanvas = async (
   const qrOptions = {
     errorCorrectionLevel: 'H',
     type: 'image/png',
-    width: size,
-    margin: 1,
+    width: size - 16, // Reduce size to account for margin and make QR code visible
+    margin: 2, // Smaller margin for better appearance while maintaining scanability
     color: {
-      dark: isDarkMode ? '#FFFFFF' : '#000000',
-      light: isDarkMode ? '#2D3748' : '#FFFFFF',
+      dark: '#000000', // Always use black for QR modules for maximum contrast
+      light: '#FFFFFF', // Always use white for QR background for maximum contrast
     },
   };
 
-  let img; // Declare img here to be accessible in the finalization steps
   try {
     const dataUrl = await QRCode.toDataURL(qrStringForCanvas, qrOptions);
-    img = new Image(); // Assign to the outer scope variable
+    const qrImg = new Image();
     await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = (err) => {
-        console.error('Image load error for QR Data URL:', err);
-        reject(err);
+      qrImg.onload = () => {
+        // Center the QR code within the area
+        const padding = 8;
+        finalCtx.drawImage(qrImg, padding, padding, size - padding * 2, size - padding * 2);
+
+        // Add a border around the QR code for better visibility
+        finalCtx.strokeStyle = isDarkMode ? '#FFFFFF' : '#000000';
+        finalCtx.lineWidth = 2;
+        finalCtx.strokeRect(0, 0, size, size);
+
+        resolve();
       };
-      img.src = dataUrl;
+      qrImg.onerror = (err) => {
+        console.error('QR Image load error:', err);
+        reject(new Error('Failed to load QR image data'));
+      };
+      qrImg.src = dataUrl;
     });
-    ctx.drawImage(img, 0, 0, size, size);
-  } catch (err) {
-    console.error('Failed to generate QR code image:', err);
-    ctx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
-    ctx.textAlign = 'center';
-    ctx.font = '16px Arial';
-    ctx.fillText('Error QR', size / 2, size / 2);
+  } catch (error) {
+    console.error('Failed to generate or draw QR code:', error);
+    finalCtx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
+    finalCtx.textAlign = 'center';
+    finalCtx.font = `${fontSize}px Arial`;
+    finalCtx.fillText('Error QR', size / 2, size / 2); // In the QR area
   }
 
-  // Add text below QR code
-  ctx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
-  ctx.font = '14px Arial'; // Slightly smaller font for more text
-  ctx.textAlign = 'center';
-  let textY = size + 25; // Starting Y for text below QR
-  const lineHeight = 18; // Line height for text
+  // 3. Draw text details if any text lines exist
+  if (numTextLines > 0) {
+    finalCtx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
+    finalCtx.font = `${fontSize}px Arial`;
+    finalCtx.textAlign = 'center';
 
-  if (textDetails.itemName) {
-    ctx.fillText(textDetails.itemName, canvas.width / 2, textY);
-    textY += lineHeight;
-  }
-  if (textDetails.unit) {
-    ctx.fillText(`Unit: ${textDetails.unit || 'N/A'}`, canvas.width / 2, textY);
-    textY += lineHeight;
-  }
-  if (textDetails.category) {
-    ctx.fillText(`Category: ${textDetails.category || 'N/A'}`, canvas.width / 2, textY);
-    textY += lineHeight;
-  }
-  if (textDetails.lab) {
-    ctx.fillText(`Lab: ${textDetails.lab || 'N/A'}`, canvas.width / 2, textY);
-    textY += lineHeight;
-  }
+    // Calculate starting baseline for the first line of text
+    let currentTextBaselineY = size + PADDING_ABOVE_TEXT + fontSize;
 
-  // Adjust canvas height to fit all text
-  const requiredHeight = textY + 5; // Add a little padding at the bottom
-
-  // Create a new canvas with the correct height and redraw everything
-  const finalCanvas = document.createElement('canvas');
-  finalCanvas.width = canvas.width;
-  finalCanvas.height = Math.max(size + 10, requiredHeight); // Ensure minimum height for QR + a bit of padding
-  const finalCtx = finalCanvas.getContext('2d');
-
-  // Redraw background
-  finalCtx.fillStyle = isDarkMode ? '#2D3748' : '#FFFFFF';
-  finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-
-  // Redraw QR code (assuming img is the loaded QR image)
-  if (img && img.complete && img.naturalHeight !== 0) {
-    finalCtx.drawImage(img, 0, 0, size, size);
-  } else {
-    // Fallback if img somehow failed or wasn't drawn
-    try {
-      const dataUrlRetry = await QRCode.toDataURL(qrStringForCanvas, qrOptions);
-      const imgRetry = new Image();
-      await new Promise((resolve, reject) => {
-        imgRetry.onload = resolve;
-        imgRetry.onerror = reject;
-        imgRetry.src = dataUrlRetry;
-      });
-      finalCtx.drawImage(imgRetry, 0, 0, size, size);
-    } catch (e) {
-      finalCtx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
-      finalCtx.textAlign = 'center';
-      finalCtx.font = '16px Arial';
-      finalCtx.fillText('Error QR', size / 2, size / 2);
+    if (textDetails.itemName) {
+      finalCtx.fillText(textDetails.itemName, finalCanvas.width / 2, currentTextBaselineY);
+      currentTextBaselineY += lineHeight;
     }
-  }
-
-  // Redraw text
-  finalCtx.fillStyle = isDarkMode ? '#FFFFFF' : '#000000';
-  finalCtx.font = '14px Arial';
-  finalCtx.textAlign = 'center';
-  textY = size + 25; // Reset Y for new canvas
-
-  if (textDetails.itemName) {
-    finalCtx.fillText(textDetails.itemName, finalCanvas.width / 2, textY);
-    textY += lineHeight;
-  }
-  if (textDetails.unit) {
-    finalCtx.fillText(`Unit: ${textDetails.unit || 'N/A'}`, finalCanvas.width / 2, textY);
-    textY += lineHeight;
-  }
-  if (textDetails.category) {
-    finalCtx.fillText(`Category: ${textDetails.category || 'N/A'}`, finalCanvas.width / 2, textY);
-    textY += lineHeight;
-  }
-  if (textDetails.lab) {
-    finalCtx.fillText(`Lab: ${textDetails.lab || 'N/A'}`, finalCanvas.width / 2, textY);
-    // textY += lineHeight; // Not needed for the last line
+    if (textDetails.lab) {
+      finalCtx.fillText(
+        `Lab: ${textDetails.lab || 'N/A'}`,
+        finalCanvas.width / 2,
+        currentTextBaselineY
+      );
+      currentTextBaselineY += lineHeight;
+    }
+    if (textDetails.itemId) {
+      finalCtx.fillText(`ID: ${textDetails.itemId}`, finalCanvas.width / 2, currentTextBaselineY);
+      currentTextBaselineY += lineHeight;
+    }
+    if (textDetails.unit || textDetails.unitNumber) {
+      // Make unit text more prominent
+      const unitText = `Unit: ${textDetails.unit || textDetails.unitNumber}`;
+      // Use bold font for unit number to make it more visible
+      finalCtx.font = `bold ${fontSize}px Arial`;
+      finalCtx.fillText(unitText, finalCanvas.width / 2, currentTextBaselineY);
+      // Reset font to normal for subsequent text
+      finalCtx.font = `${fontSize}px Arial`;
+      currentTextBaselineY += lineHeight;
+    }
+    if (textDetails.category) {
+      finalCtx.fillText(
+        `Category: ${textDetails.category || 'N/A'}`,
+        finalCanvas.width / 2,
+        currentTextBaselineY
+      );
+      // currentTextBaselineY += lineHeight; // No increment for the last line
+    }
   }
   return finalCanvas;
 };

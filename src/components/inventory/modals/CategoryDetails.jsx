@@ -82,7 +82,7 @@ function CategoryDetails({
               {category}
             </h2>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              {categoryItems.length} {categoryItems.length === 1 ? 'item' : 'items'} • Total
+              {categoryItems.length} {categoryItems.length === 1 ? 'item' : 'items'}Total
               Quantity: {totalQuantity}
             </p>
           </div>

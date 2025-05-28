@@ -9,7 +9,7 @@
  * QR codes are stored in Firestore and can be exported as PNG files.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuth } from '../../../hooks/useAuth';
@@ -20,8 +20,9 @@ import { createQrCanvas, getQrErrorMessage, generateQrString } from '../../../ut
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { toast } from 'react-toastify';
-// Import commented out as it's not being used
-// import { QRCodeSVG } from 'qrcode.react';
+import QRCodeManager from '../../../components/QRCodeManager';
+import QRCodeProgressIndicator from './QRCodeProgressIndicator';
+import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * Component for exporting multiple QR codes at once
@@ -33,9 +34,67 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const [isGenerating, setIsGenerating] = useState(false);
   const canExport = canGenerateQR(role);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewItems, setPreviewItems] = useState([]);
+  const [qrDataMap, setQrDataMap] = useState(new Map());
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [preparationProgress, setPreparationProgress] = useState({ current: 0, total: 0 });
   
   // Temporary SVG reference commented out as not used
   // const tempSvgRef = React.useRef(null);
+
+  // Function to prepare preview data
+  const preparePreviewData = async () => {
+    if (!canExport) {
+      toast.error('You do not have permission to export QR codes');
+      return;
+    }
+    
+    if (!items || items.length === 0) {
+      toast.error('No items available for QR code export');
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    setPreparationProgress({ current: 0, total: items.length });
+    
+    try {
+      const itemsToProcess = [];
+      const newQrDataMap = new Map();
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // Update progress indicator
+        setPreparationProgress({ current: i + 1, total: items.length });
+        
+        const hasQR = await hasQRCode(item.id);
+        
+        if (hasQR) {
+          const qrCodeDataFromDb = await getQRCodeFromFirestore(item.id);
+          if (qrCodeDataFromDb && (qrCodeDataFromDb.qrCode || qrCodeDataFromDb.qrString)) {
+            itemsToProcess.push(item);
+            newQrDataMap.set(item.id, qrCodeDataFromDb);
+          }
+        }
+      }
+
+      if (itemsToProcess.length === 0) {
+        toast.info('No items with QR codes found for preview or export.');
+        return;
+      }
+
+      setQrDataMap(newQrDataMap);
+      setPreviewItems(itemsToProcess);
+      setShowPreviewModal(true);
+
+    } catch (error) {
+      console.error('Error preparing preview:', error);
+      toast.error('Failed to prepare QR code preview');
+    } finally {
+      setIsPreviewLoading(false);
+      setPreparationProgress({ current: 0, total: 0 }); // Reset progress when done
+    }
+  };
 
   // Function to generate QR codes and store them in Firestore
   const handleGenerateAndStoreQRCodes = async () => {
@@ -126,8 +185,9 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
               itemName: item.name,
               lab: item.lab,
               category: item.category,
-              unit: item.unitNumber, // Assuming item.unitNumber based on InventoryList
-              // itemId is not strictly needed if qrString is the source of truth for QR content
+              unit: item.unitNumber, // Using unitNumber property
+              unitNumber: item.unitNumber, // Explicitly including unitNumber for redundancy
+              itemId: item.id, // Added itemId for display
             }
           );
           
@@ -184,121 +244,107 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
 
   // Function to generate a downloadable QR code zip file
   const handleExportQRCodes = async () => {
-    if (!canExport) {
-      toast.error('You do not have permission to export QR codes');
-      return;
-    }
-    
-    if (!items || items.length === 0) {
+    // Instead of immediately exporting, show the preview first
+    await preparePreviewData();
+  };
+
+  // Function to actually perform the export after preview
+  const performExport = async () => {
+    if (previewItems.length === 0 || qrDataMap.size === 0) {
       toast.error('No items available for QR code export');
       return;
     }
 
-    const itemsToProcess = [];
-    const qrDataMap = new Map();
-
     setIsExporting(true);
-    setExportProgress({ current: 0, total: items.length });
+    setExportProgress({ current: 0, total: previewItems.length });
     onExporting(true);
+    setShowPreviewModal(false); // Close the modal
+
+    // Declare tempContainer outside the try block to ensure it's accessible in catch and finally
+    let tempContainer; 
 
     try {
-      // Step 1: Filter items and fetch their QR data
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        // Update progress based on initial item scan, not actual processing yet
-        setExportProgress({ current: i + 1, total: items.length }); 
-        
-        const hasQR = await hasQRCode(item.id);
-        if (hasQR) {
-          const qrCodeDataFromDb = await getQRCodeFromFirestore(item.id);
-          // We need either a pre-generated image (qrCode) or the string to generate one (qrString)
-          if (qrCodeDataFromDb && (qrCodeDataFromDb.qrCode || qrCodeDataFromDb.qrString)) {
-            itemsToProcess.push(item);
-            qrDataMap.set(item.id, qrCodeDataFromDb);
-          }
-        }
-      }
-
-      if (itemsToProcess.length === 0) {
-        toast.info('No items with QR codes (or data to generate them) found for export.');
-        setIsExporting(false);
-        onExporting(false);
-        return;
-      }
-
-      // Update progress total to reflect only items that will be processed for zipping
-      setExportProgress({ current: 0, total: itemsToProcess.length });
-
       const zip = new JSZip();
       const qrFolder = zip.folder('QR_Codes');
       
-      const tempContainer = document.createElement('div');
+      tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
       tempContainer.style.visibility = 'hidden';
       document.body.appendChild(tempContainer);
       
-      const blobPromises = itemsToProcess.map(async (item, index) => {
-        try {
-          const itemQrData = qrDataMap.get(item.id);
-          const fileName = `QR_${item.id}_${item.name.replace(/[^a-z0-9]/gi, '_')}.png`;
-
-          if (itemQrData.qrCode && itemQrData.qrCode.startsWith('data:image/png;base64,')) {
-            const blob = await fetch(itemQrData.qrCode).then(r => r.blob());
-            qrFolder.file(fileName, blob);
-          } else if (itemQrData.qrString) {
-            // Regenerate QR if only qrString is available
-            const tempSvgContainer = document.createElement('div');
-            tempContainer.appendChild(tempSvgContainer);
-            // The dummy SVG is just a placeholder, createQrCanvas uses the 'qrcode' library
-            tempSvgContainer.innerHTML = '<svg width="256" height="256" fill="white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"></svg>';
-            const svgContainer = tempSvgContainer.firstChild;
-
-            const canvas = await createQrCanvas(
-              svgContainer, 
-              256, 
-              isDarkMode,
-              {
-                qrString: itemQrData.qrString,
-                itemName: item.name,
-                lab: item.lab,
-                category: item.category,
-                unit: item.unitNumber,
-              }
-            );
-            
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-            if (blob) {
-              qrFolder.file(fileName, blob);
-            } else {
-              throw new Error('Canvas toBlob returned null');
-            }
-          } else {
-            // Should not happen if filtering is correct, but good to handle
-            console.warn(`Skipping item ${item.id} due to missing QR data for export.`);
-            return; // Skip this item
-          }
-          // Update progress after each successful blob generation/fetch
-          setExportProgress(prev => ({ ...prev, current: prev.current + 1 }));
-        } catch (error) {
-          console.error(`Error processing QR for item ${item.id}:`, error);
-          // Optionally, still increment progress or handle error reporting
-          // For now, we'll let Promise.all catch it, but progress might seem stuck
-        }
-      });
-
-      await Promise.all(blobPromises);
+      // Process in batches to improve UI responsiveness
+      const BATCH_SIZE = 5;
+      setExportProgress({ current: 0, total: previewItems.length });
       
-      document.body.removeChild(tempContainer);
+      // Process items in batches
+      for (let i = 0; i < previewItems.length; i += BATCH_SIZE) {
+        const batch = previewItems.slice(i, i + BATCH_SIZE);
+        
+        // Process batch in parallel
+        const batchPromises = batch.map(async (item) => {
+          try {
+            const itemQrData = qrDataMap.get(item.id);
+            if (!itemQrData) return; // Skip if no data
+  
+            const fileName = `QR_${item.id}_${item.name.replace(/[^a-z0-9]/gi, '_')}.png`;
+
+            if (itemQrData.qrCode && itemQrData.qrCode.startsWith('data:image/png;base64,')) {
+              const blob = await fetch(itemQrData.qrCode).then(r => r.blob());
+              qrFolder.file(fileName, blob);
+            } else if (itemQrData.qrString) {
+              // Regenerate QR if only qrString is available
+              const tempSvgContainer = document.createElement('div');
+              tempContainer.appendChild(tempSvgContainer);
+              // The dummy SVG is just a placeholder, createQrCanvas uses the 'qrcode' library
+              tempSvgContainer.innerHTML = '<svg width="256" height="256" fill="white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"></svg>';
+              const svgContainer = tempSvgContainer.firstChild;
+
+              const canvas = await createQrCanvas(
+                svgContainer, 
+                256, 
+                isDarkMode,
+                {
+                  qrString: itemQrData.qrString,
+                  itemName: item.name,
+                  lab: item.lab,
+                  category: item.category,
+                  unit: item.unitNumber,
+                  unitNumber: item.unitNumber // Explicitly including unitNumber
+                }
+              );
+            
+              const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+              if (blob) {
+                qrFolder.file(fileName, blob);
+              } else {
+                throw new Error('Canvas toBlob returned null');
+              }
+            }
+            // Update progress after each successful blob generation/fetch
+            setExportProgress(prev => ({ ...prev, current: prev.current + 1 }));
+          } catch (error) {
+            console.error(`Error processing QR for item ${item.id}:`, error);
+          }
+        }); // batch.map ends
+        
+        await Promise.all(batchPromises); // Correctly await promises for the current batch here
+      } // for loop ends
+      
+      // Ensure tempContainer is removed if it was added
+      if (tempContainer && document.body.contains(tempContainer)) {
+        document.body.removeChild(tempContainer);
+      }
       
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, 'QCheckCITE_QR_Codes.zip');
-      toast.success(`${itemsToProcess.length} QR codes exported successfully.`);
+      toast.success(`${previewItems.length} QR codes exported successfully.`);
 
     } catch (error) {
       console.error('Error exporting QR codes:', error);
       const errorMsg = getQrErrorMessage('export', error);
       toast.error(errorMsg);
-      if (document.body.contains(tempContainer)) { // Ensure tempContainer is removed on error too
+      // Ensure tempContainer is removed on error too, if it exists and was added
+      if (tempContainer && document.body.contains(tempContainer)) { 
         document.body.removeChild(tempContainer);
       }
     } finally {
@@ -309,24 +355,128 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
     }
   };
 
-  if (isExporting || isGenerating) {
+  // QR Code Preview Modal Component
+  const QRCodePreviewModal = () => {
+    if (!showPreviewModal) return null;
+
     return (
-      <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md relative z-10`}>
-        <h2 className="text-lg font-semibold mb-2">
-          {isExporting ? 'Exporting QR Codes' : 'Generating QR Codes'}
-        </h2>
-        <div className="mb-2">
-          <p>Processing {exportProgress.current} of {exportProgress.total} items...</p>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-          <div 
-            className={`${isExporting ? 'bg-blue-600' : 'bg-green-600'} h-2.5 rounded-full`}
-            style={{width: `${(exportProgress.current / exportProgress.total) * 100}%`}}
-          ></div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+          role="dialog"
+          aria-labelledby="qr-preview-title"
+          aria-describedby="qr-preview-description"
+          className={`p-6 rounded-lg w-full max-w-5xl ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} max-h-[90vh] flex flex-col`}
+        >
+          <div className={`flex justify-between items-center mb-4 sticky top-0 bg-inherit z-10 pb-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h3 id="qr-preview-title" className="text-xl font-semibold">
+              QR Code Export Preview
+            </h3>
+            <Button
+              onClick={() => setShowPreviewModal(false)}
+              color="gray"
+              size="sm"
+              className="hover:bg-gray-700 rounded-full p-1"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 18L18 6M6 6l12 12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                />
+              </svg>
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="mb-4">
+              <p className="text-sm mb-2">
+                Ready to export {previewItems.length} QR codes. Confirm to download as a ZIP file.
+              </p>
+              <div className="flex justify-end gap-3 mt-4">
+                <Button
+                  onClick={() => setShowPreviewModal(false)}
+                  color="gray"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={performExport}
+                  color="blue"
+                  disabled={isExporting}
+                  icon={
+                    isExporting ? (
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )
+                  }
+                >
+                  {isExporting ? "Preparing Download..." : "Download All QR Codes"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {previewItems.slice(0, 9).map(item => {
+                const qrData = qrDataMap.get(item.id);
+                if (!qrData) return null;
+                
+                // Parse the QR data if it's stored as JSON
+                let parsedQrData;
+                try {
+                  parsedQrData = qrData.qrData ? JSON.parse(qrData.qrData) : { qrString: qrData.qrString };
+                } catch (e) {
+                  parsedQrData = { qrString: qrData.qrString };
+                }
+                
+                return (
+                  <div key={item.id} className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <div className="flex flex-col items-center">
+                      <QRCodeManager 
+                        item={item} 
+                        qrData={parsedQrData} 
+                        showActions={false} 
+                        size={150} 
+                      />
+                      <div className="mt-2 text-center">
+                        <p className={`font-medium truncate max-w-full ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.name}</p>
+                        <p className="text-xs text-gray-500 truncate">ID: {item.id}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {previewItems.length > 9 && (
+                <div className={`p-4 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <div className="text-center">
+                    <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                      +{previewItems.length - 9} more QR codes
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      All QR codes will be included in the ZIP file
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
-  }
+  };
 
   // If user doesn't have permission, show a message
   if (!canExport) {
@@ -337,6 +487,20 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
           You do not have permission to export QR codes. Please contact your administrator.
         </p>
       </div>
+    );
+  }
+
+  // Conditional rendering for progress indicator
+  if (isExporting || isGenerating || isPreviewLoading || (preparationProgress.total > 0 && preparationProgress.current < preparationProgress.total) ) {
+    return (
+      <QRCodeProgressIndicator
+        isPreviewLoading={isPreviewLoading && preparationProgress.current === 0}
+        isGenerating={isGenerating}
+        isExporting={isExporting}
+        preparationProgress={preparationProgress}
+        generationProgress={exportProgress} // Used for generation in handleGenerateAndStoreQRCodes
+        exportProgress={exportProgress}
+      />
     );
   }
 
@@ -356,8 +520,22 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           }
+          disabled={isPreviewLoading}
         >
-          <span className="truncate">Download All QR Codes</span>
+          {isPreviewLoading ? (
+            <span className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {preparationProgress.total > 0 ? 
+                `Preparing ${preparationProgress.current} of ${preparationProgress.total}...` : 
+                'Preparing...'
+              }
+            </span>
+          ) : (
+            <span className="truncate">Download All QR Codes</span>
+          )}
         </Button>
         <Button
           onClick={handleGenerateAndStoreQRCodes}
@@ -372,6 +550,9 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
           <span className="truncate">Generate QR Codes</span>
         </Button>
       </div>
+      
+      {/* Preview Modal */}
+      <QRCodePreviewModal />
     </div>
   );
 }

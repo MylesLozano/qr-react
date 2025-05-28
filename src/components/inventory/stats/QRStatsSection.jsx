@@ -130,9 +130,9 @@ function QRStatsSection({ qrStats = {}, isDarkMode }) {
                       <h4 className="font-medium truncate max-w-[120px]" title={lab}>{lab}</h4>
                       <div className="text-sm mt-1">
                         <span>Total Items: {stats.totalItems}</span>
-                        <span className="mx-2">•</span>
+                        <span className="mx-2"></span>
                         <span>With QR: {stats.withQR}</span>
-                        <span className="mx-2">•</span>
+                        <span className="mx-2"></span>
                         <span>Without QR: {stats.withoutQR}</span>
                       </div>
                     </div>

@@ -75,7 +75,7 @@ function CategoryList({
           >
             <h3 className="font-semibold">{category}</h3>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              {items.length} {items.length === 1 ? 'item' : 'items'} • Total Quantity:{' '}
+              {items.length} {items.length === 1 ? 'item' : 'items'}Total Quantity:{' '}
               {totalQuantity}
             </p>
           </div>

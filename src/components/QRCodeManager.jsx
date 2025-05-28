@@ -129,13 +129,14 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       };
 
       // Import createQrCanvas from the utility functions
-      const { createQrCanvas } = await import('../utils/qrUtils');
-      
-      // Get metadata for the QR code image
+      const { createQrCanvas } = await import('../utils/qrUtils');      // Get metadata for the QR code image
       const metadata = {
         itemName: item.name,
         lab: item.lab || '',
-        itemId: item.id
+        itemId: item.id,
+        unit: item.unitNumber || '', // Include as unit for backward compatibility
+        unitNumber: item.unitNumber || '', // Explicitly add unitNumber for display in downloaded QR
+        category: item.category || ''
       };
       
       // Create enhanced canvas with item info
@@ -218,17 +219,17 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
                 </span>
               )}
             </div>
-          )}          <div className="flex flex-col items-center justify-center min-h-[220px]">
-            {localQrData ? (
-              <div ref={qrCodeContainerRef} className="text-center">
-                <QRCodeSVG
-                  value={localQrData.qrString || JSON.stringify(localQrData)}
-                  size={size}
-                  bgColor={isDarkMode ? '#1F2937' : '#FFFFFF'}
-                  fgColor={isDarkMode ? '#000000' : '#000000'}
-                  level={'M'} 
-                  includeMargin={true}
-                />
+          )}          <div className="flex flex-col items-center justify-center min-h-[220px]">            {localQrData ? (
+              <div ref={qrCodeContainerRef} className="text-center">                <div className={`inline-block p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} mb-2`}>
+                  <QRCodeSVG
+                    value={localQrData.qrString || JSON.stringify(localQrData)}
+                    size={size}
+                    bgColor={'#FFFFFF'} // Always white background for consistency
+                    fgColor={'#000000'} // Always black for QR modules
+                    level={'H'} // Use high error correction level for better scanability
+                    includeMargin={true}
+                  />
+                </div>
                 <div className="mt-2 text-xs text-center break-all">
                   <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     ID: {item?.id}

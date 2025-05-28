@@ -98,11 +98,10 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
                       <p className="flex justify-between">
                         <span className="font-medium">Name:</span>
                         <span>{item.name}</span>
-                      </p>
-                      {item.unitNumber && (
+                      </p>                      {item.unitNumber && (
                         <p className="flex justify-between">
                           <span className="font-medium">Unit Number:</span>
-                          <span>{item.unitNumber}</span>
+                          <span className="font-bold text-blue-500 dark:text-blue-400">{item.unitNumber}</span>
                         </p>
                       )}
                       {item.serialNumber && (
