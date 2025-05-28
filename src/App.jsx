@@ -252,16 +252,13 @@ function App() {
                   <QRScanner />{' '}
                 </ProtectedRoute>
               }
-            />
-
-            <Route
+            />            <Route
               path="/my-requests"
               element={
                 <ProtectedRoute requiredRole="user" requiredAction="view_requests">
                   <MyRequests />
                 </ProtectedRoute>
-              }
-            />
+              }            />
 
             {/* Catch-all redirect */}
             <Route

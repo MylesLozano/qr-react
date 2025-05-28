@@ -37,10 +37,10 @@ const MAX_QR_SIZE = 256;
 function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE }) {
   const [localQrData, setLocalQrData] = useState(qrData);
   const { user } = useAuth();
-  const { handleQRCode } = useQRCode(user);
+  const { handleQRCode } = useQRCode([], user);
   const handleError = useErrorHandler();
   const { isDarkMode } = useTheme();
-  const qrCodeRef = useRef(null);
+  const qrCodeContainerRef = useRef(null);
 
   const validateQrData = useCallback(
     (qrObject) => {
@@ -102,9 +102,14 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
     }
 
     try {
-      // Get the SVG element directly from our ref
-      if (!qrCodeRef.current) {
-        throw new Error('QR code reference not available');
+      // Get the SVG element from the container instead of direct ref
+      if (!qrCodeContainerRef.current) {
+        throw new Error('QR code container not available');
+      }
+
+      const svgElement = qrCodeContainerRef.current.querySelector('svg');
+      if (!svgElement) {
+        throw new Error('QR code SVG not found');
       }
 
       // First ensure we have a valid QR string
@@ -131,7 +136,7 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       };
       
       // Create enhanced canvas with item info
-      const canvas = await createQrCanvas(qrCodeRef.current, size, isDarkMode, metadata);
+      const canvas = await createQrCanvas(svgElement, size, isDarkMode, metadata);
       
       // Convert canvas to downloadable image and save to Firebase
       canvas.toBlob(async (blob) => {
@@ -187,14 +192,12 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
                 </span>
               )}
             </div>
-          )}
-
-          <div className="flex flex-col items-center justify-center min-h-[220px]">
+          )}          <div className="flex flex-col items-center justify-center min-h-[220px]">
             {localQrData ? (
-              <div className="text-center">
+              <div ref={qrCodeContainerRef} className="text-center">
                 <QRCodeSVG
-                  ref={qrCodeRef}
-                  value={localQrData.qrString || JSON.stringify(localQrData)}                  size={size}
+                  value={localQrData.qrString || JSON.stringify(localQrData)}
+                  size={size}
                   bgColor={isDarkMode ? '#1F2937' : '#FFFFFF'}
                   fgColor={isDarkMode ? '#000000' : '#000000'}
                   level={'M'} 

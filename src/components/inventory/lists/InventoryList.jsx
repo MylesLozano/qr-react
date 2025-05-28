@@ -19,12 +19,11 @@ function InventoryList({
   role,
   filterByCategory = null,
 }) {
-  const { isDarkMode } = useTheme();
-  // Permission checks
+  const { isDarkMode } = useTheme();  // Permission checks
   const canEdit = canPerformAction(role, 'edit_inventory');
   const canDelete = canPerformAction(role, 'delete_inventory');
-  // Use the canGenerateQR utility to check permissions
-  const canViewQr = canPerformAction(role, 'scan_qr_codes'); // All users can view QR codes
+  // Always allow viewing QR codes for all users
+  const canViewQr = true; // All users can view QR codes
   const canGenerateQr = canGenerateQR(role); // Only admin and superadmin can generate
 
   // State for bulk operations
@@ -137,6 +136,9 @@ function InventoryList({
       const item = displayedItems[index];
       if (!item) return null;
 
+      // ADD THIS CONSOLE LOG
+      console.log(`Item ID: ${item.id}, Index: ${index}, canViewQr: ${canViewQr}, canEdit: ${canEdit}, canDelete: ${canDelete}, canGenerateQr: ${canGenerateQr}`);
+
       // Add isDeleting flag to the item
       const isItemDeleting = !!deletingItems[item.id];
 
@@ -220,51 +222,43 @@ function InventoryList({
               </div>
             </div>
 
-            <div className="flex flex-col items-end justify-center gap-2 ml-2">
-              {(canEdit || canDelete || canGenerateQr) && (
-                <div className="flex flex-col gap-2 w-full">
+            <div className="flex flex-col items-end justify-center gap-2 ml-2 flex-shrink-0"> {/* Added flex-shrink-0 */}
+              {/* Ensure the actions block renders if any action, including viewing QR, is possible */}
+              {(canEdit || canDelete || canGenerateQr || canViewQr) && (
+                <div className="flex flex-col gap-2"> {/* Removed w-full from this inner container */}
                   {' '}
                   {canEdit && (
                     <Button
                       onClick={() => onEdit(item)}
                       color="blue"
                       size="sm"
-                      className="min-w-[80px] w-full"
+                      className="min-w-[80px]" // Retaining this from previous step
                     >
                       Edit
                     </Button>
-                  )}                  {canDelete && (
+                  )}
+                  {canDelete && (
                     <Button
                       onClick={() => handleItemDelete(item.id, item.name)}
                       color="red"
                       size="sm"
-                      className="min-w-[80px] w-full"
+                      className="min-w-[80px]" // Retaining this from previous step
                       loading={deletingItems[item.id]}
                       loadingText="Deleting..."
                     >
                       Delete
-                    </Button>                  )}
+                    </Button>
+                  )}
                   {/* QR code button - different behavior for admin/superadmin vs regular users */}
-                  {canViewQr && (                    <Button
+                  {canViewQr && ( // This is true, so the button will show if the outer block renders
+                    <Button
                       onClick={() => onPreviewQr(item)}
-                      color={canGenerateQr ? 'green' : 'blue'}
+                      color="green" // Simplified color
                       size="sm"
-                      className="min-w-[80px] w-full flex items-center justify-center gap-1"
-                      title={canGenerateQr ? 'Generate/View QR Code' : 'View QR Code'}
+                      className="min-w-[80px]" // Retaining this from previous step
+                      title="QR Action" // Simplified title
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                        />                      </svg>
-                      {canGenerateQr ? 'QR' : 'View QR'}
+                      QR TEST {/* Simplified text */}
                     </Button>
                   )}
                 </div>

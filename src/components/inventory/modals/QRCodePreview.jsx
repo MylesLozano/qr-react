@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuth } from '../../../hooks/useAuth';
 import { canGenerateQR } from '../../../utils/roleUtils';
+import { useQRCode } from '../../../hooks/useQRCode';
 import QRCodeManager from '../../QRCodeManager';
 import Button from '../../Button';
 import PropTypes from 'prop-types';
 
 function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = () => {} }) {
   const { isDarkMode } = useTheme();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+  const { handleQRCode } = useQRCode([], user);
   const [localQrData, setLocalQrData] = useState(qrData);
+  const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
   
   // Only admin and superadmin can generate QR codes
   // This variable is used to conditionally show/hide the generate button
@@ -138,7 +141,7 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
                   </div>
                 </div>                {/* QR Code */}
                 <div className="md:w-1/2 flex items-center justify-center">
-                  {isGenerating ? (
+                  {isGenerating || isGeneratingLocal ? (
                     <div className="flex flex-col items-center justify-center p-8 space-y-4">
                       <div className="animate-pulse text-center space-y-2">
                         <div className="inline-block">
@@ -154,34 +157,56 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
                   ) : localQrData ? (
                     <QRCodeManager item={item} qrData={localQrData} showActions={true} />                  ) : (
                     <div className="flex flex-col items-center gap-4 p-4">
-                      <div className="text-center">No QR code found for this item.</div>
-                      {canGenerate && (
+                      <div className="text-center">No QR code found for this item.</div>                      {canGenerate && (
                         <Button
                           color="blue"
-                          onClick={() => {
-                            // Generate basic QR data with a unique QR string
-                            const qrString = `QCCITE-${item.id}-${new Date().getTime()}`;
-                            
-                            const newQrData = {
-                              id: item.id,
-                              name: item.name,
-                              serialNumber: item.serialNumber || '',
-                              category: item.category || '',
-                              lab: item.lab || '',
-                              itemCondition: item.itemCondition || '',
-                              timestamp: new Date().toISOString(),
-                              qrString: qrString
-                            };
+                          disabled={isGeneratingLocal}
+                          onClick={async () => {
+                            if (!item || !item.id) return;
 
-                            // Set the local state directly since we're accessing the object reference
-                            item.qrData = newQrData;
+                            setIsGeneratingLocal(true);
+                            try {
+                              // Generate basic QR data with a unique QR string
+                              const qrString = `QCCITE-${item.id}-${new Date().getTime()}`;
+                              
+                              const newQrData = {
+                                id: item.id,
+                                name: item.name,
+                                serialNumber: item.serialNumber || '',
+                                category: item.category || '',
+                                lab: item.lab || '',
+                                itemCondition: item.itemCondition || '',
+                                timestamp: new Date().toISOString(),
+                                qrString: qrString
+                              };
 
-                            // Force rerender with the new data
-                            if (typeof window !== 'undefined')
-                              window.dispatchEvent(new Event('qr-generated'));
+                              // Save to Firebase using the hook
+                              const success = await handleQRCode(item.id, null, {
+                                qrData: JSON.stringify(newQrData),
+                                qrString: qrString,
+                                itemName: item.name,
+                                lab: item.lab || ''
+                              });
+
+                              if (success) {
+                                // Update local state
+                                setLocalQrData(newQrData);
+                                
+                                // Also update the item reference for consistency
+                                item.qrData = newQrData;
+
+                                // Force rerender with the new data
+                                if (typeof window !== 'undefined')
+                                  window.dispatchEvent(new Event('qr-generated'));
+                              }
+                            } catch (error) {
+                              console.error('Error generating QR code:', error);
+                            } finally {
+                              setIsGeneratingLocal(false);
+                            }
                           }}
                         >
-                          Generate QR Code
+                          {isGeneratingLocal ? 'Generating...' : 'Generate QR Code'}
                         </Button>
                       )}
                     </div>

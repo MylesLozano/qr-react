@@ -11,7 +11,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import { db, logAudit } from '../firebase';
+import { db, logAudit, hasQRCode } from '../firebase';
 import { toast } from 'react-toastify';
 import {
   validateItem,
@@ -45,7 +45,6 @@ export default function useInventory(user) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
-
   // Fetch inventory items
   useEffect(() => {
     if (!user) return;
@@ -53,12 +52,32 @@ export default function useInventory(user) {
     const inventoryQuery = query(collection(db, 'inventory'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(
       inventoryQuery,
-      (querySnapshot) => {
+      async (querySnapshot) => {
         const newItems = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setItems(newItems);
+
+        // Check for QR codes and set hasQR property for each item
+        const itemsWithQrStatus = await Promise.all(
+          newItems.map(async (item) => {
+            try {
+              const hasQR = await hasQRCode(item.id);
+              return {
+                ...item,
+                hasQR: hasQR
+              };
+            } catch (error) {
+              console.error(`Error checking QR status for item ${item.id}:`, error);
+              return {
+                ...item,
+                hasQR: false
+              };
+            }
+          })
+        );
+
+        setItems(itemsWithQrStatus);
         setError(null);
       },
       (error) => {
