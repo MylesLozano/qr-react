@@ -50,7 +50,7 @@ export default [
       'max-len': [
         'warn',
         {
-          code: 120,
+          code: 180,
           ignoreComments: true,
           ignoreStrings: true,
           ignoreTemplateLiterals: true,

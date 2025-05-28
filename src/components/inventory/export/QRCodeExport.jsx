@@ -9,7 +9,7 @@
  * QR codes are stored in Firestore and can be exported as PNG files.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react'; // Removed useEffect
 import PropTypes from 'prop-types';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuth } from '../../../hooks/useAuth';
@@ -22,7 +22,6 @@ import { saveAs } from 'file-saver';
 import { toast } from 'react-toastify';
 import QRCodeManager from '../../../components/QRCodeManager';
 import QRCodeProgressIndicator from './QRCodeProgressIndicator';
-import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * Component for exporting multiple QR codes at once
@@ -423,7 +422,7 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
                     )
                   }
                 >
-                  {isExporting ? "Preparing Download..." : "Download All QR Codes"}
+                  {isExporting ? 'Preparing Download...' : 'Download All QR Codes'}
                 </Button>
               </div>
             </div>
@@ -437,7 +436,7 @@ function QRCodeExport({ items = [], onExporting = () => {} }) {
                 let parsedQrData;
                 try {
                   parsedQrData = qrData.qrData ? JSON.parse(qrData.qrData) : { qrString: qrData.qrString };
-                } catch (e) {
+                } catch { // Removed unused 'e'
                   parsedQrData = { qrString: qrData.qrString };
                 }
                 
