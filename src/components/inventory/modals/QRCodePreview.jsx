@@ -15,6 +15,7 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
   const { handleQRCode } = useQRCode([], user);
   const [localQrData, setLocalQrData] = useState(qrData);
   const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
+  const [qrLocked, setQrLocked] = useState(item?.qrLocked || false);
   
   // Only admin and superadmin can generate QR codes
   // This variable is used to conditionally show/hide the generate button
@@ -39,6 +40,13 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
     setLocalQrData(qrData);
   }, [qrData]);
 
+  // Handler to toggle lock state (replace with real backend logic as needed)
+  const handleToggleLock = async () => {
+    // Simulate async lock/unlock
+    setQrLocked((prev) => !prev);
+    // TODO: Add backend update logic here
+  };
+
   if (!item) return null;
 
   return (
@@ -56,27 +64,29 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
           <h3 id="qr-preview-title" className="text-xl font-semibold">
             QR Code Preview
           </h3>
-          <Button
-            onClick={onClose}
-            color="gray"
-            size="sm"
-            className="hover:bg-gray-700 rounded-full p-1"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
+          <div className="flex gap-2 items-center">
+            <Button
+              onClick={onClose}
+              color="gray"
+              size="sm"
+              className="hover:bg-gray-700 rounded-full p-1"
             >
-              <path
-                d="M6 18L18 6M6 6l12 12"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-              />
-            </svg>
-          </Button>
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 18L18 6M6 6l12 12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                />
+              </svg>
+            </Button>
+          </div>
         </div>{' '}
         <div className="flex-1 overflow-y-auto min-h-0">
           {qrError ? (
@@ -139,7 +149,7 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
                     </div>
                   </div>
                 </div>                {/* QR Code */}
-                <div className="md:w-1/2 flex items-center justify-center">
+                <div className="md:w-1/2 flex items-center justify-center flex-col gap-4">
                   {isGenerating || isGeneratingLocal ? (
                     <div className="flex flex-col items-center justify-center p-8 space-y-4">
                       <div className="animate-pulse text-center space-y-2">
@@ -154,15 +164,16 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
                       </div>
                     </div>
                   ) : localQrData ? (
-                    <QRCodeManager item={item} qrData={localQrData} showActions={true} />                  ) : (
+                    <QRCodeManager item={item} qrData={localQrData} showActions={true} />
+                  ) : (
                     <div className="flex flex-col items-center gap-4 p-4">
-                      <div className="text-center">No QR code found for this item.</div>                      {canGenerate && (
+                      <div className="text-center">No QR code found for this item.</div>
+                      {canGenerate && (
                         <Button
                           color="blue"
-                          disabled={isGeneratingLocal}
+                          disabled={isGeneratingLocal || qrLocked}
                           onClick={async () => {
                             if (!item || !item.id) return;
-
                             setIsGeneratingLocal(true);
                             try {
                               // Generate basic QR data with a unique QR string

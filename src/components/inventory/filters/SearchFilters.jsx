@@ -73,6 +73,12 @@ function SearchFilters({
           </option>
           <option
             className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
+            value="unitNumber"
+          >
+            Unit Number
+          </option>
+          <option
+            className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
             value="serialNumber"
           >
             Serial Number

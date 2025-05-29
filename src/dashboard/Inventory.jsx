@@ -273,11 +273,15 @@ function Inventory({ isInDashboard = false }) {
                     <p>As an administrator, you can:</p>
                     <div className="flex justify-center gap-4">
                       <Button
-                        onClick={handleAddItem}
-                        color="blue"
-                        className="inline-flex items-center"
+                        onClick={() => {
+                          setEditingItem(defaultFormData);
+                          setShowAddEditForm(true);
+                        }}
+                        color="green"
+                        size="md"
+                        className="w-full"
                       >
-                        <span className="mr-2">+</span> Add New Item
+                        + Add Item
                       </Button>
                     </div>
 
@@ -352,17 +356,7 @@ function Inventory({ isInDashboard = false }) {
               <h1 className="text-3xl font-bold">Inventory Management</h1>
 
               <div className="flex gap-3">
-                {/* Only keep the Add New Item button */}
-                {canAddEditDelete && (
-                  <Button
-                    onClick={handleAddItem}
-                    color="blue"
-                    size="md"
-                    className="inline-flex items-center"
-                  >
-                    <span className="mr-2">+</span> Add New Item
-                  </Button>
-                )}
+                {/* Add New Item button moved to InventoryList bulk actions toolbar */}
               </div>
             </div>
 
@@ -441,16 +435,18 @@ function Inventory({ isInDashboard = false }) {
             {/* Inventory List and Add/Edit Form side by side */}
             <div className="flex flex-col lg:flex-row gap-6 mb-6">
               {/* The main InventoryList displaying filtered search results */}              <div className={`${canAddEditDelete && showAddEditForm ? 'lg:w-1/2' : 'w-full'}`}>                <InventoryList
-                  items={filteredItems} // Pass filtered items from search
+                  items={filteredItems}
                   onEdit={handleEdit}
                   onDelete={handleDeleteItem}
-                  onBulkDelete={handleBulkDelete} // Pass the bulk delete handler
-                  onPreviewQr={handlePreviewQrCode} // Pass the handlePreviewQrCode handler
+                  onBulkDelete={handleBulkDelete}
+                  onPreviewQr={handlePreviewQrCode}
                   isLoading={loadingStates.fetchingInventory}
-                  isBulkDeleting={loadingStates.deletingItems} // Pass bulk deleting state
+                  isBulkDeleting={loadingStates.deletingItems}
                   role={role}
                   isDarkMode={isDarkMode}
-                  filterByCategory={selectedCategory} // Pass the selected category for filtering
+                  filterByCategory={selectedCategory}
+                  onAddItem={handleAddItem} // Pass Add New Item handler
+                  isAddEditFormActive={showAddEditForm}
                 />
               </div>
 

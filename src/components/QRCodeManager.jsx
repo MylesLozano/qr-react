@@ -36,8 +36,9 @@ const MAX_QR_SIZE = 256;
  */
 function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE }) {
   const [localQrData, setLocalQrData] = useState(qrData);
-  const { user, role } = useAuth(); // Destructure both user and role
-  const { handleQRCode } = useQRCode([], user); // user here is still the Firebase user
+  const [isLocking, setIsLocking] = useState(false); // <-- Add this state
+  const { user, role } = useAuth();
+  const { handleQRCode, updateQRLock, checkExistingRequest } = useQRCode([], user);
   const handleError = useErrorHandler();
   const { isDarkMode } = useTheme();
   const qrCodeContainerRef = useRef(null);
@@ -58,8 +59,30 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
     }
 
     try {
-      // Generate a unique QR string for this item if it doesn't exist
-      const qrString = localQrData?.qrString || `QCCITE-${item.id}-${new Date().getTime()}`;
+      // First check if this item already has a QR code in Firestore
+      let existingQrData = null;
+      try {
+        const existingQR = await checkExistingRequest?.(item.id);
+        if (existingQR) {
+          existingQrData = existingQR;
+        }
+      } catch (error) {
+        console.warn('Error checking for existing QR code:', error);
+      }
+      
+      // Use existing QR string in this priority:
+      // 1. From Firestore if it exists
+      // 2. From local state if it exists
+      // 3. Generate new only if neither exists
+      const qrString = 
+        (existingQrData?.qrString) || 
+        (localQrData?.qrString) || 
+        `QCCITE-${item.id}-${Date.now()}`;
+      
+      console.log('Using QR string:', { 
+        qrString, 
+        source: existingQrData?.qrString ? 'database' : (localQrData?.qrString ? 'local state' : 'newly generated')
+      });
       
       // Create or update the QR data
       const updatedQrData = {
@@ -69,16 +92,15 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
         itemName: item.name,
         lab: item.lab || '',
         timestamp: new Date().toISOString(),
-        isLocked: localQrData?.isLocked || false, // Add this line
+        isLocked: existingQrData?.isLocked || localQrData?.isLocked || false,
       };
-      
-      // Save QR code generation with the qrString (null for qrDataUrl since we're just storing the string)
+        // Save QR code generation with the qrString (null for qrDataUrl since we're just storing the string)
       const success = await handleQRCode(item.id, null, {
-        qrData: JSON.stringify(updatedQrData), // Pass the full updatedQrData
+        qrData: JSON.stringify(updatedQrData),
         qrString: qrString,
         itemName: item.name,
         lab: item.lab || '',
-        isLocked: updatedQrData.isLocked, // Pass isLocked explicitly
+        isLocked: !!updatedQrData.isLocked, // Ensure this is a boolean
       });
 
       if (success) {
@@ -90,14 +112,45 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       handleError(err);
       toast.error('Failed to generate QR code');
     }
-  }, [handleQRCode, handleError, item, localQrData]);
-
+  }, [handleQRCode, handleError, item, localQrData, checkExistingRequest]);
   useEffect(() => {
+    // This effect synchronizes localQrData with the qrData prop.
+    // It runs when the item being displayed changes (item.id)
+    // or when the qrData prop itself changes (e.g., parent fetches new data).
     if (qrData) {
       validateQrData(qrData);
-      setLocalQrData(qrData);
+      
+      // Smart merge of incoming qrData with local state to prevent losing local updates
+      setLocalQrData(prevData => {
+        // Complete replacement for item change or if no previous data exists
+        if (!prevData || item?.id !== prevData?.itemId) {
+          return qrData;
+        }
+        
+        // If we're displaying the same item, and we had local updates to isLocked,
+        // preserve our local isLocked value instead of taking parent's potentially stale value
+        if (prevData.isLocked !== undefined && prevData.isLocked !== qrData.isLocked) {
+          console.log('Preserving local lock state:', prevData.isLocked);
+          
+          // Merge parent data but keep our local isLocked value
+          return {
+            ...qrData,
+            isLocked: prevData.isLocked
+          };
+        }
+        
+        // Otherwise use parent's data
+        return qrData;
+      });
+    } else {
+      // If no qrData prop is provided (e.g., item selected but no QR exists yet),
+      // set localQrData to null.
+      setLocalQrData(null);
     }
-  }, [qrData, validateQrData]);  const handleDownload = async () => {
+    // Dependencies:
+    // - item?.id: Resync when the fundamental item being displayed changes.
+    // - qrData: Resync if the data prop itself changes reference.
+  }, [item?.id, qrData, validateQrData]);const handleDownload = async () => {
     if (!item || !item.id) {
       toast.error('No valid item selected');
       return;
@@ -114,18 +167,22 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
         throw new Error('QR code SVG not found');
       }
 
-      // First ensure we have a valid QR string
-      const qrString = localQrData?.qrString || `QCCITE-${item.id}-${Date.now()}`;
+      // Make sure we're using the existing QR string - don't generate a new one when downloading
+      // This is crucial to prevent QR code duplication
+      if (!localQrData?.qrString) {
+        toast.error('Please generate a QR code first before downloading');
+        return;
+      }
       
       // Create or update the QR data with latest information
       const updatedQrData = {
         ...(localQrData || {}),
-        qrString: qrString,
+        qrString: localQrData.qrString, // Always use existing string, never generate new on download
         itemId: item.id,
         itemName: item.name,
         lab: item.lab || '',
         timestamp: new Date().toISOString(),
-        isLocked: localQrData?.isLocked || false, // Add this line
+        isLocked: localQrData?.isLocked || false
       };
 
       // Import createQrCanvas from the utility functions
@@ -149,15 +206,13 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
           const fileName = `QR_${item.name || 'item'}_${item.id}_${new Date().toISOString().split('T')[0]}.png`;
 
           // First save to Firebase with the dataUrl
-          const dataUrl = canvas.toDataURL('image/png');
-          
-          await handleQRCode(item.id, dataUrl, {
+          const dataUrl = canvas.toDataURL('image/png');            await handleQRCode(item.id, dataUrl, {
             qrData: JSON.stringify(updatedQrData), // Pass the full updatedQrData
-            qrString: qrString,
+            qrString: localQrData.qrString, // Use the existing QR string, never generate a new one
             itemName: item.name,
             lab: item.lab || '',
             fileName: fileName,
-            isLocked: updatedQrData.isLocked, // Pass isLocked explicitly
+            isLocked: !!updatedQrData.isLocked, // Ensure this is a boolean
           });
 
           // Update local QR data state
@@ -181,27 +236,50 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
       toast.error('Failed to download QR code');
     }
   };
-
   // Determine if user can lock/unlock
-  const canLock = role === 'admin' || role === 'superadmin'; // Use the destructured 'role'
+  const canLock = role === 'admin' || role === 'superadmin'; // Use the destructured 'role'  
+    // Handler to toggle lock status
+  const handleLockButtonClick = useCallback(async () => {
+    if (!localQrData || !item?.id || isLocking) return;
 
-  // Handler to toggle lock status
-  const handleLockToggle = async () => {
-    if (!localQrData) return;
+    setIsLocking(true);
+    const currentLockState = !!localQrData.isLocked;
+    const newLockState = !currentLockState;
+    
+    console.log(`Attempting to ${newLockState ? 'lock' : 'unlock'} QR code for item ${item.id}`);
+
     try {
-      // You need to implement updateQRLock in your useQRCode or Firebase utils
-      await handleQRCode(item.id, null, {
-        ...localQrData,
-        isLocked: !localQrData.isLocked,
-        lockAction: true, // Optional: to distinguish lock action
-      });
-      setLocalQrData({ ...localQrData, isLocked: !localQrData.isLocked });
-      toast.success(`QR code ${localQrData.isLocked ? 'unlocked' : 'locked'} successfully`);
+      const success = await updateQRLock(item.id, newLockState);
+
+      if (success) {
+        console.log(`QR lock status update successful. New lock state: ${newLockState}`);
+        
+        // Optimistically update local state with stable fields
+        setLocalQrData(prevData => {
+          const updatedData = {
+            ...(prevData || {}),
+            itemId: item.id,
+            itemName: item.name,
+            lab: item.lab || '',
+            qrString: prevData?.qrString || localQrData?.qrString || `QCCITE-${item.id}-${Date.now()}`,
+            isLocked: newLockState,
+            timestamp: new Date().toISOString()
+          };
+          console.log('Updated local QR data:', updatedData);
+          return updatedData;
+        });
+        toast.success(`QR code ${newLockState ? 'locked' : 'unlocked'} successfully`);
+      } else {
+        console.error('QR lock update returned false');
+        toast.error('Failed to update lock status');
+      }
     } catch (err) {
-      handleError(err);
+      console.error("Lock toggle error:", err);
       toast.error('Failed to update lock status');
+    } finally {
+      setIsLocking(false);
     }
-  };
+  }, [item?.id, item?.name, item?.lab, localQrData, isLocking, updateQRLock]);
 
   return (
     <ErrorBoundary>
@@ -233,7 +311,16 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
                 <div className="mt-2 text-xs text-center break-all">
                   <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     ID: {item?.id}
-                  </span>
+                  </span>                  {/* Lock status visual indicator */}
+                  {localQrData && (
+                    <div className="flex items-center justify-center mt-1 gap-1">
+                      {!!localQrData.isLocked ? (
+                        <span title="Locked" className="text-yellow-500">🔒 Locked</span>
+                      ) : (
+                        <span title="Unlocked" className="text-green-500">🔓 Unlocked</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -243,25 +330,44 @@ function QRCodeManager({ item, qrData, showActions = true, size = MAX_QR_SIZE })
                   : 'Select an item to manage its QR code.'}
               </div>
             )}
-          </div>
-
-          {showActions && item?.id && (
+          </div>          {showActions && item?.id && (
             <div className="mt-4 flex justify-center gap-3">
-              <Button onClick={handleQrGeneration} color="green" size="sm" disabled={localQrData?.isLocked}>
+              <Button 
+                onClick={handleQrGeneration} 
+                color="green" 
+                size="sm" 
+                disabled={!!localQrData?.isLocked || isLocking} // <-- Add isLocking to disable
+              >
                 {localQrData ? 'Update QR' : 'Generate QR'}
               </Button>
               {localQrData && (
                 <>
-                  <Button onClick={handleDownload} color="blue" size="sm">
+                  <Button 
+                    onClick={handleDownload} 
+                    color="blue" 
+                    size="sm" 
+                    disabled={!!localQrData?.isLocked || isLocking} // <-- Add isLocking to disable
+                  >
                     Download QR
                   </Button>
                   {canLock && (
                     <Button
-                      onClick={handleLockToggle}
-                      color={localQrData.isLocked ? 'yellow' : 'gray'}
+                      onClick={handleLockButtonClick} // <-- Use the new handler
+                      color={!!localQrData.isLocked ? 'yellow' : 'gray'}
                       size="sm"
+                      disabled={isLocking} // <-- Disable button while locking
                     >
-                      {localQrData.isLocked ? 'Unlock QR' : 'Lock QR'}
+                      {isLocking ? (localQrData.isLocked ? 'Unlocking...' : 'Locking...') : (
+                        localQrData.isLocked ? (
+                          <>
+                            <span className="mr-1">🔒</span> Unlock QR
+                          </>
+                        ) : (
+                          <>
+                            <span className="mr-1">🔓</span> Lock QR
+                          </>
+                        )
+                      )}
                     </Button>
                   )}
                 </>

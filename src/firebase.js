@@ -278,6 +278,7 @@ try {
       const qrRef = doc(db, QR_COLLECTION, itemId);
       await updateDoc(qrRef, {
         isLocked: isLocked,
+        updatedAt: serverTimestamp(), // Add this line
       });
       console.info(`✅ QR code lock status updated for item ${itemId}: ${isLocked}`);
       return true;

@@ -190,6 +190,7 @@ export function useQRCode(items = [], user) {
     isGeneratingQr,
     previewQrCode,
     closeQrPreview,
+    checkExistingRequest,
     qrError: error,
   };
 }
