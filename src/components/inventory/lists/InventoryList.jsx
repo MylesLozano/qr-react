@@ -576,7 +576,7 @@ function InventoryList({
                 // Base size on screen width and whether edit form is active
                 if (isAddEditFormActive) {
                   // Taller rows when edit form is active
-                  return width < 640 ? 420 : width < 1024 ? 340 : 280;
+                  return width < 640 ? 280 : width < 1024 ? 340 : 280;
                 } else {
                   // More compact rows when edit form is not active
                   return width < 640 ? 340 : width < 1024 ? 260 : 220;

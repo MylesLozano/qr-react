@@ -133,11 +133,10 @@ const AdminDashboard = () => {
     }),
     [sampleItemForDisplay]
   );
-
   return (
     <ErrorBoundary>
       <BaseDashboard role="admin">
-        <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'}`}>
+        <div className={`w-full ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
           <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">
             Admin Dashboard
           </h1>

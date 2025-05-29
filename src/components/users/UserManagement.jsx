@@ -100,7 +100,7 @@ function UserManagement() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="w-full flex justify-center items-center h-screen">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -108,7 +108,7 @@ function UserManagement() {
 
   if (error) {
     return (
-      <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-red-900/50' : 'bg-red-100'}`}>
+      <div className={`w-full p-6 rounded-lg ${isDarkMode ? 'bg-red-900/50' : 'bg-red-100'}`}>
         <p className={`text-lg ${isDarkMode ? 'text-red-200' : 'text-red-700'}`}>{error}</p>
       </div>
     );
@@ -116,10 +116,12 @@ function UserManagement() {
 
   return (
     <ErrorBoundary>
-      <div className={`p-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Manage Users</h2>
-          <div className="flex gap-4">
+      <div className="w-full h-full flex flex-col">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 w-full">
+          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+            Manage Users
+          </h2>
+          <div className="flex flex-wrap gap-4">
             <label className="sr-only" htmlFor="user-search">
               Search users by email
             </label>
@@ -153,10 +155,10 @@ function UserManagement() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="w-full flex-1 overflow-x-auto">
           <table
             className={`w-full border-collapse ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-300'
+              isDarkMode ? 'border-gray-700 text-gray-200' : 'border-gray-300 text-gray-900'
             }`}
             aria-label="User management table"
           >

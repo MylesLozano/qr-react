@@ -13,7 +13,7 @@ const DashboardHeader = () => {
   const { isDarkMode } = useTheme();
 
   return (
-    <div className={`flex justify-between items-center pb-4 mb-6 border-b ${
+    <div className={`w-full flex justify-between items-center pb-4 mb-6 border-b ${
       isDarkMode ? 'border-gray-700' : 'border-gray-200'
     }`}>
       <div>

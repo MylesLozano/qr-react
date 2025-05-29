@@ -15,7 +15,6 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
   const { handleQRCode } = useQRCode([], user);
   const [localQrData, setLocalQrData] = useState(qrData);
   const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
-  const [qrLocked, setQrLocked] = useState(item?.qrLocked || false);
   
   // Only admin and superadmin can generate QR codes
   // This variable is used to conditionally show/hide the generate button
@@ -39,13 +38,6 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
   useEffect(() => {
     setLocalQrData(qrData);
   }, [qrData]);
-
-  // Handler to toggle lock state (replace with real backend logic as needed)
-  const handleToggleLock = async () => {
-    // Simulate async lock/unlock
-    setQrLocked((prev) => !prev);
-    // TODO: Add backend update logic here
-  };
 
   if (!item) return null;
 
@@ -171,7 +163,7 @@ function QRCodePreview({ item, qrData, qrError, isGenerating = false, onClose = 
                       {canGenerate && (
                         <Button
                           color="blue"
-                          disabled={isGeneratingLocal || qrLocked}
+                          disabled={isGeneratingLocal}
                           onClick={async () => {
                             if (!item || !item.id) return;
                             setIsGeneratingLocal(true);

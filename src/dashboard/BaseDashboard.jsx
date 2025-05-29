@@ -162,13 +162,8 @@ function BaseDashboard({ children }) {
       ? 'bg-gray-700 text-white hover:bg-gray-600'
       : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
     logoutButton: isDarkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600',
-  };
-
-  // Calculate content width based on role
-  const shouldExpandContent = useMemo(
-    () => ['admin', 'superadmin'].includes(role) || window.innerWidth <= MOBILE_BREAKPOINT,
-    [role]
-  );
+  };  // Previously used for conditional content expansion
+  // Now content is always expanded for all tabs regardless of role
 
   // Handle window resize with optimized debounce
   const handleResize = useCallback(() => {
@@ -356,23 +351,22 @@ function BaseDashboard({ children }) {
               />
             </svg>
           </button>
-        )}{' '}
-        {/* Main Content */}
+        )}{' '}        {/* Main Content */}
         <main
           id="main-content"
-          className={`flex-1 min-h-screen relative
-            max-w-7xl mx-auto
+          className={`flex-1 min-h-screen relative w-full
             ${isMobile ? 'pt-16' : ''}`}
         >
           <div
-            className={`
-            ${shouldExpandContent ? 'w-full' : 'max-w-5xl mx-auto'}
+            className={`w-full flex flex-col
             ${isMobile ? 'px-4' : 'px-6'}
             py-6
           `}
           >
             <DashboardHeader />
-            <ErrorBoundary>{children}</ErrorBoundary>
+            <div className="w-full flex-1">
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </div>
           </div>
         </main>
       </div>

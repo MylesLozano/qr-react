@@ -7,7 +7,6 @@ import UnifiedReporting from '../UnifiedReporting';
 import ReportTemplates from '../admin/ReportTemplates';
 import ReportGenerator from '../admin/ReportGenerator';
 import usePageTitle from '../../hooks/usePageTitle';
-import { useTheme } from '../../hooks/useTheme';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import ProtectedRoute from '../../ProtectedRoute';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,7 +20,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
  */
 function SuperAdminDashboard() {
   usePageTitle('QCheckCITE - SuperAdmin Dashboard');
-  const { isDarkMode } = useTheme();
+  // Removed isDarkMode as it's not being used in this component
   const { role } = useAuth();
   const [isReady, setIsReady] = useState(false);
 
@@ -43,12 +42,10 @@ function SuperAdminDashboard() {
         <LoadingSpinner text="Loading SuperAdmin Dashboard..." />
       </div>
     );
-  }
-
-  return (
+  }  return (
     <ErrorBoundary>
       <BaseDashboard role="superadmin">
-        <div className={isDarkMode ? 'text-gray-200' : 'text-gray-900'}>
+        <div className="w-full h-full flex flex-col">
           <Routes>
             <Route path="/" element={<Navigate to="user-management" replace />} />
             <Route
