@@ -12,6 +12,7 @@ import ProtectedRoute from '../../ProtectedRoute';
 import { useAuth } from '../../hooks/useAuth';
 import { useState, useEffect } from 'react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import QRScanner from '../../components/QRScanner'; // Import QRScanner
 
 /**
  * SuperAdminDashboard component - Main dashboard for superadmin users
@@ -93,6 +94,14 @@ function SuperAdminDashboard() {
               element={
                 <ProtectedRoute requiredAction="manage_users">
                   <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="scan"
+              element={
+                <ProtectedRoute requiredAction="view_inventory"> {/* Or a more specific action */}
+                  <QRScanner isInDashboard={true} role={role} />
                 </ProtectedRoute>
               }
             />

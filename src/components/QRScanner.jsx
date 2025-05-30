@@ -2,30 +2,35 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner'; // Changed back to Scanner which is the correct export
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { useTheme } from '../hooks/useTheme';
-import { useAuth } from '../hooks/useAuth';
-import { canScanQR } from '../utils/roleUtils';
+// InspectionForm uses useAuth internally, so we don't need to pass user from here
+import { canScanQR, canPerformInspection } from '../utils/roleUtils'; // Added canPerformInspection
 import { parseQrScanResult, getQrErrorMessage } from '../utils/qrUtils';
 import { toast } from 'react-toastify';
 import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
+import InspectionForm from './inventory/details/InspectionForm'; // Import the InspectionForm
+import { doc, getDoc } from 'firebase/firestore'; // For fetching item data
+import { db } from '../firebase'; // Import firebase db
 
-function QRScanner({ isInDashboard = false }) {
+function QRScanner({ isInDashboard = false, role }) { // Added role to props
   const { isDarkMode } = useTheme();
-  const { /* user, */ role } = useAuth();
+  // Removed unused auth user import
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
-  /* Commenting out unused state, but kept for future implementation */
-  // const [parsedResult, setParsedResult] = useState(null);
+  const [parsedResult, setParsedResult] = useState(null);
   const [loadingComponent, setLoadingComponent] = useState(true);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [itemData, setItemData] = useState(null); // Store fetched item data
+  const [isLoadingItem, setIsLoadingItem] = useState(false); // Loading state for item data
   const scannerRef = useRef(null);
   const videoStreamRef = useRef(null);
-  const canScan = canScanQR(role);
+  const canScan = canScanQR(role); // Use the passed role
+  const canInspect = canPerformInspection(role); // Check if user can perform inspections
 
   // Detect if user is on a mobile device
   useEffect(() => {
@@ -134,15 +139,13 @@ function QRScanner({ isInDashboard = false }) {
               try {
                 const simpleStream = await navigator.mediaDevices.getUserMedia({ 
                   video: true 
-                });
-                if (mounted) {
+                });                if (mounted) {
                   setCameraReady(true);
                   videoStreamRef.current = simpleStream;
-                } else {
-                  simpleStream.getTracks().forEach(track => track.stop());
+                } else {                  simpleStream.getTracks().forEach(track => track.stop());
                 }
-              } catch (fallbackErr) {
-                setError(`Camera error: Could not access any camera on this device.`);
+              } catch {
+                setError('Camera error: Could not access any camera on this device.');
               }
             } else {
               setError(`Camera error: ${err.message || 'Unknown error accessing camera'}`);
@@ -183,6 +186,32 @@ function QRScanner({ isInDashboard = false }) {
     }
   }, [navigate]);
   
+  // Fetch item data from Firestore
+  const fetchItemData = useCallback(async (itemId) => {
+    if (!itemId) return null;
+    
+    setIsLoadingItem(true);
+    try {
+      const itemRef = doc(db, 'inventory', itemId);
+      const itemSnap = await getDoc(itemRef);
+      
+      if (itemSnap.exists()) {
+        setIsLoadingItem(false);
+        return { id: itemSnap.id, ...itemSnap.data() };
+      } else {
+        console.error('Item not found:', itemId);
+        toast.error('Item not found in inventory system');
+        setIsLoadingItem(false);
+        return null;
+      }
+    } catch (err) {
+      console.error('Error fetching item data:', err);
+      toast.error('Failed to load item data');
+      setIsLoadingItem(false);
+      return null;
+    }
+  }, []);
+  
   const handleScanResult = useCallback(async (detectedCodes) => {
     try {
       setScanning(false);
@@ -202,24 +231,45 @@ function QRScanner({ isInDashboard = false }) {
         // Set scan result based on the type of QR code detected
         if (parsedData.type === 'qrstring') {
           setScanResult(`Item ID: ${parsedData.itemId} (${parsedData.raw})`);
+          setParsedResult(parsedData); // Store the parsed data
           toast.success('QR code scanned successfully!');
           
-          // Prompt user to view item details after a brief delay
-          setTimeout(() => {
-            if (window.confirm(`Item ${parsedData.itemId} found. View details?`)) {
-              navigateToItem(parsedData.itemId);
+          // If in inspection mode (admin/superadmin in dashboard), fetch item data immediately
+          const isInspectionMode = (role === 'admin' || role === 'superadmin') && isInDashboard && canInspect;
+          
+          if (isInspectionMode) {
+            const item = await fetchItemData(parsedData.itemId);
+            if (item) {
+              setItemData(item);
             }
-          }, 800);
+          } else {
+            // For normal user flow, prompt to view item details
+            setTimeout(() => {
+              if (window.confirm(`Item ${parsedData.itemId} found. View details?`)) {
+                navigateToItem(parsedData.itemId);
+              }
+            }, 800);
+          }
         } else if (parsedData.type === 'legacy-json') {
           setScanResult(`Item ID: ${parsedData.itemId} (Legacy QR)`);
+          setParsedResult(parsedData); // Store the parsed data
           toast.success('Legacy QR code scanned successfully!');
           
-          // Prompt user to view item details after a brief delay
-          setTimeout(() => {
-            if (window.confirm(`Legacy Item ${parsedData.itemId} found. View details?`)) {
-              navigateToItem(parsedData.itemId);
+          // Similar logic for legacy QR codes
+          const isInspectionMode = (role === 'admin' || role === 'superadmin') && isInDashboard && canInspect;
+          
+          if (isInspectionMode) {
+            const item = await fetchItemData(parsedData.itemId);
+            if (item) {
+              setItemData(item);
             }
-          }, 800);
+          } else {
+            setTimeout(() => {
+              if (window.confirm(`Legacy Item ${parsedData.itemId} found. View details?`)) {
+                navigateToItem(parsedData.itemId);
+              }
+            }, 800);
+          }
         }
       } else {
         // Display appropriate error message for invalid QR formats
@@ -229,7 +279,7 @@ function QRScanner({ isInDashboard = false }) {
     } catch (err) {
       handleScanError(err);
     }
-  }, [handleScanError, navigateToItem]);
+  }, [handleScanError, navigateToItem, fetchItemData, role, isInDashboard, canInspect]);
 
   // Handle file uploads for QR code scanning
   const handleFileUpload = useCallback(async (e) => {
@@ -290,7 +340,9 @@ function QRScanner({ isInDashboard = false }) {
     } finally {
       setScanning(false);
     }
-  }, [navigateToItem]);  const startScanning = useCallback(() => {
+  }, [navigateToItem]);
+
+  const startScanning = useCallback(() => {
     setScanning(true);
     setError(null);
     setScanResult(null);
@@ -334,14 +386,13 @@ function QRScanner({ isInDashboard = false }) {
             })
             .catch(err => {
               console.error('iOS camera initialization error:', err);
-              
-              // For iOS, try again with simpler constraints
+                // For iOS, try again with simpler constraints
               navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                   setCameraReady(true);
                   videoStreamRef.current = stream;
                 })
-                .catch(fallbackErr => {
+                .catch(() => {
                   setError('Could not access camera. Please check permissions in your browser settings.');
                   setScanning(false);
                 });
@@ -354,11 +405,18 @@ function QRScanner({ isInDashboard = false }) {
   
   const handleBack = useCallback(() => {
     if (isInDashboard) {
-      navigate('/user-dashboard', { replace: true });
+      // Navigate back to the correct dashboard based on role
+      if (role === 'admin') {
+        navigate('/admin-dashboard', { replace: true });
+      } else if (role === 'superadmin') {
+        navigate('/superadmin-dashboard', { replace: true });
+      } else {
+        navigate('/user-dashboard', { replace: true }); // Default or user role
+      }
     } else {
       navigate(-1);
     }
-  }, [navigate, isInDashboard]);
+  }, [navigate, isInDashboard, role]);
 
   // Clean up camera resources when component unmounts or scanning stops
   useEffect(() => {
@@ -399,81 +457,10 @@ function QRScanner({ isInDashboard = false }) {
   }, [scanning]);
   
   // Make sure we have permissions
-  // ...existing code...
+  if (!canScan && !error) { // Added !error to prevent overwriting existing errors
+    setError('You do not have permission to scan QR codes. Please contact your administrator.');
+  }
 
-  // Special handling for mobile devices, especially iOS
-  useEffect(() => {
-    if (!isMobile || !scanning) return;
-    
-    // For iOS devices, we need some special handling
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    
-    if (isIOS) {
-      // iOS sometimes requires a bit more time to initialize camera properly
-      const iOSTimer = setTimeout(() => {
-        // Check if video element exists and is playing
-        const videoEl = document.getElementById('qr-scanner-video');
-        
-        if (videoEl && (!videoEl.srcObject || videoEl.paused)) {
-          console.info('iOS video not playing, attempting to reinitialize...');
-          
-          // Attempt to manually initialize the camera on iOS
-          navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
-          })
-          .then(stream => {
-            videoStreamRef.current = stream;
-            videoEl.srcObject = stream;
-            videoEl.play()
-              .then(() => console.info('iOS camera initialized successfully'))
-              .catch(err => console.error('Failed to play iOS video:', err));
-          })
-          .catch(err => {
-            console.error('iOS reinit error:', err);
-            
-            // Try one more time with basic constraints as last resort
-            navigator.mediaDevices.getUserMedia({ video: true })
-              .then(stream => {
-                videoStreamRef.current = stream;
-                videoEl.srcObject = stream;
-                videoEl.play().catch(e => console.error('Final play attempt failed:', e));
-              })
-              .catch(finalErr => {
-                console.error('Final iOS camera init failed:', finalErr);
-                setError('Could not initialize camera. Please check camera permissions in your device settings.');
-                setScanning(false);
-              });
-          });
-        }
-      }, 1000); // Wait 1 second on iOS before checking
-      
-      return () => clearTimeout(iOSTimer);
-    }
-    
-    // Android-specific optimizations
-    const isAndroid = /android/i.test(navigator.userAgent);
-    if (isAndroid && scanning) {
-      // For Android, sometimes we need to ensure the camera has proper focus
-      const androidTimer = setTimeout(() => {
-        if (videoStreamRef.current) {
-          const videoTrack = videoStreamRef.current.getVideoTracks()[0];
-          if (videoTrack && videoTrack.getCapabilities && typeof videoTrack.applyConstraints === 'function') {
-            const capabilities = videoTrack.getCapabilities();
-            
-            // Try to set focus mode for better scanning if supported
-            if (capabilities && capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-              videoTrack.applyConstraints({ 
-                advanced: [{ focusMode: 'continuous' }] 
-              }).catch(err => console.warn('Failed to set Android focus mode:', err));
-            }
-          }
-        }
-      }, 800);
-      
-      return () => clearTimeout(androidTimer);
-    }
-  }, [isMobile, scanning]);
-  
   if (loadingComponent) {
     return (
       <div className="flex items-center justify-center p-6">
@@ -482,143 +469,191 @@ function QRScanner({ isInDashboard = false }) {
     );
   }
 
-  return (
-    <div className={`p-6 rounded-lg shadow-md ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">QR Code Scanner</h2>
-        {!isInDashboard && (
-          <Button
-            onClick={handleBack}
-            color="gray"
-            className="hover:bg-gray-700"
-            aria-label="Go back"
-          >
-            Back
-          </Button>
-        )}
-      </div>
+  // Determine if this is an inspection view
+  const isInspectionView = (role === 'admin' || role === 'superadmin') && isInDashboard;
 
+  return (
+    <div className={`flex flex-col items-center justify-center p-4 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'} ${isInDashboard ? 'h-full' : 'min-h-screen'}`}>
+      {isInspectionView ? (
+        <h1 className="text-2xl font-bold mb-6 text-center">Item Inspection Scanner</h1>
+      ) : (
+        <h1 className="text-2xl font-bold mb-6 text-center">QR Code Scanner</h1>
+      )}
+
+      {/* Back Button */}
+      {!isInDashboard && (
+        <Button
+          onClick={handleBack}
+          color="gray"
+          className="hover:bg-gray-700 mb-4"
+          aria-label="Go back"
+        >
+          Back
+        </Button>
+      )}
+
+      {/* Error Display */}
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
-          <p>{error}</p>
+        <div className="w-full max-w-md p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+          <span className="font-medium">Error:</span> {error}
         </div>
       )}
 
-      {scanResult ? (
-        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
-          <p>Scanned Result: {scanResult}</p>                <div className="flex flex-wrap gap-2 mt-4">
-            <Button
-              onClick={startScanning}
-              color="blue"
-              aria-label="Scan another QR code"
-            >
-              Scan Another
-            </Button>
-            {scanResult && scanResult.includes('Item ID:') && (
-              <Button
-                onClick={() => {
-                  const itemId = scanResult.match(/Item ID: ([^(]+)/)?.[1]?.trim();
-                  if (itemId) {
-                    navigateToItem(itemId);
-                  }
-                }}
-                color="green"
-                aria-label="View item details"
-              >
-                View Item Details
-              </Button>
-            )}
-          </div>
+      {/* Scan Result Display */}
+      {scanResult && !error && ( // Added !error to prevent showing result if there's an error
+        <div className="w-full max-w-md p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+          <span className="font-medium">Scan Result:</span> {scanResult}
         </div>
-      ) : (
-        <div>
-          {!scanning ? (
-            <>
-              <div className="flex justify-center">
-                <Button onClick={startScanning} color="blue" size="lg" className="mr-2">
-                  Start Scanning
-                </Button>
-                {!isInDashboard && (
-                  <Button onClick={handleBack} color="gray" size="lg">
-                    Cancel
-                  </Button>
-                )}
-              </div>
+      )}
 
-              <div className="mt-4">
-                <label className="block mb-2 text-sm font-medium">Upload QR Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className={`block text-sm ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
-                />
+      {/* Scanner Component or Start Button */}
+      {!scanning && !scanResult && cameraReady && ( // Only show start if camera is ready
+        <Button 
+          onClick={startScanning} 
+          disabled={!canScan || !cameraReady} // Disable if no permission or camera not ready
+          className="mb-4"
+        >
+          {cameraReady ? 'Start Camera Scan' : 'Initializing Camera...'}
+        </Button>
+      )}
+      
+      {/* Show loading indicator if camera is not yet ready and we intend to scan */}
+      {!cameraReady && scanning && (
+        <div className="flex flex-col items-center justify-center mb-4">
+          <LoadingSpinner />
+          <p className="mt-2">Preparing camera...</p>
+        </div>
+      )}
 
-                {uploadedFile && (
-                  <div className="mt-4 flex flex-col items-start gap-2">
-                    <img
-                      src={uploadedFile}
-                      alt="Uploaded preview"
-                      className="max-h-40 rounded border"
-                    />
-                    <Button onClick={() => setUploadedFile(null)} color="gray" size="sm">
-                      Clear Upload
-                    </Button>
+      {scanning && cameraReady && (
+        <div className="w-full max-w-md mb-4 relative">
+          <div 
+            className="overflow-hidden rounded-lg shadow-lg" 
+            style={{ 
+              width: '100%', 
+              paddingTop: '75%',
+              position: 'relative',
+              backgroundColor: '#000' // Added background for better contrast
+            }}
+          >
+            <Scanner
+              ref={scannerRef}
+              onScan={handleScanResult}
+              onError={handleScanError}
+              constraints={{
+                video: isMobile
+                  ? { 
+                      facingMode: { ideal: 'environment' },
+                      width: { ideal: 1280 }, // Higher resolution for better scan
+                      height: { ideal: 720 },
+                      frameRate: { ideal: 15, max: 30 }, // Adjusted for mobile performance
+                      aspectRatio: { ideal: 1.777 } // 16:9
+                    } 
+                  : { 
+                      width: { min: 640, ideal: 1280, max: 1920 }, 
+                      height: { min: 480, ideal: 720, max: 1080 },
+                      facingMode: 'user' 
+                    },
+                audio: false,
+              }}
+              scanDelay={isMobile ? 500 : 300} // Slower scan delay for mobile
+              styles={{ // Ensure video fills the container and is mirrored correctly
+                container: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },
+                video: { 
+                  transform: isMobile ? 'scaleX(-1)' : 'none', // Mirror for mobile front camera if used, adjust if back camera
+                  objectFit: 'cover' 
+                }
+              }}
+              videoId="qr-scanner-video" // Assign an ID for direct manipulation if needed
+            />
+          </div>
+          <Button onClick={() => setScanning(false)} className="mt-4 w-full">
+            Stop Scan
+          </Button>
+        </div>
+      )}
+
+      {/* File Upload Option */}
+      {!scanning && (
+        <div className="w-full max-w-md mb-4">
+          <label className="block mb-2 text-sm font-medium">Upload QR Image</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className={`block text-sm ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
+          />
+
+          {uploadedFile && (
+            <div className="mt-4 flex flex-col items-start gap-2">
+              <img
+                src={uploadedFile}
+                alt="Uploaded preview"
+                className="max-h-40 rounded border"
+              />
+              <Button onClick={() => setUploadedFile(null)} color="gray" size="sm">
+                Clear Upload
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Inspection Form or Details for admin/superadmin in dashboard */}
+      {isInspectionView && scanResult && (
+        <div className="mt-6 p-4 border rounded-lg w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-3">Item Inspection</h2>
+          
+          {isLoadingItem ? (
+            <div className="flex justify-center py-4">
+              <LoadingSpinner text="Loading item data..." />
+            </div>
+          ) : itemData ? (
+            <div>
+              <div className="mb-4">
+                <h3 className="font-medium text-lg">{itemData.name}</h3>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                  <div>
+                    <span className="font-semibold">ID:</span> {itemData.id}
                   </div>
-                )}
-              </div>
-            </>          ) : (
-            <div className="relative" ref={scannerRef}>
-              {scanning && !cameraReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg z-10">
-                  <div className="text-center">
-                    <LoadingSpinner size="large" />
-                    <p className="text-white mt-2">Initializing camera...</p>
+                  <div>
+                    <span className="font-semibold">Category:</span> {itemData.category || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Serial #:</span> {itemData.serialNumber || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Unit #:</span> {itemData.unitNumber || 'N/A'}
                   </div>
                 </div>
+              </div>
+              
+              <div className="mt-4">
+                <h3 className="font-medium mb-2">Perform Inspection</h3>
+                <InspectionForm 
+                  item={itemData} 
+                  isDarkMode={isDarkMode}
+                  onCancel={() => {
+                    setItemData(null);
+                    setScanResult(null);
+                    setParsedResult(null);
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p>Ready to scan an item for inspection.</p>
+              {parsedResult && (
+                <div className="mt-2">
+                  <Button 
+                    onClick={() => fetchItemData(parsedResult.itemId)}
+                    color="blue"
+                  >
+                    Load Item Data
+                  </Button>
+                </div>
               )}
-                <Scanner
-                onScan={handleScanResult}
-                onError={handleScanError}
-                scanDelay={isMobile ? 800 : 500} // Longer delay for mobile to reduce CPU usage
-                constraints={{
-                  facingMode: isMobile 
-                    ? { exact: 'environment' } // Force back camera on mobile
-                    : { ideal: 'environment' }, // Prefer back camera on desktop
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                  aspectRatio: { ideal: 1.777 },
-                  frameRate: isMobile ? { max: 20 } : { ideal: 25 } // Lower frameRate on mobile
-                }}
-                styles={{
-                  container: { 
-                    borderRadius: '0.5rem',
-                    height: '300px',
-                    maxHeight: '80vh',
-                    overflow: 'hidden',
-                    backgroundColor: '#000' // Black background helps with contrast
-                  },
-                  video: { 
-                    borderRadius: '0.5rem',
-                    height: '100%',
-                    width: '100%',
-                    objectFit: 'cover',
-                    transform: isMobile ? 'scaleX(1)' : 'scaleX(-1)' // Fix mirroring on mobile
-                  }
-                }}
-                containerStyle={{
-                  paddingTop: 0,
-                  height: '100%'
-                }}
-                videoId="qr-scanner-video"
-                // Increase these settings for better mobile detection
-                canvasStyles={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  zIndex: 1
-                }}
-              />
             </div>
           )}
         </div>

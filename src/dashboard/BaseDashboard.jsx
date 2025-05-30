@@ -90,6 +90,14 @@ const NAV_CONFIG = [
     description: 'Generate new reports',
     roles: ['admin'],
   },
+  {
+    path: '/admin-dashboard/scan',
+    label: 'Scan QR Code',
+    icon: '📱',
+    action: 'view_inventory', // Or a more specific action if created
+    description: 'Quickly scan item QR codes',
+    roles: ['admin'],
+  },
 
   // Superadmin navigation
   {
@@ -138,6 +146,14 @@ const NAV_CONFIG = [
     icon: '👥',
     action: 'manage_users',
     description: 'Manage user accounts and permissions',
+    roles: ['superadmin'],
+  },
+  {
+    path: '/superadmin-dashboard/scan',
+    label: 'Scan QR Code',
+    icon: '📱',
+    action: 'view_inventory', // Or a more specific action if created
+    description: 'Quickly scan item QR codes',
     roles: ['superadmin'],
   },
 ];
