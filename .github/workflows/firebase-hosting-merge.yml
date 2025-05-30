@@ -30,6 +30,16 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           # Add any other VITE_ variables your app needs
 
+      - name: Debug - Check if secrets exist
+        run: |
+          if [ -n "$VITE_FIREBASE_API_KEY" ]; then echo "VITE_FIREBASE_API_KEY is set"; else echo "VITE_FIREBASE_API_KEY is NOT set"; fi
+          if [ -n "$VITE_FIREBASE_AUTH_DOMAIN" ]; then echo "VITE_FIREBASE_AUTH_DOMAIN is set"; else echo "VITE_FIREBASE_AUTH_DOMAIN is NOT set"; fi
+          # And so on for other secrets...
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          # Add other variables here
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
