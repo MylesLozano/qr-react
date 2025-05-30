@@ -16,6 +16,10 @@ export const canScanQR = (userRole) => {
   return canPerformAction(userRole, 'scan_qr_codes');
 };
 
+export const canPerformInspection = (userRole) => {
+  return canPerformAction(userRole, 'perform_inspection');
+};
+
 export const getDashboardPath = (role) => {
   switch (role) {
     case 'superadmin':

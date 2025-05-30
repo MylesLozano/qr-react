@@ -18,4 +18,5 @@ export const ACTION_PERMISSIONS = {
   view_requests: ['user', 'admin', 'superadmin'],
   generate_qr_codes: ['admin', 'superadmin'],
   scan_qr_codes: ['user', 'admin', 'superadmin'],
+  perform_inspection: ['admin', 'superadmin'],
 };

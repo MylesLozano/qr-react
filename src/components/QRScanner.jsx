@@ -232,7 +232,7 @@ function QRScanner({ isInDashboard = false }) {
             >
               Scan Another
             </Button>
-            {scanResult && scanResult.includes("Item ID:") && (
+            {scanResult && scanResult.includes('Item ID:') && (
               <Button
                 onClick={() => {
                   const itemId = scanResult.match(/Item ID: ([^(]+)/)?.[1]?.trim();
@@ -298,11 +298,11 @@ function QRScanner({ isInDashboard = false }) {
                 onError={handleScanError}
                 scanDelay={100}
                 constraints={{
-                  facingMode: "environment" // Use the back camera when available
+                  facingMode: 'environment' // Use the back camera when available
                 }}
                 styles={{
-                  container: { borderRadius: "0.5rem" },
-                  video: { borderRadius: "0.5rem" }
+                  container: { borderRadius: '0.5rem' },
+                  video: { borderRadius: '0.5rem' }
                 }}
               />
             </div>

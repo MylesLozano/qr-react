@@ -87,11 +87,11 @@ function MyRequests({ isInDashboard = false }) {  usePageTitle('QCheckCITE - My 
             
             toast.info(`Preparing request for ${decodeURIComponent(itemName)}`);
           } else {
-            toast.error("Item not found in inventory");
+            toast.error('Item not found in inventory');
           }
         } catch (error) {
-          console.error("Error processing item from URL:", error);
-          toast.error("Could not load item information");
+          console.error('Error processing item from URL:', error);
+          toast.error('Could not load item information');
         }
       }
     };

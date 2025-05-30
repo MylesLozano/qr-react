@@ -3,8 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { useTheme } from '../../../hooks/useTheme';
+import { useAuth } from '../../../hooks/useAuth';
+import { canPerformInspection } from '../../../utils/roleUtils';
 import LoadingSpinner from '../../LoadingSpinner';
 import Button from '../../Button';
+import InspectionForm from './InspectionForm';
+import InspectionHistory from './InspectionHistory';
 import { toast } from 'react-toastify';
 
 /**
@@ -17,10 +21,14 @@ import { toast } from 'react-toastify';
 function ItemDetails() {
   const { itemId } = useParams();
   const { isDarkMode } = useTheme();
+  const { role } = useAuth();
   const navigate = useNavigate();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showInspectionForm, setShowInspectionForm] = useState(false);
+  const [showInspectionHistory, setShowInspectionHistory] = useState(false);
+  const canInspect = canPerformInspection(role);
 
   // Fetch item details on component mount
   useEffect(() => {
@@ -73,13 +81,13 @@ function ItemDetails() {
   const handleRequestItem = () => {
     // Make sure we have an item
     if (!item || !item.id) {
-      toast.error("Cannot request item: Item information is incomplete");
+      toast.error('Cannot request item: Item information is incomplete');
       return;
     }
     
     // Check if item is available to request based on quantity
     if (item.quantity <= 0) {
-      toast.warning("This item is currently out of stock");
+      toast.warning('This item is currently out of stock');
       return;
     }
     
@@ -87,7 +95,7 @@ function ItemDetails() {
     navigate(`/my-requests?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`);
     
     // Show confirmation message
-    toast.info("Redirecting to request form...");
+    toast.info('Redirecting to request form...');
   };
 
   // Show loading state
@@ -261,9 +269,7 @@ function ItemDetails() {
             <h3 className="text-lg font-semibold mb-4 border-b pb-2">Additional Notes</h3>
             <p className="whitespace-pre-line">{item.remarks}</p>
           </div>
-        )}
-
-        {/* Actions */}
+        )}        {/* Actions */}
         <div className="flex flex-wrap gap-4 mt-8">
           <Button onClick={viewInventory} color="blue">
             View All Inventory
@@ -275,11 +281,82 @@ function ItemDetails() {
             onClick={handleRequestItem} 
             color="purple"
             disabled={item.quantity <= 0}
-            title={item.quantity <= 0 ? "Item out of stock" : "Request this item"}
+            title={item.quantity <= 0 ? 'Item out of stock' : 'Request this item'}
           >
-            Request This Item {item.quantity <= 0 && "(Out of Stock)"}
-          </Button>
+            Request This Item {item.quantity <= 0 && '(Out of Stock)'}
+          </Button>          {canInspect && (
+            <Button
+              onClick={() => setShowInspectionForm(!showInspectionForm)}
+              color="orange"
+              title="Perform item inspection and file a report"
+              className="transition-colors duration-200 flex items-center gap-1"
+            >
+              {showInspectionForm ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  Hide Inspection Form
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Perform Inspection
+                </>
+              )}
+            </Button>
+          )}
         </div>
+          {/* Inspection Form for Admins and Superadmins */}
+        {canInspect && showInspectionForm && (
+          <InspectionForm 
+            item={item} 
+            isDarkMode={isDarkMode} 
+            onCancel={() => setShowInspectionForm(false)}
+          />
+        )}
+          {/* Button to toggle inspection history */}
+        {canInspect && (
+          <div className="mt-6 mb-2">
+            <Button
+              onClick={() => setShowInspectionHistory(!showInspectionHistory)}
+              color={showInspectionHistory ? 'blue' : 'gray'}
+              size="md"
+              className={`flex items-center py-2 px-3 shadow-sm transition-all duration-200 ${
+                isDarkMode 
+                  ? showInspectionHistory ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600' 
+                  : showInspectionHistory ? 'bg-blue-500' : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`mr-2 h-5 w-5 transition-all duration-200 ${showInspectionHistory ? 'text-white' : ''}`}
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              {showInspectionHistory ? 'Hide' : 'Show'} Inspection History
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`ml-2 h-5 w-5 transition-transform duration-200 ${showInspectionHistory ? 'rotate-180' : ''}`}
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </Button>
+          </div>
+        )}
+        
+        {/* Show inspection history for admins and superadmins */}
+        {canInspect && showInspectionHistory && (
+          <InspectionHistory itemId={item.id} isDarkMode={isDarkMode} />
+        )}
       </div>
     </div>
   );
