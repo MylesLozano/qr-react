@@ -1,21 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner'; // Changed back to Scanner which is the correct export
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { useTheme } from '../hooks/useTheme';
-// InspectionForm uses useAuth internally, so we don't need to pass user from here
-import { canScanQR, canPerformInspection } from '../utils/roleUtils'; // Added canPerformInspection
+import { canScanQR, canPerformInspection } from '../utils/roleUtils'; 
 import { parseQrScanResult, getQrErrorMessage } from '../utils/qrUtils';
 import { toast } from 'react-toastify';
 import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
-import InspectionForm from './inventory/details/InspectionForm'; // Import the InspectionForm
-import { doc, getDoc } from 'firebase/firestore'; // For fetching item data
-import { db } from '../firebase'; // Import firebase db
+import InspectionForm from './inventory/details/InspectionForm';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
-function QRScanner({ isInDashboard = false, role }) { // Added role to props
+function QRScanner({ isInDashboard = false, role }) {
   const { isDarkMode } = useTheme();
-  // Removed unused auth user import
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
@@ -25,12 +23,12 @@ function QRScanner({ isInDashboard = false, role }) { // Added role to props
   const [uploadedFile, setUploadedFile] = useState(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [itemData, setItemData] = useState(null); // Store fetched item data
-  const [isLoadingItem, setIsLoadingItem] = useState(false); // Loading state for item data
+  const [itemData, setItemData] = useState(null);
+  const [isLoadingItem, setIsLoadingItem] = useState(false);
   const scannerRef = useRef(null);
   const videoStreamRef = useRef(null);
-  const canScan = canScanQR(role); // Use the passed role
-  const canInspect = canPerformInspection(role); // Check if user can perform inspections
+  const canScan = canScanQR(role); 
+  const canInspect = canPerformInspection(role);
 
   // Detect if user is on a mobile device
   useEffect(() => {
@@ -56,7 +54,7 @@ function QRScanner({ isInDashboard = false, role }) { // Added role to props
 
     return () => clearTimeout(timer);
   }, []);
-    // Pre-initialize camera permissions at component mount
+  // Pre-initialize camera permissions at component mount
   useEffect(() => {
     if (!canScan) {
       setError('You do not have permission to scan QR codes. Please contact your administrator.');
@@ -66,6 +64,22 @@ function QRScanner({ isInDashboard = false, role }) { // Added role to props
     let mounted = true;
     
     const initializeCamera = async () => {
+      // For desktop users, we should check if camera is available even before scanning starts
+      if (!isMobile && !scanning && !cameraReady) {
+        // Just check if camera is available, don't fully initialize yet
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          if (mounted) {
+            setCameraReady(true);
+          }
+          return; // Don't fully initialize until user clicks scan
+        } catch (err) {
+          console.warn('Camera pre-check failed:', err);
+          // Don't show error yet, wait until user attempts to scan
+          return;
+        }
+      }
+      
       // Don't initialize camera yet if we're not actively scanning to save resources
       if (!scanning) {
         return;
@@ -168,8 +182,7 @@ function QRScanner({ isInDashboard = false, role }) { // Added role to props
     return () => {
       mounted = false;
       clearTimeout(initTimer);
-    };
-  }, [canScan, scanning, isMobile]);
+    };  }, [canScan, scanning, isMobile, cameraReady]);
   
   const handleScanError = useCallback((err) => {
     console.error('QR Scan Error:', err);
@@ -341,67 +354,101 @@ function QRScanner({ isInDashboard = false, role }) { // Added role to props
       setScanning(false);
     }
   }, [navigateToItem]);
-
   const startScanning = useCallback(() => {
     setScanning(true);
     setError(null);
     setScanResult(null);
     
-    // Camera initialization is handled by the useEffect that watches scanning state
-    // This ensures the camera is properly initialized when scanning starts
-    
     // Add a runtime check to help with debugging
     console.info(`Starting QR scanner. Device: ${isMobile ? 'Mobile' : 'Desktop'}, Camera ready: ${cameraReady}`);
     
-    // For iOS devices especially, we need to actively click to access camera
-    if (isMobile) {
-      const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    // Explicitly initialize camera for both desktop and mobile
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      // Define constraints based on device type
+      const constraints = {
+        video: isMobile
+          ? {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 15, max: 30 },
+              aspectRatio: { ideal: 1.777 }
+            }
+          : {
+              width: { min: 640, ideal: 1280, max: 1920 },
+              height: { min: 480, ideal: 720, max: 1080 },
+              facingMode: 'user'
+            }
+      };
       
-      if (isiOS) {
-        // For iOS, we need a user interaction to properly trigger camera access
-        console.info('iOS device detected, ensuring camera access is requested properly');
+      // For iOS devices especially, we need to handle them differently
+      if (isMobile) {
+        const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         
-        // Wait a moment then initialize camera explicitly
-        setTimeout(() => {
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ 
-              video: {
-                facingMode: { exact: 'environment' } // Force back camera on iOS
-              }
-            })
-            .then(stream => {
-              setCameraReady(true);
-              videoStreamRef.current = stream;
-              
-              // Manually attaching to video element as a fallback
+        if (isiOS) {
+          console.info('iOS device detected, ensuring camera access is requested properly');
+          
+          // Use simpler constraints for iOS to avoid issues
+          navigator.mediaDevices.getUserMedia({ 
+            video: {
+              facingMode: { exact: 'environment' } // Force back camera on iOS
+            }
+          })
+          .then(stream => {
+            setCameraReady(true);
+            videoStreamRef.current = stream;
+            
+            // Manually attaching to video element as a fallback
+            const videoElement = document.getElementById('qr-scanner-video');
+            if (videoElement) {
               try {
-                const videoElement = document.getElementById('qr-scanner-video');
-                if (videoElement) {
-                  videoElement.srcObject = stream;
-                  videoElement.play().catch(err => console.error('Error playing video:', err));
-                }
+                videoElement.srcObject = stream;
+                videoElement.play().catch(err => console.error('Error playing video:', err));
               } catch (err) {
                 console.error('Error manually setting up video stream:', err);
               }
-            })
-            .catch(err => {
-              console.error('iOS camera initialization error:', err);
-                // For iOS, try again with simpler constraints
-              navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                  setCameraReady(true);
-                  videoStreamRef.current = stream;
-                })
-                .catch(() => {
-                  setError('Could not access camera. Please check permissions in your browser settings.');
-                  setScanning(false);
-                });
-            });
-          }
-        }, 300);
+            }
+          })
+          .catch(err => {
+            console.error('iOS camera initialization error:', err);
+            // For iOS, try again with simpler constraints
+            navigator.mediaDevices.getUserMedia({ video: true })
+              .then(stream => {
+                setCameraReady(true);
+                videoStreamRef.current = stream;
+              })
+              .catch(() => {
+                setError('Could not access camera. Please check permissions in your browser settings.');
+                setScanning(false);
+              });
+          });
+          return;
+        }
       }
+      
+      // For non-iOS devices (including desktop)
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+          console.info('Camera initialized successfully');
+          setCameraReady(true);
+          videoStreamRef.current = stream;
+        })
+        .catch(err => {
+          console.error('Camera initialization error:', err);
+          if (err.name === 'NotAllowedError') {
+            setError('Camera access denied. Please allow camera access in your browser settings.');
+          } else if (err.name === 'NotFoundError') {
+            setError('No camera detected. Please ensure your device has a working camera.');
+          } else {
+            setError(`Camera error: ${err.message || 'Unknown error accessing camera'}`);
+          }
+          setScanning(false);
+        });
+    } else {
+      setError('Camera access is not supported in this browser.');
+      setScanning(false);
     }
-  }, [cameraReady, isMobile]);
+  }, [isMobile]);
   
   const handleBack = useCallback(() => {
     if (isInDashboard) {
@@ -504,16 +551,14 @@ function QRScanner({ isInDashboard = false, role }) { // Added role to props
         <div className="w-full max-w-md p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
           <span className="font-medium">Scan Result:</span> {scanResult}
         </div>
-      )}
-
-      {/* Scanner Component or Start Button */}
-      {!scanning && !scanResult && cameraReady && ( // Only show start if camera is ready
+      )}      {/* Scanner Component or Start Button */}
+      {!scanning && !scanResult && ( // Show start button regardless of camera ready state
         <Button 
           onClick={startScanning} 
-          disabled={!canScan || !cameraReady} // Disable if no permission or camera not ready
+          disabled={!canScan} // Only disable if no permission
           className="mb-4"
         >
-          {cameraReady ? 'Start Camera Scan' : 'Initializing Camera...'}
+          {cameraReady ? 'Start Camera Scan' : 'Initialize Camera'}
         </Button>
       )}
       
