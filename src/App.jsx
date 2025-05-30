@@ -16,6 +16,7 @@ import { NotificationProvider } from './context/NotificationContext';
 // Feature-specific components
 const Inventory = lazy(() => import('./dashboard/Inventory'));
 const UnifiedReporting = lazy(() => import('./dashboard/UnifiedReporting'));
+const ItemDetails = lazy(() => import('./components/inventory/details/ItemDetails'));
 
 // Admin-specific components
 const AdminDashboard = lazy(() => import('./dashboard/admin/AdminDashboard'));
@@ -249,10 +250,22 @@ function App() {
               path="/scan-qr"
               element={
                 <ProtectedRoute requiredRole="user" requiredAction="view_inventory">
-                  <QRScanner />{' '}
+                  <QRScanner />
                 </ProtectedRoute>
               }
-            />            <Route
+            />            
+            
+            {/* Inventory Item Details route - for QR code navigation */}
+            <Route
+              path="/inventory/item/:itemId"
+              element={
+                <ProtectedRoute requiredRole="user" requiredAction="view_inventory">
+                  <ItemDetails />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/my-requests"
               element={
                 <ProtectedRoute requiredRole="user" requiredAction="view_requests">

@@ -9,6 +9,7 @@ import {
   addDoc,
   serverTimestamp,
   getCountFromServer,
+  getDoc,
 } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -19,12 +20,12 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import EmptyState from '../../components/EmptyState';
 import { format } from 'date-fns';
 import Button from '../../components/Button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-function MyRequests({ isInDashboard = false }) {
-  usePageTitle('QCheckCITE - My Requests');
+function MyRequests({ isInDashboard = false }) {  usePageTitle('QCheckCITE - My Requests');
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // State for component
   const [requests, setRequests] = useState([]);
@@ -47,9 +48,56 @@ function MyRequests({ isInDashboard = false }) {
   const [totalRequestsCount, setTotalRequestsCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(true);
-
   // Memoize the current user
   const currentUser = useMemo(() => auth.currentUser, []);
+
+  // Process URL query parameters if they exist
+  useEffect(() => {
+    const processQueryParams = async () => {
+      // Get query parameters from the URL
+      const params = new URLSearchParams(location.search);
+      const itemId = params.get('itemId');
+      const itemName = params.get('itemName');
+      
+      if (itemId && itemName) {
+        try {
+          // Fetch the item to get additional details
+          const itemRef = doc(db, 'inventory', itemId);
+          const itemDoc = await getDoc(itemRef);
+          
+          if (itemDoc.exists()) {
+            const itemData = {
+              id: itemId,
+              name: decodeURIComponent(itemName),
+              ...itemDoc.data()
+            };
+            
+            // Set form data with retrieved item
+            setFormData({
+              itemId: itemId,
+              itemName: decodeURIComponent(itemName),
+              quantity: 1,
+              reason: '',
+              usageLocation: itemData.lab || '',
+            });
+            
+            // Set selected item and show the form
+            setSelectedItem(itemData);
+            setShowForm(true);
+            
+            toast.info(`Preparing request for ${decodeURIComponent(itemName)}`);
+          } else {
+            toast.error("Item not found in inventory");
+          }
+        } catch (error) {
+          console.error("Error processing item from URL:", error);
+          toast.error("Could not load item information");
+        }
+      }
+    };
+    
+    processQueryParams();
+  }, [location.search]);
 
   // Consolidated useEffect for fetching counts and requests
   useEffect(() => {

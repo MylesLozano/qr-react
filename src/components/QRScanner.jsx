@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { Scanner } from '@yudiel/react-qr-scanner'; // Changed back to Scanner which is the correct export
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
@@ -10,11 +10,13 @@ import Button from './Button';
 import LoadingSpinner from './LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 
-function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme();
+function QRScanner({ isInDashboard = false }) {
+  const { isDarkMode } = useTheme();
   const { /* user, */ role } = useAuth();
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState(null);  const [scanResult, setScanResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [scanResult, setScanResult] = useState(null);
   /* Commenting out unused state, but kept for future implementation */
   // const [parsedResult, setParsedResult] = useState(null);
   const [loadingComponent, setLoadingComponent] = useState(true);
@@ -29,6 +31,7 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
 
     return () => clearTimeout(timer);
   }, []);
+  
   // Make sure we have permissions
   useEffect(() => {
     if (!canScan) {
@@ -48,7 +51,8 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
         });
     } else {
       setError('Camera access is not supported in this browser.');
-    }  }, [canScan]);
+    }
+  }, [canScan]);
   
   const handleScanError = useCallback((err) => {
     console.error('QR Scan Error:', err);
@@ -57,60 +61,64 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
     setScanning(false);
     toast.error(errorMsg);
   }, []);
-    // Add a function to navigate to the item details if needed
-  /* Commenting out unused function but kept for future implementation
-  const handleItemNavigation = useCallback((itemId) => {
-    if (itemId && window.confirm(`Item ${itemId} found. View details?`)) {
-      navigate(`/inventory/item/${itemId}`);
-    }
-  }, [navigate]);
-  */
-    const handleScanResult = useCallback(    async (result) => {
-      try {
-        setScanning(false);
-        
-        // Parse the scan result using our utility function
-        const parsedData = parseQrScanResult(result);
-        // Commented out due to ESLint warning about unused variable
-        // setParsedResult(parsedData);
-        
-        if (parsedData.valid) {
-          // Set scan result based on the type of QR code detected
-          if (parsedData.type === 'qrstring') {
-            setScanResult(`Item ID: ${parsedData.itemId} (${parsedData.raw})`);
-            toast.success('QR code scanned successfully!');
-            
-            // Uncomment to add navigation to item details
-            // setTimeout(() => {
-            //   if (window.confirm(`Item ${parsedData.itemId} found. View details?`)) {
-            //     navigate(`/inventory/item/${parsedData.itemId}`);
-            //   }
-            // }, 500);
-          } else if (parsedData.type === 'legacy-json') {
-            setScanResult(`Item ID: ${parsedData.itemId} (Legacy QR)`);
-            toast.success('Legacy QR code scanned successfully!');
-          }
-        } else {          // Display appropriate error message for invalid QR formats
-          setScanResult(`Unrecognized format: ${parsedData.raw.substring(0, 50)}${parsedData.raw.length > 50 ? '...' : ''}`);
-          toast.warning(parsedData.error || 'QR code scanned, but not in expected format.');
-        }
-      } catch (err) {
-        handleScanError(err);
-      }
-    },
-    [handleScanError]
-  );
-  // Add a function to navigate to the item details if needed
-  /* Commenting out unused function but kept for future implementation
+  
+  // Navigate to item details
   const navigateToItem = useCallback((itemId) => {
-    if (itemId && confirm('Do you want to view details for this item?')) {
+    if (itemId) {
       navigate(`/inventory/item/${itemId}`);
     }
   }, [navigate]);
-  */
+  
+  const handleScanResult = useCallback(async (detectedCodes) => {
+    try {
+      setScanning(false);
+      
+      // The latest @yudiel/react-qr-scanner version returns an array of detected barcodes
+      // We'll use the first detected code's rawValue
+      if (!detectedCodes || detectedCodes.length === 0) {
+        return;
+      }
+      
+      const scannedText = detectedCodes[0].rawValue;
+      
+      // Parse the scan result using our utility function
+      const parsedData = parseQrScanResult(scannedText);
+      
+      if (parsedData.valid) {
+        // Set scan result based on the type of QR code detected
+        if (parsedData.type === 'qrstring') {
+          setScanResult(`Item ID: ${parsedData.itemId} (${parsedData.raw})`);
+          toast.success('QR code scanned successfully!');
+          
+          // Prompt user to view item details after a brief delay
+          setTimeout(() => {
+            if (window.confirm(`Item ${parsedData.itemId} found. View details?`)) {
+              navigateToItem(parsedData.itemId);
+            }
+          }, 800);
+        } else if (parsedData.type === 'legacy-json') {
+          setScanResult(`Item ID: ${parsedData.itemId} (Legacy QR)`);
+          toast.success('Legacy QR code scanned successfully!');
+          
+          // Prompt user to view item details after a brief delay
+          setTimeout(() => {
+            if (window.confirm(`Legacy Item ${parsedData.itemId} found. View details?`)) {
+              navigateToItem(parsedData.itemId);
+            }
+          }, 800);
+        }
+      } else {
+        // Display appropriate error message for invalid QR formats
+        setScanResult(`Unrecognized format: ${parsedData.raw.substring(0, 50)}${parsedData.raw.length > 50 ? '...' : ''}`);
+        toast.warning(parsedData.error || 'QR code scanned, but not in expected format.');
+      }
+    } catch (err) {
+      handleScanError(err);
+    }
+  }, [handleScanError, navigateToItem]);
 
   // Handle file uploads for QR code scanning
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedFile(URL.createObjectURL(file)); // Save for preview
@@ -128,19 +136,32 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
 
       const reader = new BrowserQRCodeReader();
       const result = await reader.decodeFromImageElement(canvas);
-        if (result?.text) {
+      
+      if (result?.text) {
         // Use the same parsing utility we use for camera scanning
         const parsedData = parseQrScanResult(result.text);
-        // Commented out due to ESLint warning about unused variable
-        // setParsedResult(parsedData);
         
         if (parsedData.valid) {
           if (parsedData.type === 'qrstring') {
             setScanResult(`Item ID: ${parsedData.itemId} (${parsedData.raw})`);
             toast.success('QR code decoded from image!');
+            
+            // Prompt user to view item details after a brief delay
+            setTimeout(() => {
+              if (window.confirm(`Item ${parsedData.itemId} found. View details?`)) {
+                navigateToItem(parsedData.itemId);
+              }
+            }, 800);
           } else if (parsedData.type === 'legacy-json') {
             setScanResult(`Item ID: ${parsedData.itemId} (Legacy QR)`);
             toast.success('Legacy QR code decoded from image!');
+            
+            // Prompt user to view item details after a brief delay
+            setTimeout(() => {
+              if (window.confirm(`Legacy Item ${parsedData.itemId} found. View details?`)) {
+                navigateToItem(parsedData.itemId);
+              }
+            }, 800);
           }
         } else {
           setScanResult(`Unrecognized format: ${parsedData.raw.substring(0, 50)}${parsedData.raw.length > 50 ? '...' : ''}`);
@@ -155,13 +176,14 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
     } finally {
       setScanning(false);
     }
-  };
+  }, [navigateToItem]);
 
   const startScanning = useCallback(() => {
     setScanning(true);
     setError(null);
     setScanResult(null);
   }, []);
+  
   const handleBack = useCallback(() => {
     if (isInDashboard) {
       navigate('/user-dashboard', { replace: true });
@@ -202,15 +224,29 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
 
       {scanResult ? (
         <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
-          <p>Scanned Result: {scanResult}</p>
-          <Button
-            onClick={startScanning}
-            color="blue"
-            className="mt-4"
-            aria-label="Scan another QR code"
-          >
-            Scan Another
-          </Button>
+          <p>Scanned Result: {scanResult}</p>                <div className="flex flex-wrap gap-2 mt-4">
+            <Button
+              onClick={startScanning}
+              color="blue"
+              aria-label="Scan another QR code"
+            >
+              Scan Another
+            </Button>
+            {scanResult && scanResult.includes("Item ID:") && (
+              <Button
+                onClick={() => {
+                  const itemId = scanResult.match(/Item ID: ([^(]+)/)?.[1]?.trim();
+                  if (itemId) {
+                    navigateToItem(itemId);
+                  }
+                }}
+                color="green"
+                aria-label="View item details"
+              >
+                View Item Details
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
         <div>
@@ -258,13 +294,16 @@ function QRScanner({ isInDashboard = false }) {  const { isDarkMode } = useTheme
                 </div>
               )}
               <Scanner
-                onResult={handleScanResult}
+                onScan={handleScanResult}
                 onError={handleScanError}
-                options={{
-                  delayBetweenScanAttempts: 100,
-                  delayBetweenScanSuccess: 500,
+                scanDelay={100}
+                constraints={{
+                  facingMode: "environment" // Use the back camera when available
                 }}
-                className="rounded-lg"
+                styles={{
+                  container: { borderRadius: "0.5rem" },
+                  video: { borderRadius: "0.5rem" }
+                }}
               />
             </div>
           )}

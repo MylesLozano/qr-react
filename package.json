@@ -15,7 +15,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
     "@tailwindcss/vite": "^4.0.15",
-    "@yudiel/react-qr-scanner": "^2.2.1",
+    "@yudiel/react-qr-scanner": "^2.3.1",
     "@zxing/browser": "^0.1.5",
     "chart.js": "^4.4.9",
     "date-fns": "^4.1.0",
