@@ -160,15 +160,13 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
           <LoadingSpinner fullScreen />
         </div>
       );
-    }
-
-    // If the user is logged in and has all necessary role and action permissions,
+    }    // If the user is logged in and has all necessary role and action permissions,
     // render the protected content.
     return (
       <ErrorBoundary>
         {' '}
         {/* Wrap children with ErrorBoundary for error handling within protected routes */}
-        {children} {/* Render the component(s) for the matched protected route */}
+        {typeof children === 'function' ? children({ user, role }) : children} {/* If children is a function, pass auth context */}
       </ErrorBoundary>
     );
   }

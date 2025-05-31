@@ -245,15 +245,14 @@ function App() {
               }
             />
 
-            {/* Direct access routes for common user actions */}
-            <Route
+            {/* Direct access routes for common user actions */}            <Route
               path="/scan-qr"
               element={
                 <ProtectedRoute requiredRole="user" requiredAction="view_inventory">
-                  <QRScanner />
+                  {auth => <QRScanner role={auth.role} />}
                 </ProtectedRoute>
               }
-            />            
+            />
             
             {/* Inventory Item Details route - for QR code navigation */}
             <Route

@@ -12,6 +12,7 @@ import QRScanner from '../../components/QRScanner';
 import Inventory from '../Inventory';
 import MyRequests from './MyRequests';
 import BaseDashboard from '../BaseDashboard';
+import { useAuth } from '../../hooks/useAuth';
 
 /**
  * UserDashboard component - Main dashboard for regular users
@@ -21,6 +22,7 @@ import BaseDashboard from '../BaseDashboard';
 function UserDashboard() {
   usePageTitle('QCheckCITE - User Dashboard');
   const { isDarkMode } = useTheme();
+  const { role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [inventoryCount, setInventoryCount] = useState(0);
@@ -268,9 +270,8 @@ function UserDashboard() {
         {/* Main Content */}
         <Routes>
           <Route path="/" element={renderDashboard()} />
-          <Route path="inventory" element={<Inventory isInDashboard={true} />} />
-          <Route path="my-requests" element={<MyRequests isInDashboard={true} />} />
-          <Route path="scan" element={<QRScanner isInDashboard={true} />} />
+          <Route path="inventory" element={<Inventory isInDashboard={true} />} />          <Route path="my-requests" element={<MyRequests isInDashboard={true} />} />
+          <Route path="scan" element={<QRScanner isInDashboard={true} role={role} />} />
           <Route path="*" element={<Navigate to="/user-dashboard" replace />} />
         </Routes>
       </ErrorBoundary>
