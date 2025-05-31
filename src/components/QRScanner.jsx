@@ -448,7 +448,7 @@ function QRScanner({ isInDashboard = false, role }) {
       setError('Camera access is not supported in this browser.');
       setScanning(false);
     }
-  }, [isMobile]);
+  }, [isMobile, cameraReady]);
   
   const handleBack = useCallback(() => {
     if (isInDashboard) {
