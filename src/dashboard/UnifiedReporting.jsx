@@ -90,6 +90,7 @@ function UnifiedReporting() {
     exportingLogs: false, // Exporting audit logs to CSV
     loadingMoreLogs: false, // Loading more audit logs
     fetchingSpecificLogs: false, // Fetching specific log types (sign-out logs)
+    fetchingInspectionReports: false, // Fetching inspection reports
   });
 
   // Helper function to update loading states
@@ -102,7 +103,16 @@ function UnifiedReporting() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterLab, setFilterLab] = useState('all');
   const [reportData, setReportData] = useState([]);
-  const [availableReports, setAvailableReports] = useState([]); // === AUDIT LOGS STATE ===
+  const [availableReports, setAvailableReports] = useState([]);
+
+  // === INSPECTION REPORTS STATE ===
+  const [inspectionReports, setInspectionReports] = useState([]);
+  const [filterInspectionText, setFilterInspectionText] = useState('');
+  const [selectedInspectionReport, setSelectedInspectionReport] = useState(null);
+  const [isInspectionDetailModalOpen, setIsInspectionDetailModalOpen] = useState(false);
+
+
+  // === AUDIT LOGS STATE ===
   const [logs, setLogs] = useState([]);
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
@@ -126,6 +136,7 @@ function UnifiedReporting() {
       { value: 'requests', label: 'Request Report' },
       { value: 'users', label: 'User Report' },
       { value: 'audit', label: 'Audit Log Report' },
+      { value: 'inspection', label: 'Inspection Report' }, // Added Inspection Report Type
     ],
     []
   );
@@ -220,6 +231,37 @@ function UnifiedReporting() {
     return () => unsubscribe && unsubscribe();
   }, [user, activeTab, updateLoadingState]);
 
+  // === INSPECTION REPORTS EFFECT: load inspection reports ===
+  useEffect(() => {
+    if (!user || activeTab !== 'inspectionReports') return;
+    
+    const fetchInspectionReportsData = async () => {
+      updateLoadingState('fetchingInspectionReports', true);
+      setError(null);
+      try {
+        const q = query(
+          collection(db, 'inspectionReports'),
+          orderBy('timestamp', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        const reports = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setInspectionReports(reports);
+      } catch (err) {
+        console.error('Error fetching inspection reports:', err);
+        toast.error('Failed to load inspection reports');
+        setError('Failed to load inspection reports');
+      } finally {
+        updateLoadingState('fetchingInspectionReports', false);
+        updateLoadingState('initialLoad', false); // Assuming this tab might be the first one loaded
+      }
+    };
+
+    fetchInspectionReportsData();
+  }, [user, activeTab, updateLoadingState]);
+
   // === VALIDATION ===
   const validateReportParams = useCallback(() => {
     if (dateRange.start && dateRange.end && new Date(dateRange.start) > new Date(dateRange.end)) {
@@ -250,6 +292,9 @@ function UnifiedReporting() {
       } else if (reportType === 'inventory') {
         collectionName = 'inventory';
         // dateFieldName = 'createdAt'; // Assuming inventory uses createdAt
+      } else if (reportType === 'inspection') {
+        collectionName = 'inspectionReports';
+        dateFieldName = 'timestamp'; 
       }
 
       let q = query(collection(db, collectionName));
@@ -393,6 +438,32 @@ function UnifiedReporting() {
     user,
     updateLoadingState,
   ]);
+
+  // === INSPECTION REPORTS HANDLERS ===
+  const openInspectionReportDetail = useCallback((report) => {
+    setSelectedInspectionReport(report);
+    setIsInspectionDetailModalOpen(true);
+  }, []);
+
+  const closeInspectionReportDetail = useCallback(() => {
+    setSelectedInspectionReport(null);
+    setIsInspectionDetailModalOpen(false);
+  }, []);
+
+  const filteredInspectionReports = useMemo(() => {
+    return inspectionReports.filter(report => {
+      const searchText = filterInspectionText.toLowerCase();
+      return (
+        (report.itemName?.toLowerCase().includes(searchText)) ||
+        (report.lab?.toLowerCase().includes(searchText)) ||
+        (report.category?.toLowerCase().includes(searchText)) ||
+        (report.serialNumber?.toLowerCase().includes(searchText)) ||
+        (report.inspectorName?.toLowerCase().includes(searchText)) ||
+        (report.inspectorEmail?.toLowerCase().includes(searchText))
+      );
+    });
+  }, [inspectionReports, filterInspectionText]);
+
 
   // === AUDIT LOGS HANDLERS ===
   const safeToString = useCallback(
@@ -579,6 +650,14 @@ function UnifiedReporting() {
                 label="Reports"
                 isActive={activeTab === 'reports'}
                 onClick={() => setActiveTab('reports')}
+              />
+            </li>
+            <li className="mr-2">
+              <Tab
+                label="Inspection Reports"
+                isActive={activeTab === 'inspectionReports'}
+                onClick={() => setActiveTab('inspectionReports')}
+                disabled={!canGenerateReports} // Adjust permission check as needed
               />
             </li>
             <li>
@@ -787,12 +866,207 @@ function UnifiedReporting() {
           </>
         )}
 
+        {/* Inspection Reports Tab */}
+        {activeTab === 'inspectionReports' && canGenerateReports && ( // Adjust permission check
+          <>
+            <div className={`p-4 rounded mb-6 shadow ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h2 className="text-lg font-semibold mb-4">Equipment Inspection Reports</h2>
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search inspection reports..."
+                  value={filterInspectionText}
+                  onChange={(e) => setFilterInspectionText(e.target.value)}
+                  className={`w-full p-2 rounded-lg border ${isDarkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500' 
+                    : 'bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                />
+              </div>
+
+              {loadingStates.fetchingInspectionReports ? (
+                <LoadingSpinner text="Loading inspection reports..." />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className={`w-full table-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}>
+                      <tr>
+                        <th className="px-4 py-2 text-left">Item Name</th>
+                        <th className="px-4 py-2 text-left">Lab/Location</th>
+                        <th className="px-4 py-2 text-left">Inspector</th>
+                        <th className="px-4 py-2 text-left">Date</th>
+                        <th className="px-4 py-2 text-left">Status</th>
+                        <th className="px-4 py-2 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInspectionReports.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center">
+                            No inspection reports found {filterInspectionText && 'matching your search'}.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredInspectionReports.map(report => {
+                          // Calculate status for each report
+                          const inspectionItems = report.inspectionResults || {};
+                          
+                          const checkableKeys = Object.keys(inspectionItems).filter(key => 
+                            key !== 'notes' && typeof inspectionItems[key] === 'boolean'
+                          );
+                          
+                          const totalCheckableItems = checkableKeys.length;
+                          const checkedItems = checkableKeys.filter(key => inspectionItems[key] === true).length;
+
+                          let reportDisplayStatus;
+                          if (totalCheckableItems === 0) {
+                            reportDisplayStatus = 'Failed';
+                          } else {
+                            const passRate = checkedItems / totalCheckableItems;
+                            if (passRate >= 0.75) {
+                              reportDisplayStatus = 'Passed';
+                            } else if (passRate >= 0.5) {
+                              reportDisplayStatus = 'Conditional';
+                            } else {
+                              reportDisplayStatus = 'Failed';
+                            }
+                          }
+
+                          return (
+                            <tr key={report.id} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-200 hover:bg-gray-50'}`}>
+                              <td className="px-4 py-2 whitespace-nowrap">{report.itemName || 'Unknown Item'}</td>
+                              <td className="px-4 py-2 whitespace-nowrap">{report.lab || 'N/A'}</td>
+                              <td className="px-4 py-2 whitespace-nowrap">{report.inspectorName || report.inspectorEmail}</td>
+                              <td className="px-4 py-2 whitespace-nowrap">
+                                {report.timestamp?.toDate ? new Date(report.timestamp.toDate()).toLocaleString() : 'Unknown Date'}
+                              </td>
+                              <td className="px-4 py-2 whitespace-nowrap">
+                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  reportDisplayStatus === 'Passed' ? (isDarkMode ? 'bg-green-700 text-green-100' : 'bg-green-100 text-green-800') :
+                                  reportDisplayStatus === 'Conditional' ? (isDarkMode ? 'bg-yellow-700 text-yellow-100' : 'bg-yellow-100 text-yellow-800') :
+                                  (isDarkMode ? 'bg-red-700 text-red-100' : 'bg-red-100 text-red-800')
+                                }`}>
+                                  {reportDisplayStatus}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-center whitespace-nowrap">
+                                <Button
+                                  size="sm"
+                                  variant="icon"
+                                  onClick={() => openInspectionReportDetail(report)}
+                                  className={`${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
+                                  title="View Report Details"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                  </svg>
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Inspection Report Detail Modal */}
+        {isInspectionDetailModalOpen && selectedInspectionReport && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out">
+            <div 
+              className={`relative w-full max-w-3xl rounded-lg shadow-xl p-6 transform transition-all duration-300 ease-in-out scale-100 ${
+                isDarkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'
+              }`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inspection-report-modal-title"
+            >
+              <Button
+                variant="icon"
+                onClick={closeInspectionReportDetail}
+                className={`absolute top-3 right-3 text-2xl ${
+                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                }`}
+                aria-label="Close modal"
+              >
+                &times;
+              </Button>
+              
+              <h3 id="inspection-report-modal-title" className={`text-2xl font-bold mb-6 border-b pb-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>Inspection Report Details</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
+                <div>
+                  <h4 className={`font-semibold text-lg mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Item Information</h4>
+                  <dl className="space-y-1">
+                    <div className="flex justify-between"><dt className="font-medium">Item Name:</dt><dd className="text-right">{selectedInspectionReport.itemName || 'N/A'}</dd></div>
+                    <div className="flex justify-between"><dt className="font-medium">Category:</dt><dd className="text-right">{selectedInspectionReport.category || 'N/A'}</dd></div>
+                    <div className="flex justify-between"><dt className="font-medium">Lab/Location:</dt><dd className="text-right">{selectedInspectionReport.lab || 'N/A'}</dd></div>
+                    <div className="flex justify-between"><dt className="font-medium">Serial Number:</dt><dd className="text-right">{selectedInspectionReport.serialNumber || 'N/A'}</dd></div>
+                    <div className="flex justify-between"><dt className="font-medium">Unit Number:</dt><dd className="text-right">{selectedInspectionReport.unitNumber || 'N/A'}</dd></div>
+                  </dl>
+                </div>
+                
+                <div>
+                  <h4 className={`font-semibold text-lg mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Inspection Details</h4>
+                  <dl className="space-y-1">
+                    <div className="flex justify-between"><dt className="font-medium">Inspector:</dt><dd className="text-right">{selectedInspectionReport.inspectorName || selectedInspectionReport.inspectorEmail || 'Unknown'}</dd></div>
+                    <div className="flex justify-between"><dt className="font-medium">Date:</dt><dd className="text-right">{selectedInspectionReport.timestamp?.toDate ? new Date(selectedInspectionReport.timestamp.toDate()).toLocaleString() : 'Unknown'}</dd></div>
+                    <div className="flex justify-between"><dt className="font-medium">Report ID:</dt><dd className="text-right truncate" title={selectedInspectionReport.id}>{selectedInspectionReport.id}</dd></div>
+                  </dl>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <h4 className={`font-semibold text-lg mb-3 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Inspection Checklist</h4>
+                <ul className="space-y-2 text-sm">
+                  {Object.entries(selectedInspectionReport.inspectionResults || {}).map(([key, value]) => {
+                    if (key === 'notes') return null; // Skip notes here, display separately
+                    const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()); // Format key to readable label
+                    const listItemClassName = `flex items-center p-2 rounded ${isDarkMode ? (value ? 'bg-green-800' : 'bg-red-800') : (value ? 'bg-green-50' : 'bg-red-50')}`;
+                    const spanIconClassName = `mr-2 text-lg ${value ? (isDarkMode ? 'text-green-300' : 'text-green-600') : (isDarkMode ? 'text-red-300' : 'text-red-600')}`;
+                    return (
+                      <li key={key} className={listItemClassName}>
+                        <span className={spanIconClassName}>
+                          {value ? '✓' : '✗'}
+                        </span>
+                        <span>{label}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              
+              {selectedInspectionReport.inspectionResults?.notes && (
+                <div className="mb-6">
+                  <h4 className={`font-semibold text-lg mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Additional Notes</h4>
+                  <div className={`p-3 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} text-sm`}>
+                    <p className="whitespace-pre-wrap">{selectedInspectionReport.inspectionResults.notes}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className={`flex justify-end pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                <Button
+                  onClick={closeInspectionReportDetail}
+                  color="gray"
+                  className="px-6 py-2"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Audit Logs Tab */}
         {activeTab === 'auditLogs' && canViewAuditLogs && (
           <>
             <div className="relative">
-              {' '}
-              {/* Filter Button */}
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
                   <Button
@@ -803,11 +1077,7 @@ function UnifiedReporting() {
                   >
                     <span className="flex items-center gap-2">
                       <span>Filters</span>
-                      <span
-                        className={`transform transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}
-                      >
-                        ▼
-                      </span>
+                      <span className={`transform transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}>▼</span>
                     </span>
                   </Button>
 
@@ -818,17 +1088,13 @@ function UnifiedReporting() {
                     </span>
                     <button
                       onClick={() => setCompactView(!compactView)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                        compactView ? 'bg-blue-600' : isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${compactView ? 'bg-blue-600' : isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
                       role="switch"
                       aria-checked={compactView}
                     >
                       <span
                         aria-hidden="true"
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          compactView ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${compactView ? 'translate-x-6' : 'translate-x-1'}`}
                       />
                     </button>
                   </div>
@@ -856,15 +1122,8 @@ function UnifiedReporting() {
                   </Button>
                 </div>
               </div>
-              {/* Filter Dropdown */}
               {isFilterOpen && (
-                <div
-                  className={`absolute z-10 mt-1 w-80 rounded-md shadow-lg ${
-                    isDarkMode
-                      ? 'bg-gray-800 border border-gray-700'
-                      : 'bg-white border border-gray-200'
-                  }`}
-                >
+                <div className={`absolute z-10 mt-1 w-80 rounded-md shadow-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
                   <div className="p-4 space-y-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">Action Type</label>
@@ -950,7 +1209,7 @@ function UnifiedReporting() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <div className={`flex justify-end gap-2 pt-2 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                       <Button
                         onClick={() => {
                           setFilters({ action: '', entityType: '' });
@@ -958,11 +1217,7 @@ function UnifiedReporting() {
                           setIsFilterOpen(false);
                           fetchLogs();
                         }}
-                        className={`px-4 py-2 rounded ${
-                          isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
+                        className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
                       >
                         Clear Filters
                       </Button>

@@ -42,9 +42,8 @@ function InspectionForm({ item, isDarkMode, onCancel }) {
   };
 
   const isFormValid = () => {
-    // Require at least 3 checkboxes to be checked for a valid inspection
-    const checkedCount = Object.values(checkboxes).filter(Boolean).length;
-    return checkedCount >= 3;
+    // Allow submission regardless of checkbox count
+    return true;
   };
 
   const handleSubmit = async (event) => {
@@ -58,17 +57,15 @@ function InspectionForm({ item, isDarkMode, onCancel }) {
     try {
       setIsSubmitting(true);
       
-      // Create the inspection report data
+      // Create the inspection report data that matches the security rules
       const reportData = {
         itemId: item.id,
         itemName: item.name,
-        inspectedBy: {
-          uid: user?.uid || '',
-          email: user?.email || '',
-          displayName: user?.displayName || ''
-        },
+        inspectorId: user?.uid || '',
+        inspectorEmail: user?.email || '',
+        inspectorName: user?.displayName || '',
         timestamp: serverTimestamp(),
-        inspection: {
+        inspectionResults: {
           ...checkboxes,
           notes: notes.trim()
         },
