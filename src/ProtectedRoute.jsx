@@ -166,7 +166,7 @@ function ProtectedRoute({ children, requiredRole, requiredAction }) {
       <ErrorBoundary>
         {' '}
         {/* Wrap children with ErrorBoundary for error handling within protected routes */}
-        {typeof children === 'function' ? children({ user, role }) : children} {/* If children is a function, pass auth context */}
+        {children} {/* Render the component(s) for the matched protected route */}
       </ErrorBoundary>
     );
   }

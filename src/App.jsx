@@ -249,7 +249,7 @@ function App() {
               path="/scan-qr"
               element={
                 <ProtectedRoute requiredRole="user" requiredAction="view_inventory">
-                  {auth => <QRScanner role={auth.role} />}
+                  <QRScanner />
                 </ProtectedRoute>
               }
             />

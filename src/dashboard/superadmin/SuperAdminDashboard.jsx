@@ -101,7 +101,7 @@ function SuperAdminDashboard() {
               path="scan"
               element={
                 <ProtectedRoute requiredAction="view_inventory"> {/* Or a more specific action */}
-                  <QRScanner isInDashboard={true} role={role} />
+                  <QRScanner isInDashboard={true} />
                 </ProtectedRoute>
               }
             />

@@ -271,7 +271,7 @@ function UserDashboard() {
         <Routes>
           <Route path="/" element={renderDashboard()} />
           <Route path="inventory" element={<Inventory isInDashboard={true} />} />          <Route path="my-requests" element={<MyRequests isInDashboard={true} />} />
-          <Route path="scan" element={<QRScanner isInDashboard={true} role={role} />} />
+          <Route path="scan" element={<QRScanner isInDashboard={true} />} />
           <Route path="*" element={<Navigate to="/user-dashboard" replace />} />
         </Routes>
       </ErrorBoundary>

@@ -5,6 +5,11 @@ export const hasPermission = (userRole, requiredRole) => {
 };
 
 export const canPerformAction = (userRole, action) => {
+  // If userRole is undefined or null, return false
+  if (!userRole) {
+    console.warn(`Role check failed: No user role provided for ${action} check`);
+    return false;
+  }
   return ACTION_PERMISSIONS[action]?.includes(userRole) || false;
 };
 
@@ -13,7 +18,8 @@ export const canGenerateQR = (userRole) => {
 };
 
 export const canScanQR = (userRole) => {
-  return canPerformAction(userRole, 'scan_qr_codes');
+  const hasPermission = canPerformAction(userRole, 'scan_qr_codes');
+  return hasPermission;
 };
 
 export const canPerformInspection = (userRole) => {

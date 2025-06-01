@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth';
 import { canScanQR, canPerformInspection } from '../utils/roleUtils'; 
 import { parseQrScanResult, getQrErrorMessage } from '../utils/qrUtils';
 import { toast } from 'react-toastify';
@@ -12,8 +13,9 @@ import InspectionForm from './inventory/details/InspectionForm';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-function QRScanner({ isInDashboard = false, role }) {
+function QRScanner({ isInDashboard = false, role: propRole }) {
   const { isDarkMode } = useTheme();
+  const { role: contextRole } = useAuth();
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
@@ -27,8 +29,14 @@ function QRScanner({ isInDashboard = false, role }) {
   const [isLoadingItem, setIsLoadingItem] = useState(false);
   const scannerRef = useRef(null);
   const videoStreamRef = useRef(null);
-  const canScan = canScanQR(role); 
-  const canInspect = canPerformInspection(role);
+  // Use the role from props if provided, otherwise use the one from context
+  const effectiveRole = propRole || contextRole;
+  
+  // Ensure we have a valid role - default to 'user' if no role is available but only in development
+  const safeRole = effectiveRole || (process.env.NODE_ENV === 'development' ? 'user' : null);
+  
+  const canScan = safeRole ? canScanQR(safeRole) : false;
+  const canInspect = safeRole ? canPerformInspection(safeRole) : false;
 
   // Detect if user is on a mobile device
   useEffect(() => {
@@ -248,7 +256,7 @@ function QRScanner({ isInDashboard = false, role }) {
           toast.success('QR code scanned successfully!');
           
           // If in inspection mode (admin/superadmin in dashboard), fetch item data immediately
-          const isInspectionMode = (role === 'admin' || role === 'superadmin') && isInDashboard && canInspect;
+          const isInspectionMode = (safeRole === 'admin' || safeRole === 'superadmin') && isInDashboard && canInspect;
           
           if (isInspectionMode) {
             const item = await fetchItemData(parsedData.itemId);
@@ -269,7 +277,7 @@ function QRScanner({ isInDashboard = false, role }) {
           toast.success('Legacy QR code scanned successfully!');
           
           // Similar logic for legacy QR codes
-          const isInspectionMode = (role === 'admin' || role === 'superadmin') && isInDashboard && canInspect;
+          const isInspectionMode = (safeRole === 'admin' || safeRole === 'superadmin') && isInDashboard && canInspect;
           
           if (isInspectionMode) {
             const item = await fetchItemData(parsedData.itemId);
@@ -292,7 +300,7 @@ function QRScanner({ isInDashboard = false, role }) {
     } catch (err) {
       handleScanError(err);
     }
-  }, [handleScanError, navigateToItem, fetchItemData, role, isInDashboard, canInspect]);
+  }, [handleScanError, navigateToItem, fetchItemData, safeRole, isInDashboard, canInspect]);
 
   // Handle file uploads for QR code scanning
   const handleFileUpload = useCallback(async (e) => {
@@ -453,17 +461,16 @@ function QRScanner({ isInDashboard = false, role }) {
   const handleBack = useCallback(() => {
     if (isInDashboard) {
       // Navigate back to the correct dashboard based on role
-      if (role === 'admin') {
+      if (safeRole === 'admin') {
         navigate('/admin-dashboard', { replace: true });
-      } else if (role === 'superadmin') {
+      } else if (safeRole === 'superadmin') {
         navigate('/superadmin-dashboard', { replace: true });
       } else {
-        navigate('/user-dashboard', { replace: true }); // Default or user role
-      }
+        navigate('/user-dashboard', { replace: true });      }
     } else {
       navigate(-1);
     }
-  }, [navigate, isInDashboard, role]);
+  }, [navigate, isInDashboard, safeRole]);
 
   // Clean up camera resources when component unmounts or scanning stops
   useEffect(() => {
@@ -502,11 +509,14 @@ function QRScanner({ isInDashboard = false, role }) {
       }
     }
   }, [scanning]);
-  
-  // Make sure we have permissions
-  if (!canScan && !error) { // Added !error to prevent overwriting existing errors
-    setError('You do not have permission to scan QR codes. Please contact your administrator.');
-  }
+    // Make sure we have permissions
+  useEffect(() => {
+    // Only show the error if we're not still loading and we have valid auth context
+    if (!canScan && !error && contextRole !== null) {
+      console.error(`Permission denied for QR scanning with role: ${safeRole}`);
+      setError(`You do not have permission to scan QR codes. Please contact your administrator.`);
+    }
+  }, [canScan, error, safeRole, contextRole]);
 
   if (loadingComponent) {
     return (
@@ -517,7 +527,7 @@ function QRScanner({ isInDashboard = false, role }) {
   }
 
   // Determine if this is an inspection view
-  const isInspectionView = (role === 'admin' || role === 'superadmin') && isInDashboard;
+  const isInspectionView = (safeRole === 'admin' || safeRole === 'superadmin') && isInDashboard;
 
   return (
     <div className={`flex flex-col items-center justify-center p-4 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-black'} ${isInDashboard ? 'h-full' : 'min-h-screen'}`}>
@@ -537,12 +547,21 @@ function QRScanner({ isInDashboard = false, role }) {
         >
           Back
         </Button>
-      )}
-
-      {/* Error Display */}
+      )}      {/* Error Display */}
       {error && (
         <div className="w-full max-w-md p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
           <span className="font-medium">Error:</span> {error}
+          {error && error.includes("permission") && (
+            <div className="mt-2 p-2 border border-red-300 rounded text-xs">
+              <p>Debug info (please screenshot and report this):</p>
+              <pre className="whitespace-pre-wrap break-all">
+                Role props: {JSON.stringify(propRole)}
+                Role context: {JSON.stringify(contextRole)}
+                Effective: {JSON.stringify(effectiveRole)}
+                Safe: {JSON.stringify(safeRole)}
+              </pre>
+            </div>
+          )}
         </div>
       )}
 
@@ -551,7 +570,7 @@ function QRScanner({ isInDashboard = false, role }) {
         <div className="w-full max-w-md p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
           <span className="font-medium">Scan Result:</span> {scanResult}
         </div>
-      )}      {/* Scanner Component or Start Button */}
+      )}{/* Scanner Component or Start Button */}
       {!scanning && !scanResult && ( // Show start button regardless of camera ready state
         <Button 
           onClick={startScanning} 

@@ -283,7 +283,7 @@ const AdminDashboard = () => {
               path="scan"
               element={
                 <ProtectedRoute requiredAction="view_inventory">
-                  <QRScanner isInDashboard={true} role={role} />
+                  <QRScanner isInDashboard={true} />
                 </ProtectedRoute>
               }
             />
