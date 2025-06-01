@@ -514,7 +514,7 @@ function QRScanner({ isInDashboard = false, role: propRole }) {
     // Only show the error if we're not still loading and we have valid auth context
     if (!canScan && !error && contextRole !== null) {
       console.error(`Permission denied for QR scanning with role: ${safeRole}`);
-      setError(`You do not have permission to scan QR codes. Please contact your administrator.`);
+      setError('You do not have permission to scan QR codes. Please contact your administrator.');
     }
   }, [canScan, error, safeRole, contextRole]);
 
@@ -551,7 +551,7 @@ function QRScanner({ isInDashboard = false, role: propRole }) {
       {error && (
         <div className="w-full max-w-md p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
           <span className="font-medium">Error:</span> {error}
-          {error && error.includes("permission") && (
+          {error && error.includes('permission') && (
             <div className="mt-2 p-2 border border-red-300 rounded text-xs">
               <p>Debug info (please screenshot and report this):</p>
               <pre className="whitespace-pre-wrap break-all">

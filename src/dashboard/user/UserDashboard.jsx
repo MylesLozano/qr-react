@@ -12,7 +12,6 @@ import QRScanner from '../../components/QRScanner';
 import Inventory from '../Inventory';
 import MyRequests from './MyRequests';
 import BaseDashboard from '../BaseDashboard';
-import { useAuth } from '../../hooks/useAuth';
 
 /**
  * UserDashboard component - Main dashboard for regular users
@@ -22,7 +21,6 @@ import { useAuth } from '../../hooks/useAuth';
 function UserDashboard() {
   usePageTitle('QCheckCITE - User Dashboard');
   const { isDarkMode } = useTheme();
-  const { role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [inventoryCount, setInventoryCount] = useState(0);
